@@ -1,11 +1,11 @@
 import React from "react";
-import "./index.css"; 
-import Header from '../Components/header';
+import Image from "next/image";
+import Header from "../../components/common/header/header";
 
-function About() {
+export default function page() {
   return (
     <div className="flex flex-col min-h-screen bg-blue-50">
-      <Header/>
+      <Header />
       <section className="flex justify-center flex-grow">
         <div className="text-center text-gray-800">
           <h1 className="mt-20 text-5xl font-bold">
@@ -16,11 +16,13 @@ function About() {
             incredible story? With Storybook, it's easier than ever to <br />
             bring your ideas to life and share them with the world.
           </p>
-          <img
-            src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/641136bc6a7d952cde9efd34_Plot%20screen.png"
+          {/* <Image
+            src="/../../assets/images/story_dropdown.png"
             className="relative w-3/5 h-auto mx-auto"
             alt="Plot screen"
-          />
+            width={800}
+            height={600}
+          /> */}
           <div className="text-center text-gray-800 ">
             <h1 className="text-3xl font-bold">
               Follow These Simple Steps to <br /> Create Your Own Unique Tale
@@ -30,14 +32,16 @@ function About() {
             <div className="w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
               <p className="text-lg text-gray-600">
                 Select the type of story you want to create. Whether you want a
-                comic book format or a children's storybook, we've got you
-                covered.
+                comic book format or a children&apos;s storybook, we&apos;ve got
+                you covered.
               </p>
-              <img
+              {/* <Image
                 src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/64113bcae6edb188d824a4bc_select%20story%20dropdown.png"
                 className="relative w-4/6 h-auto mx-auto"
                 alt="select type of story"
-              />
+                width={800}
+                height={600}
+              /> */}
             </div>
             <div className="w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
               <p className="text-gray-600">
@@ -45,11 +49,13 @@ function About() {
                 tailor the writing style, genre, and language to ensure your
                 story is appropriate for your target audience.
               </p>
-              <img
+              {/* <Image
                 src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/64113d2f7ebe605b9d34d429_age%20range%20dropdown.png"
                 className="relative w-4/6 h-auto mx-auto"
                 alt="age range"
-              />
+                width={800}
+                height={600}
+              /> */}
             </div>
             <div className="w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
               <p className="text-lg text-gray-600">
@@ -57,11 +63,13 @@ function About() {
                 reader's attention, so choose something that's catchy and
                 memorable.
               </p>
-              <img
+              {/* <Image
                 src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/64113f9d8fed60ebc89e7652_title%20bar.png"
                 className="relative w-4/6 h-auto mx-auto mt-5"
                 alt="select type of story"
-              />
+                width={800}
+                height={600}
+              /> */}
             </div>
             <div className="w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
               <p className="text-gray-600">
@@ -70,12 +78,13 @@ function About() {
                 descriptive as possible, and don't be afraid to add twists and
                 turns to keep your readers on the edge of their seats.
               </p>
-
-              <img
+              {/* <Image
                 src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/64113f9dc9faa5d41c9609a8_plot%20bar.png"
                 className="relative w-4/6 h-auto mx-auto"
                 alt="age range"
-              />
+                width={800}
+                height={600}
+              /> */}
             </div>
           </div>
         </div>
@@ -102,10 +111,12 @@ function About() {
         </div>
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
-            {/* <img
+            {/* <Image
               src="path/to/your/image.png"
               alt="Storybook Logo"
               className="w-12 h-12"
+              width={48}
+              height={48}
             /> */}
             <span className="text-gray-600">Copyright ©2024 Loreloom</span>
           </div>
@@ -139,5 +150,3 @@ function About() {
     </div>
   );
 }
-
-export default About;

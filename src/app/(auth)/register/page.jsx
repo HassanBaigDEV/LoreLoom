@@ -1,7 +1,7 @@
 import React from "react";
 import "../index.css"; // Ensure this imports the Tailwind CSS file
 
-function Signup() {
+export default function page() {
   return (
     <div className="flex h-screen">
       <div className="relative w-3/6">
@@ -108,5 +108,3 @@ function Signup() {
     </div>
   );
 }
-
-export default Signup;

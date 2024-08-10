@@ -1,11 +1,10 @@
 import React from "react";
-import "../index.css";
-import Header from "../Components/header3";
+import Header from "../../components/common/header/header3";
 
-function Login() {
+export default function page() {
   return (
     <div className="bg-gray-100 App">
-      <Header/>
+      <Header />
       <main className="py-6">
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="grid grid-cols-6 gap-6 mt-32">
@@ -194,5 +193,3 @@ function Login() {
     </div>
   );
 }
-
-export default Login;

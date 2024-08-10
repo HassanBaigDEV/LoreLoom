@@ -1,9 +1,7 @@
 import React from "react";
-import "../index.css";
-import Header from "../Components/header2";
-import Footer from "../Components/footer2";
-
-function Home() {
+import Header from "../../components/common/header/header";
+// import Footer from "../../Components/common/footer/footer";
+export default function page() {
   return (
     <>
       <div className="flex flex-col min-h-screen">
@@ -238,9 +236,7 @@ function Home() {
           </div>
         </div>
       </div>
-      <Footer />
+      {/* <Footer /> */}
     </>
   );
 }
-
-export default Home;
