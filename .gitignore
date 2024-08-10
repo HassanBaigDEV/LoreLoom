@@ -1,3 +1,8 @@
+__pycache__
+.venv/
+.env
+.mypy_cache/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
