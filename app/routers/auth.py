@@ -158,14 +158,14 @@ from random import randbytes
 from bson.objectid import ObjectId
 from fastapi import APIRouter, Request, Response, status, Depends, HTTPException
 from pydantic import EmailStr
-from authlib.jose import JsonWebToken, jwt
-
-from app import oauth2
-from app.database import User
-from app.email import Email
+from authlib.jose import JsonWebToken, jwt  # type: ignore
+from app.utils import oauth2
+from app.config.database import User
+from app.utils.email import Email
 from app.serializers.userSerializers import userEntity
-from .. import schemas, utils
-from ..config import settings
+from ..schemas import user
+from ..utils import utils
+from ..config.config import settings
 import base64
 from fastapi import Request
 
@@ -181,7 +181,7 @@ jwt_instance = JsonWebToken(jwt_algorithms)
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def create_user(payload: schemas.CreateUserSchema, request: Request):
+async def create_user(payload: user.CreateUserSchema, request: Request):
     # Check if user already exists
     user = User.find_one({"email": payload.email.lower()})
     if user:
@@ -221,6 +221,13 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
             },
         )
 
+        # Check if request.client is not None
+        if request.client is None:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to determine client host",
+            )
+
         url = f"{request.url.scheme}://{request.client.host}:{request.url.port}/api/auth/verifyemail/{token.hex()}"
         await Email(
             userEntity(new_user), url, [EmailStr(payload.email)]
@@ -239,9 +246,8 @@ async def create_user(payload: schemas.CreateUserSchema, request: Request):
         "message": "Verification token successfully sent to your email",
     }
 
-
 @router.post("/login")
-def login(payload: schemas.LoginUserSchema, response: Response):
+def login(payload: user.LoginUserSchema, response: Response):
     # Check if the user exists
     db_user = User.find_one({"email": payload.email.lower()})
     if not db_user:

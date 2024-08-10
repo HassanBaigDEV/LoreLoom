@@ -8,8 +8,8 @@ from authlib.jose import jwt
 
 from app.serializers.userSerializers import userEntity
 
-from .database import User
-from .config import settings
+from ..config.database import User
+from ..config.config import settings
 
 private_key = base64.b64decode(settings.JWT_PRIVATE_KEY).decode("utf-8")
 public_key = base64.b64decode(settings.JWT_PUBLIC_KEY).decode("utf-8")

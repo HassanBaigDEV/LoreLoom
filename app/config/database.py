@@ -1,6 +1,6 @@
 from pymongo import mongo_client
 import pymongo
-from app.config import settings
+from app.config.config import settings
 
 client = mongo_client.MongoClient(settings.DATABASE_URL)
 print("Connected to MongoDB...")

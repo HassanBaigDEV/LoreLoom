@@ -1,7 +1,7 @@
 from typing import List
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr, BaseModel
-from .config import settings
+from ..config.config import settings
 from jinja2 import Environment, select_autoescape, PackageLoader
 
 
