@@ -2,7 +2,7 @@
 import React from "react";
 import HeroImage from "../../../components/register/heroSection";
 import Logo from "../../../components/common/logo";
-import SignupForm from "../../../components/register/SignupForm";
+import SignupForm from "@/components/register/SignupForm";
 import HelpButton from "../../../components/common/help";
 
 export default function Page() {
