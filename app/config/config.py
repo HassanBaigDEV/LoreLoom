@@ -1,25 +1,17 @@
-from pydantic import EmailStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from functools import lru_cache
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
-    MONGO_INITDB_DATABASE: str
+    MONGO_URI : str
+    JWT_SECRET: str 
+    SECRET_KEY: str
+    ALGORITHM: str
+    # JWT_ALGORITHM: str 
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    JWT_PUBLIC_KEY: str
-    JWT_PRIVATE_KEY: str
-    REFRESH_TOKEN_EXPIRES_IN: int
-    ACCESS_TOKEN_EXPIRES_IN: int
-    JWT_ALGORITHM: str
+    # allow extra fields
+    model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
-    CLIENT_ORIGIN: str
-
-    EMAIL_HOST: str
-    EMAIL_PORT: int
-    EMAIL_USERNAME: str
-    EMAIL_PASSWORD: str
-    EMAIL_FROM: EmailStr
-    model_config = SettingsConfigDict(env_file="./.env", extra="ignore")
-
-
-settings = Settings()
+@lru_cache
+def get_settings():
+    return Settings()
