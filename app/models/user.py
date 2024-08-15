@@ -1,12 +1,15 @@
-from pydantic import BaseModel
+# app/auth/models.py
+from pydantic import BaseModel, EmailStr
 
 class User(BaseModel):
-    _id : str | None = None
-    username: str
-    email: str | None = None
-    full_name: str | None = None
-    disabled: bool | None = None
+    first_name: str
+    last_name: str
+    username:str
+    email: EmailStr
+    # hashed_password: str
+    is_active: bool = True
+    is_verified: bool = False
 
-
-class UserInDB(User):
+class CreateUser(User):
     hashed_password: str
+    pass

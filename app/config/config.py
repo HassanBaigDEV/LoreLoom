@@ -8,10 +8,13 @@ class Settings(BaseSettings):
     ALGORITHM: str
     # JWT_ALGORITHM: str 
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    REFRESH_TOKEN_EXPIRE_MINUTES: int
 
     # allow extra fields
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 
 @lru_cache
 def get_settings():
-    return Settings()
+    return Settings() # type: ignore
+
+settings = get_settings()

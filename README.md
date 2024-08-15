@@ -15,5 +15,6 @@ This project is a REST API built using FastAPI and MongoDB.
 3. Run the server:
 
    ```bash
-   uvicorn app.main:app --reload
+   <!-- uvicorn app.app:app --reload -->
+   python main.py
    ```
