@@ -1,7 +1,6 @@
 from app.config.config import *
 from motor.motor_asyncio import AsyncIOMotorClient
-
-
+from functools import lru_cache
 
 settings = get_settings()
 
