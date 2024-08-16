@@ -10,8 +10,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_MINUTES: int
 
+    MAILTRAP_USERNAME: str
+    MAILTRAP_PASSWORD: str
+    MAILTRAP_SMTP_SERVER: str
+    MAILTRAP_PORT: int
+    EMAIL_FROM: str
+    EMAIL_VERIFICATION_URL: str
     # allow extra fields
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
+
 
 @lru_cache
 def get_settings():
