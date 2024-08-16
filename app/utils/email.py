@@ -14,9 +14,35 @@ def send_verification_email(email_to: str, token: str):
     message["Subject"] = "Verify Your Email"
 
     body = f"""
-    <p>Welcome! Please click the link below to verify your email:</p>
-    <p><a href="{verification_url}">Verify Email</a></p>
-    <p>If you did not sign up for this account, please ignore this email.</p>
+    <p>Hi,</p>
+    <p>
+    Thanks for creating an account with us. Please verify your email address by
+    clicking the button below.
+    </p>
+    <table
+    role="presentation"
+    border="0"
+    cellpadding="0"
+    cellspacing="0"
+    class="btn btn-primary"
+    >
+    <tbody>
+        <tr>
+        <td align="left">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+            <tbody>
+                <tr>
+                <td>
+                    <a href="{verification_url}" target="_blank">Verify email address</a>
+                </td>
+                </tr>
+            </tbody>
+            </table>
+        </td>
+        </tr>
+    </tbody>
+    </table>
+    <p>Good luck! Hope it works.</p>
     """
     message.attach(MIMEText(body, "html"))
 
