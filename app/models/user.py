@@ -11,6 +11,7 @@ class User(BaseModel):
     is_active: bool = True
     is_verified: bool = False
     role: str = "user"
+    
 
 
 class CreateUser(User):

@@ -55,3 +55,28 @@ def send_verification_email(email_to: str, token: str):
             print("Verification email sent!")
     except Exception as e:
         print(f"Error sending email: {e}")
+
+
+def send_password_reset_email(email_to: str, token: str):
+    reset_url = f"{settings.PASSWORD_RESET_URL}/{token}"
+    message = MIMEMultipart()
+    message["From"] = settings.EMAIL_FROM
+    message["To"] = email_to
+    message["Subject"] = "Password Reset Request"
+
+    body = f"""
+    <p>Click the link below to reset your password:</p>
+    <p><a href="{reset_url}">Reset Password</a></p>
+    <p>If you did not request a password reset, please ignore this email.</p>
+    """
+    message.attach(MIMEText(body, "html"))
+
+    try:
+        with smtplib.SMTP(
+            settings.MAILTRAP_SMTP_SERVER, settings.MAILTRAP_PORT
+        ) as server:
+            server.login(settings.MAILTRAP_USERNAME, settings.MAILTRAP_PASSWORD)
+            server.sendmail(settings.EMAIL_FROM, email_to, message.as_string())
+            print("Password reset email sent!")
+    except Exception as e:
+        print(f"Error sending email: {e}")

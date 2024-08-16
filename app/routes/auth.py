@@ -1,6 +1,7 @@
 # app/auth/auth_router.py
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import EmailStr
+from datetime import datetime
+
 from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.jwt_handler import (
     create_access_token,
@@ -13,13 +14,18 @@ from app.utils.security import hash_password, verify_password
 from app.config.database import db
 from bson import ObjectId
 from app.utils.email import *
-from app.serializers.userSerializers import userEntity
-from app.auth.jwt_handler import create_verification_token, decode_token
+from app.models.auth import ResetPasswordRequest
+from app.auth.jwt_handler import (
+    create_verification_token,
+    decode_token,
+    create_password_reset_token,
+)
 
 
 auth_router = APIRouter()
 
 users_collection = db["users"]
+password_resets_collection = db["password_resets"]
 
 
 @auth_router.post("/register")
@@ -116,3 +122,42 @@ async def verify_email(token: str):
     await users_collection.update_one({"_id": user_id}, {"$set": {"is_verified": True}})
 
     return {"message": "Email successfully verified!"}
+
+
+@auth_router.post("/request-password-reset")
+async def request_password_reset(email: str):
+    user = await users_collection.find_one({"email": email})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    reset_token = await create_password_reset_token(user["_id"])
+    send_password_reset_email(email, reset_token)
+
+    return {"message": "Password reset email sent! Please check your inbox."}
+
+
+@auth_router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest):
+    token_entry = await password_resets_collection.find_one({"token": request.token})
+    if not token_entry or token_entry["used"]:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    if datetime.now() > token_entry["expires_at"]:
+        raise HTTPException(status_code=400, detail="Token has expired")
+
+    user_id = token_entry["user_id"]
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    hashed_password = hash_password(request.new_password)
+    await users_collection.update_one(
+        {"_id": ObjectId(user_id)}, {"$set": {"hashed_password": hashed_password}}
+    )
+
+    # Mark token as used
+    await password_resets_collection.update_one(
+        {"token": request.token}, {"$set": {"used": True}}
+    )
+
+    return {"message": "Password successfully reset!"}
