@@ -3,7 +3,7 @@ from functools import lru_cache
 
 class Settings(BaseSettings):
     MONGO_URI : str
-    JWT_SECRET: str 
+    # JWT_SECRET: str 
     SECRET_KEY: str
     ALGORITHM: str
     # JWT_ALGORITHM: str 
