@@ -3,7 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-from app.config.config import settings
+from app.config.settings import settings
 
 
 def send_verification_email(email_to: str, token: str):

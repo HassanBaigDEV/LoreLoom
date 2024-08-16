@@ -20,12 +20,15 @@ from app.auth.jwt_handler import (
     decode_token,
     create_password_reset_token,
 )
+# from app.app import limiter
+from app.config.settings import oauth2_scheme
 
 
 auth_router = APIRouter()
 
 users_collection = db["users"]
 password_resets_collection = db["password_resets"]
+blacklisted_tokens_collection = db["blacklisted_tokens"]
 
 
 @auth_router.post("/register")
@@ -125,6 +128,7 @@ async def verify_email(token: str):
 
 
 @auth_router.post("/request-password-reset")
+# @limiter.limit("5/minute")
 async def request_password_reset(email: str):
     user = await users_collection.find_one({"email": email})
     if not user:
@@ -161,3 +165,13 @@ async def reset_password(request: ResetPasswordRequest):
     )
 
     return {"message": "Password successfully reset!"}
+
+
+@auth_router.post("/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    # Blacklist the refresh token (and optionally the access token)
+    await blacklisted_tokens_collection.insert_one(
+        {"token": token, "blacklisted_at": datetime.now()}
+    )
+
+    return {"message": "Successfully logged out"}

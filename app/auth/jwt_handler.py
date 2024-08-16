@@ -1,13 +1,16 @@
 # app/auth/jwt_handler.py
 from datetime import datetime, timedelta
 import uuid
+from fastapi import HTTPException, Depends
 from typing import Union
 from jose import JWTError, jwt
-from app.config.config import settings
+from app.config.settings import settings, oauth2_scheme
 from app.config.database import db
 
 
 password_resets_collection = db["password_resets"]
+blacklisted_tokens_collection = db["blacklisted_tokens"]
+users_collection = db["users"]
 
 
 def create_access_token(data: dict):
@@ -38,6 +41,22 @@ def decode_token(token: str):
         return payload
     except JWTError:
         return None
+
+
+async def verify_token(token: str = Depends(oauth2_scheme)):
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Check if the token is blacklisted
+    if await blacklisted_tokens_collection.find_one({"token": token}):
+        raise HTTPException(status_code=401, detail="Token has been blacklisted")
+    # Proceed with other checks (e.g., user existence, expiration)
+    user_id = payload["sub"]
+    user = await users_collection.find_one({"_id": user_id})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return payload
 
 
 def verify_refresh_token(refresh_token: str):
