@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from app.auth.jwt_handler import verify_token
 from app.config.settings import oauth2_scheme
+from app.models.user import Role
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -34,3 +35,27 @@ async def get_current_verified_user(current_user: dict = Depends(get_current_use
     if current_user["is_verified"] and current_user["is_active"]:
         return current_user
     raise HTTPException(status_code=400, detail="Unverified user")
+
+
+def require_role(required_role: Role):
+    def role_checker(current_user: dict = Depends(get_current_user)):
+        if current_user["role"] != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have the required role to access this resource",
+            )
+        return current_user
+
+    return role_checker
+
+
+def require_roles(*required_roles: Role):
+    def role_checker(current_user: dict = Depends(get_current_user)):
+        if current_user["role"] not in required_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have the required role to access this resource",
+            )
+        return current_user
+
+    return role_checker

@@ -1,5 +1,11 @@
 # app/auth/models.py
 from pydantic import BaseModel, EmailStr
+from enum import Enum
+
+
+class Role(str, Enum):
+    ADMIN = "admin"
+    USER = "user"
 
 
 class User(BaseModel):
@@ -10,8 +16,7 @@ class User(BaseModel):
     # hashed_password: str
     is_active: bool = True
     is_verified: bool = False
-    role: str = "user"
-    
+    role: Role = Role.USER
 
 
 class CreateUser(User):
