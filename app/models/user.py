@@ -1,5 +1,6 @@
 # app/auth/models.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, HttpUrl
+from typing import Optional
 from enum import Enum
 
 
@@ -16,6 +17,7 @@ class User(BaseModel):
     # hashed_password: str
     is_active: bool = True
     is_verified: bool = False
+    photo: Optional[HttpUrl] = None
     role: Role = Role.USER
 
 

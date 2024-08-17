@@ -4,10 +4,13 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from app.auth.jwt_handler import verify_token
 from app.config.settings import oauth2_scheme
-from app.models.user import Role
+from app.models.user import Role, User
+from typing import Union
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -15,7 +18,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         # payload = decode_token(token)
-        payload = verify_token(token)
+        payload = await verify_token(token)
         if not payload:
             raise credentials_exception
     except JWTError:
