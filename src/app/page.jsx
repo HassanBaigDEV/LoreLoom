@@ -1,7 +1,7 @@
 // pages/index.js
 import React from "react";
 import Header from "../components/home/header";
-import Hero from "../components/home/Section";
+import Hero from "../components/home/section";
 import FeatureSection from "../components/home/feature";
 import PricingSection from "../components/home/pricing";
 import Footer from "../components/home/footer";

@@ -52,9 +52,10 @@ export default function Feedback() {
             <h2 className="mb-4 text-xl font-semibold text-gray-700">Give feedback to StoryBook</h2>
             <select className="w-full p-2 mb-4 text-gray-700 border rounded-lg">
               <option>Choose which area we can improve</option>
-              <option>UI/UX Design</option>
-              <option>Performance</option>
-              <option>Content</option>
+              <option>Story Generation</option>
+              <option>User Interface</option>
+              <option>Account</option>
+              <option>Others</option>
             </select>
             <textarea
               className="w-full p-2 mb-4 border rounded-lg"

@@ -19,7 +19,7 @@ export default function CreateStory() {
   const ageOptions = ["3-5 years", "6-8 years", "9-12 years", "13+ years"];
 
   return (
-    <div className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-8 bg-gray-200">
       <h1 className="mt-32 mb-8 text-4xl font-semibold text-gray-800 text-bold">
         Create Story
       </h1>

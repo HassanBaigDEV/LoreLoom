@@ -4,7 +4,7 @@ import StoryIcon from "@/assets/images/story.svg";
 
 export default function Stories() {
   return (
-    <div className="mt-8">
+    <div className="mt-8 mb-48">
       <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
         <StoryIcon className="h-8 mr-2 w-9" />
         Stories

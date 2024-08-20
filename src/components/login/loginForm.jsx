@@ -34,7 +34,7 @@ export default function LoginForm() {
         Sign In
       </button>
       <p className="text-center text-gray-700">
-        Don't have an account?{" "}
+        Don't have an account?
         <a href="/auth/register" className="text-blue-600 hover:underline">
           Sign Up
         </a>

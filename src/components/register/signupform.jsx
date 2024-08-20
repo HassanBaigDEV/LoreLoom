@@ -49,11 +49,11 @@ export default function SignupForm() {
       />
 
       <p className="mb-4 text-sm text-center text-gray-700">
-        By signing up, I agree to the{" "}
+        By signing up, I agree to the
         <a href="#" className="text-blue-600 hover:underline">
           Privacy Policy <br />
-        </a>{" "}
-        and the{" "}
+        </a>
+        and the
         <a href="#" className="text-blue-600 hover:underline">
           Terms and Conditions
         </a>
