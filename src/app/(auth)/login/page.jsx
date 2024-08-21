@@ -1,7 +1,8 @@
+"use client";
 import React from "react";
-import Logo from "../../../components/common/logo";
-import LoginForm from "../../../components/login/loginForm";
-import HeroSection from "../../../components/login/heroSection";
+import Logo from "@/components/common/logo";
+import LoginForm from "@/components/login/loginForm";
+import HeroSection from "@/components/login/heroSection";
 
 export default function Page() {
   return (
