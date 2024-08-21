@@ -6,7 +6,7 @@ export async function middleware(request) {
   // check if the user is authenticated
   const accessToken = await getToken("accessToken");
   if (!accessToken) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // return NextResponse.redirect(new URL("/login", request.url)); // commented for development
   }
   // return NextResponse.redirect(new URL("/dashboard", request.url));
 }
