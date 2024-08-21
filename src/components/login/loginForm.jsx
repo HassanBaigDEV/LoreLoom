@@ -33,7 +33,7 @@ export default function LoginForm() {
     if (response.status === 200) {
       const data = await response.json();
       console.log("Login successful:", data);
-      router.push("/");
+      router.push("/dashboard");
     } else {
       console.error("Sign in failed", await response.json());
     }

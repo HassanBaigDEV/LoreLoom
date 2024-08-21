@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
+import { getToken } from "@/lib/axios";
+
 // This function can be marked `async` if using `await` inside
-const middleware = () => {
-  // console.log("middleware is running!");
+export async function middleware(request) {
+  // check if the user is authenticated
+  const accessToken = await getToken("accessToken");
+  if (!accessToken) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  // return NextResponse.redirect(new URL("/dashboard", request.url));
+}
 
-  // return NextResponse.json(request)
+// See "Matching Paths" below to learn more
+export const config = {
+  // matcher: "/dashboard",
 };
-
-export { middleware };

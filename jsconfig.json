@@ -7,6 +7,6 @@
     "jsx": "preserve",
     "allowJs": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "middleware.js"],
   "exclude": ["node_modules"]
 }

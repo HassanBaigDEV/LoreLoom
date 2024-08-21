@@ -44,20 +44,26 @@ export async function POST(request) {
   //   return NextResponse.json({ error: "Login failed" }, { status: 400 });
   // }
 
-  const seralized = serialize("accessToken", accessToken, {
+  const accessTokenCookie = serialize("accessToken", accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     maxAge: MAX_AGE,
     path: "/",
   });
-  // const seralized = serialize("accessToken", accessToken, {
-  //   httpOnly: true,
-  //   secure: process.env.NODE_ENV === "production",
-  //   sameSite: "strict",
-  //   maxAge: MAX_AGE,
-  //   path: "/",
-  // });
+
+  const refreshTokenCookie = serialize("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    maxAge: MAX_AGE,
+    path: "/",
+  });
+
+  // Combine the cookies into a single string
+  const headers = new Headers();
+  headers.append("Set-Cookie", accessTokenCookie);
+  headers.append("Set-Cookie", refreshTokenCookie);
   const response = {
     message: "Authenticated!",
     accessToken,
@@ -66,6 +72,6 @@ export async function POST(request) {
 
   return new Response(JSON.stringify(response), {
     status: 200,
-    headers: { "Set-Cookie": seralized },
+    headers
   });
 }
