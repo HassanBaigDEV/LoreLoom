@@ -5,6 +5,7 @@ from app.routes.auth import auth_router
 from app.routes.user import user_router
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # from fastapi import BackgroundTasks
@@ -18,10 +19,20 @@ from slowapi.util import get_remote_address
 #         {"expires_at": {"$lt": datetime.utcnow()}}
 #     )
 
+
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI()
 app.state.limiter = limiter
+
+# add cors configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include auth routes
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])

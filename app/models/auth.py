@@ -12,3 +12,12 @@ class TokenData(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+class LoginModel(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    accessToken: str
+    refreshToken: str

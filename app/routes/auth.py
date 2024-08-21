@@ -1,6 +1,7 @@
 # app/auth/auth_router.py
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, Response, HTTPException, status, Request
 from datetime import datetime
+from pydantic import BaseModel, EmailStr
 
 from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.jwt_handler import (
@@ -20,8 +21,10 @@ from app.auth.jwt_handler import (
     decode_token,
     create_password_reset_token,
 )
+
 # from app.app import limiter
 from app.config.settings import oauth2_scheme
+from app.models.auth import LoginModel, TokenResponse
 
 
 auth_router = APIRouter()
@@ -68,8 +71,9 @@ async def register(user: CreateUser, request: Request):
     }
 
 
-@auth_router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@auth_router.post("/login", response_model=TokenResponse)
+async def login(form_data: LoginModel):
+    print(form_data.username)
     user = await users_collection.find_one({"email": form_data.username})
     if not user or not verify_password(form_data.password, user["hashed_password"]):
         raise HTTPException(
@@ -81,12 +85,36 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     access_token = create_access_token(data={"sub": user["_id"]})
     refresh_token = create_refresh_token(data={"sub": user["_id"]})
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user_id": user["_id"],
-        "token_type": "bearer",
-    }
+    return TokenResponse(accessToken=access_token, refreshToken=refresh_token)
+    # return {
+    #     "access_token": access_token,
+    #     "refresh_token": refresh_token,
+    #     "user_id": user["_id"],
+    #     "token_type": "bearer",
+    # }
+
+
+# @auth_router.post("/login")
+# async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+#     print(form_data.username)
+#     user = await users_collection.find_one({"email": form_data.username})
+#     if not user or not verify_password(form_data.password, user["hashed_password"]):
+#         raise HTTPException(
+#             status_code=status.HTTP_401_UNAUTHORIZED,
+#             detail="Invalid credentials",
+#             headers={"WWW-Authenticate": "Bearer"},
+#         )
+
+#     access_token = create_access_token(data={"sub": user["_id"]})
+#     refresh_token = create_refresh_token(data={"sub": user["_id"]})
+
+#     # return TokenResponse(accessToken=access_token, refreshToken=refresh_token)
+#     return {
+#         "access_token": access_token,
+#         "refresh_token": refresh_token,
+#         "user_id": user["_id"],
+#         "token_type": "bearer",
+#     }
 
 
 @auth_router.post("/refresh")
@@ -101,8 +129,9 @@ async def refresh_token(refresh_token: str):
 
     # Create a new access token
     access_token = create_access_token(data={"sub": payload["sub"]})
+    refresh_token = create_refresh_token(data={"sub": payload["sub"]})
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
 @auth_router.get("/verifyemail/{token}")
