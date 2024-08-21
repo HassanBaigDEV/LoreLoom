@@ -6,12 +6,11 @@ export async function middleware(request) {
   // check if the user is authenticated
   const accessToken = await getToken("accessToken");
   if (!accessToken) {
-    // return NextResponse.redirect(new URL("/login", request.url)); // commented for development
+    return NextResponse.redirect(new URL("/login", request.url)); // Redirect to login page if not authenticated
   }
-  // return NextResponse.redirect(new URL("/dashboard", request.url));
 }
 
 // See "Matching Paths" below to learn more
 export const config = {
-  // matcher: "/dashboard",
+  matcher:["/dashboard", "/Usettings","/generator"], // Array of strings or regular expressions
 };

@@ -1,82 +1,169 @@
 "use client";
 
 import React, { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Formik, Form } from "formik";
+import * as Yup from "yup";
+import {
+  TextField,
+  Button,
+  Typography,
+  Box,
+  Link,
+  CircularProgress,
+} from "@mui/material";
+import { withStyles } from "@mui/styles";
+
+const Text = withStyles({
+  root: {
+    color: "#000",
+  },
+})(Typography);
 
 export default function LoginForm() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    // const result = await signIn("credentials", {
-    //   redirect: false,
-    //   email,
-    //   password,
-    //   // callbackUrl: "/",
-    // });
-    const payload = {
-      email,
-      password,
-    };
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-    console.log("Login response:", response.data);
+  const initialValues = {
+    email: "",
+    password: "",
+  };
 
-    if (response.status === 200) {
-      const data = await response.json();
-      console.log("Login successful:", data);
-      router.push("/dashboard");
-    } else {
-      console.error("Sign in failed", await response.json());
+  const validationSchema = Yup.object({
+    email: Yup.string()
+      .email("Please enter a valid email address.")
+      .required("Email is required."),
+    password: Yup.string()
+      .required("Password is required.")
+      .min(8, "Password should be of minimum 8 characters length"),
+  });
+
+  const handleSubmit = async (values, { setSubmitting }) => {
+    setError("");
+    setSubmitting(true);
+
+    const payload = {
+      email: values.email,
+      password: values.password,
+    };
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 200) {
+        const data = await response.json();
+        console.log("Login successful:", data);
+        router.push("/dashboard");
+      } else {
+        const errorData = await response.json();
+        setError(errorData.message || "Sign in failed. Please try again.");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      console.error("Login error:", err);
+    } finally {
+      setSubmitting(false);
     }
   };
+
   return (
-    <form className="w-full max-w-xs" onSubmit={handleSubmit}>
-      <label htmlFor="email" className="block mb-1 font-bold text-gray-700">
-        Email
-      </label>
-      <input
-        type="email"
-        id="email"
-        name="email"
-        value={email}
-        placeholder="Email"
-        onChange={(e) => setEmail(e.target.value)}
-        className="w-full text-black p-2 mb-4 border border-gray-300 rounded"
-      />
-      <label htmlFor="password" className="block mb-1 font-bold text-gray-700">
-        Password
-      </label>
-      <input
-        type="password"
-        id="password"
-        name="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Password"
-        className="w-full text-black p-2 mb-4 border border-gray-300 rounded"
-      />
-      <a href="#" className="block mb-4 text-sm text-blue-600 hover:underline">
-        Forgot your password?
-      </a>
-      <button
-        type="submit"
-        className="w-full p-1 mb-4 text-white bg-green-500 rounded"
-      >
+    <Box
+      sx={{
+        maxWidth: 400,
+        mx: "auto",
+        p: 4,
+        // bgcolor: "background.paper",
+        boxShadow: 2,
+        borderRadius: 2,
+      }}
+    >
+      <Text variant="h4" component="h2" gutterBottom textAlign="center">
         Sign In
-      </button>
-      <p className="text-center text-gray-700">
-        Don't have an account?{" "}
-        <a className="text-blue-600 hover:underline">Sign Up</a>
-      </p>
-    </form>
+      </Text>
+
+      {error && (
+        <Text color="error" textAlign="center" gutterBottom>
+          {error}
+        </Text>
+      )}
+
+      <Formik
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        onSubmit={handleSubmit}
+      >
+        {({
+          values,
+          errors,
+          touched,
+          handleChange,
+          handleBlur,
+          isSubmitting,
+        }) => (
+          <Form noValidate autoComplete="off">
+            <TextField
+              fullWidth
+              id="email"
+              name="email"
+              label="Email"
+              value={values.email}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.email && Boolean(errors.email)}
+              helperText={touched.email && errors.email}
+              margin="normal"
+              variant="outlined"
+              autoComplete="off"
+            />
+
+            <TextField
+              fullWidth
+              id="password"
+              name="password"
+              label="Password"
+              type="password"
+              value={values.password}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              error={touched.password && Boolean(errors.password)}
+              helperText={touched.password && errors.password}
+              margin="normal"
+              variant="outlined"
+            />
+
+            <Box textAlign="right" my={2}>
+              <Link href="/forgot-password" underline="hover">
+                Forgot your password?
+              </Link>
+            </Box>
+
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={isSubmitting}
+              startIcon={isSubmitting && <CircularProgress size={20} />}
+              sx={{ mb: 2 }}
+            >
+              {isSubmitting ? "Signing In..." : "Sign In"}
+            </Button>
+          </Form>
+        )}
+      </Formik>
+
+      <Text textAlign="center">
+        Don’t have an account?{" "}
+        <Link href="/register" underline="hover" color="primary">
+          Sign Up
+        </Link>
+      </Text>
+    </Box>
   );
 }
