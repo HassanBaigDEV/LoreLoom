@@ -33,7 +33,6 @@ async def get_current_active_user(current_user: dict = Depends(get_current_user)
         return current_user
     raise HTTPException(status_code=400, detail="Inactive user")
 
-
 async def get_current_verified_user(current_user: dict = Depends(get_current_user)):
     if current_user["is_verified"] and current_user["is_active"]:
         return current_user

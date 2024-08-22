@@ -11,7 +11,7 @@ This project is a REST API built using FastAPI and MongoDB.
 
 2. Activate the virtual environment and install dependencies:
    ```bash
-   venv/Scripts/Activate.psl
+   venv/Scripts/Activate.ps1
    pip install -r requirements.txt
    ```
 3. Run the server:

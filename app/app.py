@@ -42,3 +42,4 @@ app.include_router(user_router, prefix="/user", tags=["User"])
 @app.get("/protected-route")
 async def protected_route(user: dict = Depends(get_current_user)):
     return {"message": f"Hello, user with ID {user['sub']}!"}
+
