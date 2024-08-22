@@ -17,7 +17,7 @@ class User(BaseModel):
     # hashed_password: str
     is_active: bool = True
     is_verified: bool = False
-    photo: Optional[HttpUrl] = None
+    photo: Optional[str] = None
     role: Role = Role.USER
 
 
