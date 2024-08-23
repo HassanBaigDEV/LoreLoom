@@ -79,8 +79,8 @@ export default function LoginForm() {
         mx: "auto",
         p: 4,
         // bgcolor: "background.paper",
-        boxShadow: 2,
-        borderRadius: 2,
+        // boxShadow: 2,
+        // borderRadius: 2,
       }}
     >
       <Text variant="h4" component="h2" gutterBottom textAlign="center">

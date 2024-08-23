@@ -7,7 +7,7 @@ import HeroSection from "@/components/login/heroSection";
 export default function Page() {
   return (
     <div className="flex h-screen">
-      <div className="flex flex-col items-center justify-center w-2/5 p-8 bg-blue-50">
+      <div className="flex flex-col items-center justify-center w-3/5 p-8 bg-blue-50">
         <Logo />
         <LoginForm />
       </div>

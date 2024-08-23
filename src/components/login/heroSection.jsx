@@ -4,7 +4,7 @@ import signup from "../../assets/images/signup.png";
 
 export default function HeroSection() {
   return (
-    <div className="relative w-3/5">
+    <div className="relative w-2/5 sm:block hidden">
       <Image
         src={signup}
         alt="Login"

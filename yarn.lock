@@ -2097,6 +2097,13 @@ formik@^2.4.6:
     tiny-warning "^1.0.2"
     tslib "^2.0.0"
 
+framer-motion@^11.3.29:
+  version "11.3.29"
+  resolved "https://registry.yarnpkg.com/framer-motion/-/framer-motion-11.3.29.tgz#5ec10a350b89789d43ea7d9c6bde45b28470f196"
+  integrity sha512-uyDuUOeOElJEA3kbkbyoTNEf75Jih1EUg0ouLKYMlGDdt/LaJPmO+FyOGAGxM2HwKhHcAoKFNveR5A8peb7yhw==
+  dependencies:
+    tslib "^2.4.0"
+
 fsevents@~2.3.2:
   version "2.3.3"
   resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.3.tgz#cac6407785d03675a2a5e1a5305c697b347d90d6"
