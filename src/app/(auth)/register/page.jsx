@@ -14,7 +14,7 @@ export default function Page() {
         {/* <Logo /> */}
         <SignupForm />
       </div>
-      <HelpButton />
+      {/* <HelpButton /> */}
     </div>
   );
 }

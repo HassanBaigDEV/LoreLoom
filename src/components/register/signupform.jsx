@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Formik, Form } from "formik";
+import { Formik, Form, ErrorMessage } from "formik";
 import * as Yup from "yup";
 import {
   TextField,
@@ -55,10 +55,22 @@ export default function SignUpForm() {
     password: Yup.string()
       .required("Password is required.")
       .min(8, "Password should be of minimum 8 characters length"),
+    // .matches(
+    //   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    //   "Must Contain 8 Characters, One Uppercase, One Lowercase, One Number and one special case Character"
+    // ),
+    username: Yup.string()
+      .required("Username is required.")
+      .min(5, "Username should be of minimum 5 characters length"),
+    firstName: Yup.string()
+      .required("First Name is required.")
+      .min(2, "First Name should be of minimum 2 characters length"),
+    lastName: Yup.string()
+      .required("Last Name is required.")
+      .min(2, "Last Name should be of minimum 2 characters length"),
   });
 
   const handleSubmit = async (values, { setSubmitting }) => {
-    setError("");
     setSubmitting(true);
 
     const payload = {
@@ -70,7 +82,7 @@ export default function SignUpForm() {
     };
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch("http://localhost:8081/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,10 +93,10 @@ export default function SignUpForm() {
       if (response.status === 200) {
         const data = await response.json();
         console.log("Login successful:", data);
-        router.push("/dashboard");
+        // router.push("/dashboard");
       } else {
         const errorData = await response.json();
-        setError(errorData.message || "Sign in failed. Please try again.");
+        setError(errorData.message || "Sign Up failed. Please try again.");
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
@@ -105,20 +117,10 @@ export default function SignUpForm() {
         // borderRadius: 2,
       }}
     >
-      <Text weight={600} size={30} style={{ color: "#4F4F4F" }}>
-        Welcome Back !
+      <Text weight={600} size={24} style={{ color: "#4F4F4F", width: "100%" }}>
+        Welcome to the Community!
       </Text>
 
-      {/* <Text
-        style={{
-          fontStyle: "normal",
-          fontWeight: 400,
-          fontSize: 14,
-          color: "#4F4F4F",
-        }}
-      >
-        Hi there! Welcome to Our App
-      </Text> */}
       <Text
         style={{
           fontStyle: "italic",
@@ -129,14 +131,10 @@ export default function SignUpForm() {
           marginTop: 5,
         }}
       >
-        Please enter your
+        Please enter your details to Sign Up
       </Text>
 
-      {error && (
-        <Text color="error" textAlign="center" gutterBottom>
-          {error}
-        </Text>
-      )}
+      {error && <Text color="error">{error}</Text>}
 
       <Formik
         initialValues={initialValues}
@@ -161,7 +159,7 @@ export default function SignUpForm() {
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.username && Boolean(errors.username)}
-              helperText={touched.username && errors.email}
+              helperText={touched.username && errors.username}
               margin="normal"
               variant="outlined"
               autoComplete="off"
@@ -294,7 +292,7 @@ export default function SignUpForm() {
         )}
       </Formik>
 
-      <Text textAlign="center">
+      <Text>
         Already have an account?{"     "}
         <Link
           href="/login"

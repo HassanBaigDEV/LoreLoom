@@ -129,7 +129,7 @@ export default function LoginForm() {
       </Text>
 
       {error && (
-        <Text color="error" textAlign="center" gutterBottom>
+        <Text color="error" style={{ textAlign: "center" }} gutterBottom>
           {error}
         </Text>
       )}
