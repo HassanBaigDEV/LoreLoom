@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import token from "../../assets/images/STBK-token.png";
+import token from "@/assets/images/STBK-token.png";
 import StoryIcon from "@/assets/images/story.svg";
 
 export default function Statistics() {

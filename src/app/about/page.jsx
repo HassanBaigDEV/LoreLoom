@@ -1,8 +1,8 @@
 import React from "react";
-import Header from "../../components/about/header";
-import HeroSection from "../../components/about/heroSection";
-import StepsSection from "../../components/about/stepSection";
-import Footer from "../../components/about/footer";
+import Header from "@/components/about/header";
+import HeroSection from "@/components/about/heroSection";
+import StepsSection from "@/components/about/stepSection";
+import Footer from "@/components/about/footer";
 
 export default function Page() {
   return (

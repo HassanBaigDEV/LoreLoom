@@ -11,22 +11,40 @@ import {
   Box,
   Link,
   CircularProgress,
+  OutlinedInput,
 } from "@mui/material";
 import { withStyles } from "@mui/styles";
+import Text from "@/components/common/Text";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
 
-const Text = withStyles({
-  root: {
-    color: "#000",
+import { createTheme } from "@mui/material/styles";
+
+const theme = createTheme({
+  palette: {
+    loading: {
+      primary: "#FFF",
+    },
   },
-})(Typography);
+});
 
 export default function LoginForm() {
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
   const router = useRouter();
 
   const initialValues = {
     email: "",
     password: "",
+  };
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
   };
 
   const validationSchema = Yup.object({
@@ -83,8 +101,31 @@ export default function LoginForm() {
         // borderRadius: 2,
       }}
     >
-      <Text variant="h4" component="h2" gutterBottom textAlign="center">
-        Sign In
+      <Text weight={600} size={30} style={{ color: "#4F4F4F" }}>
+        Welcome Back !
+      </Text>
+
+      {/* <Text
+        style={{
+          fontStyle: "normal",
+          fontWeight: 400,
+          fontSize: 14,
+          color: "#4F4F4F",
+        }}
+      >
+        Hi there! Welcome to Our App
+      </Text> */}
+      <Text
+        style={{
+          fontStyle: "italic",
+          fontWeight: 400,
+          color: "#808080",
+          fontSize: 14,
+          marginBottom: 20,
+          marginTop: 5,
+        }}
+      >
+        Please enter your Email and Password to Login
       </Text>
 
       {error && (
@@ -120,25 +161,54 @@ export default function LoginForm() {
               margin="normal"
               variant="outlined"
               autoComplete="off"
+              InputLabelProps={{ shrink: true }}
             />
 
-            <TextField
-              fullWidth
-              id="password"
-              name="password"
-              label="Password"
-              type="password"
-              value={values.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.password && Boolean(errors.password)}
-              helperText={touched.password && errors.password}
-              margin="normal"
-              variant="outlined"
-            />
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <InputLabel htmlFor="outlined-adornment-password">
+                Password
+              </InputLabel>
+              <OutlinedInput
+                fullWidth
+                id="outlined-adornment-password"
+                name="password"
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                value={values.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.password && Boolean(errors.password)}
+                helperText={touched.password && errors.password}
+                margin="normal"
+                variant="outlined"
+                // InputLabelProps={{ shrink: true }}
+                endAdornment={
+                  <InputAdornment
+                    position="end"
+                    sx={{ cursor: "pointer" }}
+                    style={{ backgroundColor: "transparent" }}
+                    variant="standard"
+                  >
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                      edge="end"
+                      style={{ backgroundColor: "transparent" }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              />
+            </FormControl>
 
             <Box textAlign="right" my={2}>
-              <Link href="/forgot-password" underline="hover">
+              <Link
+                href="/forgot-password"
+                underline="disable"
+                style={{ color: "rgba(255, 0, 0, 0.7)", fontSize: 12 }}
+              >
                 Forgot your password?
               </Link>
             </Box>
@@ -147,9 +217,14 @@ export default function LoginForm() {
               fullWidth
               variant="contained"
               color="primary"
+              style={{ backgroundColor: "rgb(34 197 94)" }}
               type="submit"
               disabled={isSubmitting}
-              startIcon={isSubmitting && <CircularProgress size={20} />}
+              startIcon={
+                isSubmitting && (
+                  <CircularProgress size={20} style={{ color: "#fff" }} />
+                )
+              }
               sx={{ mb: 2 }}
             >
               {isSubmitting ? "Signing In..." : "Sign In"}
@@ -159,11 +234,22 @@ export default function LoginForm() {
       </Formik>
 
       <Text textAlign="center">
-        Don’t have an account?{" "}
-        <Link href="/register" underline="hover" color="primary">
+        Don’t have an account?{"     "}
+        <Link
+          href="/register"
+          underline="disable"
+          color="primary"
+          style={{ marginLeft: 5 }}
+        >
           Sign Up
         </Link>
       </Text>
+      {/* show error */}
+      {error && (
+        <Typography color="error" variant="body2" align="center">
+          {error}
+        </Typography>
+      )}
     </Box>
   );
 }

@@ -52,14 +52,15 @@ export default function SubscriptionPage() {
         <hr className="mb-8" />
         <div className="grid grid-cols-3 gap-8 mt-4 mb-16">
           {plans.map((plan, index) => (
-                      <PlanCard
-                        key={index}
-                        title={plan.title}
-                        img={plan.img}
-                        price={plan.price}
-                        features={plan.features}
-                        current={plan.current}
-                      />          ))}
+            <PlanCard
+              key={index}
+              title={plan.title}
+              img={plan.img}
+              price={plan.price}
+              features={plan.features}
+              current={plan.current}
+            />
+          ))}
         </div>
         <h2 className="mb-4 text-2xl font-bold text-gray-800">Pay as you go</h2>
         <p className="mb-8 text-lg text-gray-800">

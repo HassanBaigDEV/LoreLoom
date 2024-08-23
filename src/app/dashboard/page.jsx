@@ -1,13 +1,13 @@
 "use client";
 import React from "react";
-import DashboardOverview from "../../components/dashboard/overview";
-import Statistics from "../../components/dashboard/stat";
-import Feedback from "../../components/dashboard/feedback";
-import Notifications from "../../components/dashboard/notification";
-import Header from "../../components/common/header";
-import Stories from "../../components/dashboard/stories";
-import HelpButton from "../../components/common/help";
-import Footer from "../../components/common/footer";
+import DashboardOverview from "@/components/dashboard/overview";
+import Statistics from "@/components/dashboard/stat";
+import Feedback from "@/components/dashboard/feedback";
+import Notifications from "@/components/dashboard/notification";
+import Header from "@/components/common/header";
+import Stories from "@/components/dashboard/stories";
+import HelpButton from "@/components/common/help";
+import Footer from "@/components/common/footer";
 
 export default function Page() {
   return (

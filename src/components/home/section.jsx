@@ -1,7 +1,7 @@
 // components/Hero.js
 import React from "react";
 import Image from "next/image";
-import cover from "../../assets/images/seilala-cover.png";
+import cover from "@/assets/images/seilala-cover.png";
 
 export default function Hero() {
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import {
@@ -9,41 +10,51 @@ import {
   Typography,
   Box,
   Link,
-  FormControlLabel,
-  Checkbox,
+  CircularProgress,
+  OutlinedInput,
+  Grid,
+  FormControl,
+  InputLabel,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
-import CircularProgress from "@mui/material/CircularProgress";
+import { withStyles } from "@mui/styles";
+import Text from "@/components/common/Text";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
-export default function RegisterForm() {
+import { createTheme } from "@mui/material/styles";
+
+const theme = createTheme({
+  palette: {
+    loading: {
+      primary: "#FFF",
+    },
+  },
+});
+
+export default function SignUpForm() {
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  const router = useRouter();
 
   const initialValues = {
-    username: "",
-    fullName: "",
     email: "",
     password: "",
-    agreeToTerms: false,
+  };
+  const handleMouseDownPassword = (event) => {
+    event.preventDefault();
   };
 
   const validationSchema = Yup.object({
-    username: Yup.string()
-      .min(3, "Username should be at least 3 characters long")
-      .required("Username is required"),
-    firstName: Yup.string()
-      .min(2, "First name should be at least 2 characters long")
-      .required("First name is required"),
-    lastName: Yup.string()
-      .min(2, "Last name should be at least 2 characters long")
-      .required("Last name is required"),
     email: Yup.string()
-      .email("Please enter a valid email address")
-      .required("Email is required"),
+      .email("Please enter a valid email address.")
+      .required("Email is required."),
     password: Yup.string()
-      .min(8, "Password should be at least 8 characters long")
-      .required("Password is required"),
-    agreeToTerms: Yup.bool()
-      .oneOf([true], "You must agree to the Privacy Policy and Terms")
-      .required("Agreement is required"),
+      .required("Password is required.")
+      .min(8, "Password should be of minimum 8 characters length"),
   });
 
   const handleSubmit = async (values, { setSubmitting }) => {
@@ -51,10 +62,11 @@ export default function RegisterForm() {
     setSubmitting(true);
 
     const payload = {
-      username: values.username,
-      fullName: values.fullName,
       email: values.email,
       password: values.password,
+      username: values.username,
+      first_name: values.firstName,
+      last_name: values.lastName,
     };
 
     try {
@@ -67,15 +79,16 @@ export default function RegisterForm() {
       });
 
       if (response.status === 200) {
-        console.log("Registration successful");
-        // Redirect to the next step, such as login page
+        const data = await response.json();
+        console.log("Login successful:", data);
+        router.push("/dashboard");
       } else {
         const errorData = await response.json();
-        setError(errorData.message || "Registration failed. Please try again.");
+        setError(errorData.message || "Sign in failed. Please try again.");
       }
     } catch (err) {
       setError("An unexpected error occurred. Please try again.");
-      console.error("Registration error:", err);
+      console.error("Login error:", err);
     } finally {
       setSubmitting(false);
     }
@@ -87,16 +100,42 @@ export default function RegisterForm() {
         maxWidth: 400,
         mx: "auto",
         p: 4,
+        // bgcolor: "background.paper",
+        // boxShadow: 2,
+        // borderRadius: 2,
       }}
     >
-      <Typography variant="h4" component="h2" gutterBottom textAlign="center">
-        Sign Up
-      </Typography>
+      <Text weight={600} size={30} style={{ color: "#4F4F4F" }}>
+        Welcome Back !
+      </Text>
+
+      {/* <Text
+        style={{
+          fontStyle: "normal",
+          fontWeight: 400,
+          fontSize: 14,
+          color: "#4F4F4F",
+        }}
+      >
+        Hi there! Welcome to Our App
+      </Text> */}
+      <Text
+        style={{
+          fontStyle: "italic",
+          fontWeight: 400,
+          color: "#808080",
+          fontSize: 14,
+          marginBottom: 20,
+          marginTop: 5,
+        }}
+      >
+        Please enter your
+      </Text>
 
       {error && (
-        <Typography color="error" textAlign="center" gutterBottom>
+        <Text color="error" textAlign="center" gutterBottom>
           {error}
-        </Typography>
+        </Text>
       )}
 
       <Formik
@@ -112,7 +151,7 @@ export default function RegisterForm() {
           handleBlur,
           isSubmitting,
         }) => (
-          <Form noValidate>
+          <Form noValidate autoComplete="off">
             <TextField
               fullWidth
               id="username"
@@ -122,44 +161,59 @@ export default function RegisterForm() {
               onChange={handleChange}
               onBlur={handleBlur}
               error={touched.username && Boolean(errors.username)}
-              helperText={touched.username && errors.username}
+              helperText={touched.username && errors.email}
               margin="normal"
               variant="outlined"
+              autoComplete="off"
+              // InputLabelProps={{ shrink: true }}
             />
-
-            <TextField
-              fullWidth
-              id="firstName"
-              name="firstName"
-              label="First Name"
-              value={values.fullName}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.firstName && Boolean(errors.firstName)}
-              helperText={touched.firstName && errors.firstName}
-              margin="normal"
-              variant="outlined"
-            />
-            <TextField
-              fullWidth
-              id="lastName"
-              name="lastName"
-              label="Last Name"
-              value={values.lastName}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.lastName && Boolean(errors.lastName)}
-              helperText={touched.lastName && errors.lastName}
-              margin="normal"
-              variant="outlined"
-            />
-
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <FormControl sx={{ width: "100%" }} variant="outlined">
+                    <InputLabel htmlFor="firstName">First Name</InputLabel>
+                    <OutlinedInput
+                      id="firstName"
+                      name="firstName"
+                      label="First Name"
+                      type="text"
+                      value={values.firstName}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      error={touched.firstName && Boolean(errors.firstName)}
+                      helperText={touched.firstName && errors.firstName}
+                      margin="normal"
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <FormControl sx={{ width: "100%" }} variant="outlined">
+                    <InputLabel htmlFor="lastName">Last Name</InputLabel>
+                    <OutlinedInput
+                      id="lastName"
+                      name="lastName"
+                      label="Last Name"
+                      type="text"
+                      value={values.lastName}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      error={touched.lastName && Boolean(errors.lastName)}
+                      helperText={touched.lastName && errors.lastName}
+                      margin="normal"
+                      variant="outlined"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </FormControl>
             <TextField
               fullWidth
               id="email"
               name="email"
               label="Email"
-              type="email"
               value={values.email}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -167,55 +221,71 @@ export default function RegisterForm() {
               helperText={touched.email && errors.email}
               margin="normal"
               variant="outlined"
+              autoComplete="off"
+              // InputLabelProps={{ shrink: true }}
             />
 
-            <TextField
-              fullWidth
-              id="password"
-              name="password"
-              label="Password"
-              type="password"
-              value={values.password}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.password && Boolean(errors.password)}
-              helperText={touched.password && errors.password}
-              margin="normal"
-              variant="outlined"
-            />
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <InputLabel htmlFor="outlined-adornment-password">
+                Password
+              </InputLabel>
+              <OutlinedInput
+                fullWidth
+                id="outlined-adornment-password"
+                name="password"
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                value={values.password}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.password && Boolean(errors.password)}
+                helperText={touched.password && errors.password}
+                margin="normal"
+                variant="outlined"
+                InputLabelProps={{ shrink: true }}
+                endAdornment={
+                  <InputAdornment
+                    position="end"
+                    sx={{ cursor: "pointer" }}
+                    style={{ backgroundColor: "transparent" }}
+                    variant="standard"
+                  >
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={handleClickShowPassword}
+                      onMouseDown={handleMouseDownPassword}
+                      edge="end"
+                      style={{ backgroundColor: "transparent" }}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                }
+              />
+            </FormControl>
 
-            <FormControlLabel
-              control={
-                <Checkbox
-                  id="agreeToTerms"
-                  name="agreeToTerms"
-                  checked={values.agreeToTerms}
-                  onChange={handleChange}
-                  color="primary"
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  By signing up, I agree to the{" "}
-                  <Link href="#" underline="hover">
-                    Privacy Policy
-                  </Link>{" "}
-                  and the{" "}
-                  <Link href="#" underline="hover">
-                    Terms and Conditions
-                  </Link>
-                  .
-                </Typography>
-              }
-            />
+            <Box textAlign="right" my={2}>
+              <Link
+                href="/forgot-password"
+                underline="disable"
+                style={{ color: "rgba(255, 0, 0, 0.7)", fontSize: 12 }}
+              >
+                Forgot your password?
+              </Link>
+            </Box>
 
             <Button
               fullWidth
               variant="contained"
               color="primary"
+              style={{ backgroundColor: "rgb(34 197 94)" }}
               type="submit"
               disabled={isSubmitting}
-              startIcon={isSubmitting && <CircularProgress size={20} />}
+              startIcon={
+                isSubmitting && (
+                  <CircularProgress size={20} style={{ color: "#fff" }} />
+                )
+              }
               sx={{ mb: 2 }}
             >
               {isSubmitting ? "Signing Up..." : "Sign Up"}
@@ -224,12 +294,23 @@ export default function RegisterForm() {
         )}
       </Formik>
 
-      <Typography textAlign="center">
-        Already have an account?{" "}
-        <Link href="/login" underline="hover" color="primary">
+      <Text textAlign="center">
+        Already have an account?{"     "}
+        <Link
+          href="/login"
+          underline="disable"
+          color="primary"
+          style={{ marginLeft: 5 }}
+        >
           Sign In
         </Link>
-      </Typography>
+      </Text>
+      {/* show error */}
+      {error && (
+        <Typography color="error" variant="body2" align="center">
+          {error}
+        </Typography>
+      )}
     </Box>
   );
 }

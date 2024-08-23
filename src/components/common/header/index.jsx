@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation"; 
-import user from "../../assets/images/avatar.png";
+import user from "@/assets/images/avatar.png";
 
 export default function Header() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(false);
