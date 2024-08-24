@@ -33,7 +33,7 @@ export default function Feedback() {
             </p>
           </div>
           <img
-            src="https://d1muf25xaso8hp.cloudfront.net/https%3A%2F%2Fd7613c8cdf83a077fbf660c61bfb62e3.cdn.bubble.io%2Ff1716340871093x646031830035817900%2Ffeedback-icon.png?w=128&h=128&auto=compress&dpr=0.75&fit=max"
+            src="https://d1muf25xaso8hp.cloudfront.net/https%3A%2F%2Fd7613c8cdf83a077fbf660c61bfb62e3.cdn.bubble.io%2Ff1716340871093x646031830035817900%2Ffeedback-icon.webp?w=128&h=128&auto=compress&dpr=0.75&fit=max"
             alt="Feedback icon"
             className="w-3/6"
           />
@@ -49,7 +49,9 @@ export default function Feedback() {
             >
               &#10005;
             </button>
-            <h2 className="mb-4 text-xl font-semibold text-gray-700">Give feedback to StoryBook</h2>
+            <h2 className="mb-4 text-xl font-semibold text-gray-700">
+              Give feedback to StoryBook
+            </h2>
             <select className="w-full p-2 mb-4 text-gray-700 border rounded-lg">
               <option>Choose which area we can improve</option>
               <option>Story Generation</option>
@@ -63,11 +65,19 @@ export default function Feedback() {
               rows="4"
             ></textarea>
             <div className="p-2 mb-4 text-sm text-gray-700 bg-green-100 rounded-lg">
-              Let us know if you have ideas that can help make our products better.
+              Let us know if you have ideas that can help make our products
+              better.
             </div>
             <div className="flex justify-between">
-              <button className="text-blue-500 hover:underline" onClick={closeOverlay}>Cancel</button>
-              <button className="px-4 py-2 font-semibold text-white bg-gray-400 rounded-lg hover:bg-gray-500">Submit</button>
+              <button
+                className="text-blue-500 hover:underline"
+                onClick={closeOverlay}
+              >
+                Cancel
+              </button>
+              <button className="px-4 py-2 font-semibold text-white bg-gray-400 rounded-lg hover:bg-gray-500">
+                Submit
+              </button>
             </div>
           </div>
         </div>

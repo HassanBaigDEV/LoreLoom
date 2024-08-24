@@ -1,12 +1,12 @@
 // components/FeatureSection.js
 import React from "react";
 import Image from "next/image";
-import dash from "@/assets/images/Dashboardv2.png";
+import dash from "@/assets/images/Dashboardv2.webp";
 import Lightning from "@/assets/images/lightning.svg";
-import img1 from "@/assets/images/girlinspaceship.png";
-import img2 from "@/assets/images/girl-hiding-in-bushes.png";
-import img3 from "@/assets/images/mother-and-son-flying.png";
-import wave from "@/assets/images/Audio-wave.png";
+import img1 from "@/assets/images/girlinspaceship.webp";
+import img2 from "@/assets/images/girl-hiding-in-bushes.webp";
+import img3 from "@/assets/images/mother-and-son-flying.webp";
+import wave from "@/assets/images/Audio-wave.webp";
 
 export default function FeatureSection() {
   return (

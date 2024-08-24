@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import signup from "@/assets/images/signup.png";
+import signup from "@/assets/images/signup.webp";
 
 export default function HeroSection() {
   return (

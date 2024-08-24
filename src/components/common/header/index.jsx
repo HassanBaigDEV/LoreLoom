@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { useRouter, usePathname } from "next/navigation"; 
-import user from "@/assets/images/avatar.png";
+import { useRouter, usePathname } from "next/navigation";
+import user from "@/assets/images/avatar.webp";
 
 export default function Header() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(false);
@@ -23,8 +23,7 @@ export default function Header() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-white bg-opacity-75 border-b border-gray-300 rounded-b-lg backdrop-filter backdrop-blur-sm">
-      <div className="flex-1">
-      </div>
+      <div className="flex-1"></div>
       <div className="flex items-center justify-center flex-1 space-x-4">
         <a
           href="/dashboard"

@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import img from "@/assets/images/boyanddog.png";
+import img from "@/assets/images/boyanddog.webp";
 
 export default function Card() {
   return (

@@ -1,6 +1,6 @@
 import React from "react";
 import Paypal from "@/assets/images/pay.svg";
-import token from "@/assets/images/token.png";
+import token from "@/assets/images/token.webp";
 import Image from "next/image";
 
 export default function TokenCard({ tokens, price }) {

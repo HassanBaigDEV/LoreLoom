@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import user from "@/assets/images/git.png";
+import user from "@/assets/images/git.webp";
 
 const AccountSettings = () => {
   return (

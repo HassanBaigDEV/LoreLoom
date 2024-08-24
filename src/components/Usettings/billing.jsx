@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import cover from "@/assets/images/boyanddog.png";
+import cover from "@/assets/images/boyanddog.webp";
 
 const BillingSection = () => {
   return (

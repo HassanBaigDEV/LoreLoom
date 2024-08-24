@@ -1,9 +1,9 @@
 import React from "react";
 import Image from "next/image";
-import typeS from "@/assets/images/story_dropdown.png";
-import ageR from "@/assets/images/ageR.png";
-import titlebar from "@/assets/images/titlebar.png";
-import plotbar from "@/assets/images/plotbar.png";
+import typeS from "@/assets/images/story_dropdown.webp";
+import ageR from "@/assets/images/ageR.webp";
+import titlebar from "@/assets/images/titlebar.webp";
+import plotbar from "@/assets/images/plotbar.webp";
 
 export default function StepsSection() {
   return (

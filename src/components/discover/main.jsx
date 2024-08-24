@@ -1,7 +1,7 @@
 // components/MainContent.js
 import React from "react";
 import Image from "next/image";
-import cover from "@/assets/images/boyanddog.png";
+import cover from "@/assets/images/boyanddog.webp";
 import StoryIcon from "@/assets/images/story.svg"; // Import the SVG as a React component
 
 const MainContent = () => {
