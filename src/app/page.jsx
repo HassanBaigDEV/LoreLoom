@@ -1,5 +1,6 @@
 import Footer from "@/components/home/footer";
 import apiClient from "@/lib/axios";
+import Link from "next/link";
 
 export default async function page() {
   try {
@@ -28,12 +29,12 @@ export default async function page() {
             </a>
             <div className="flex items-center space-x-2">
               <div className="w-0.5 h-6 bg-gray-300"></div>
-              <a
-                href="/auth/login"
+              <Link
+                href="/login"
                 className="text-sm hover:underline bg-gray-800 text-white py-3 px-5 rounded font-['Arial', sans-serif]"
               >
                 GET STARTED FOR FREE
-              </a>
+              </Link>
             </div>
           </nav>
         </header>

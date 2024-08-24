@@ -4,16 +4,12 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
-import {
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Link,
-  CircularProgress,
-  OutlinedInput,
-} from "@mui/material";
-import { withStyles } from "@mui/styles";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Link from "@mui/material/Link";
+import CircularProgress from "@mui/material/CircularProgress";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import FormHelperText from "@mui/material/FormHelperText";
 import Text from "@/components/common/Text";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -91,11 +87,16 @@ export default function LoginForm() {
   };
 
   return (
-    <Box
-      sx={{
-        maxWidth: 400,
+    <div
+      style={{
+        width: "100%",
         mx: "auto",
         p: 4,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+
         // bgcolor: "background.paper",
         // boxShadow: 2,
         // borderRadius: 2,
@@ -148,21 +149,42 @@ export default function LoginForm() {
           isSubmitting,
         }) => (
           <Form noValidate autoComplete="off">
-            <TextField
-              fullWidth
-              id="email"
-              name="email"
-              label="Email"
-              value={values.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.email && Boolean(errors.email)}
-              helperText={touched.email && errors.email}
-              margin="normal"
-              variant="outlined"
-              autoComplete="off"
-              InputLabelProps={{ shrink: true }}
-            />
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <InputLabel
+                htmlFor="email"
+                sx={{
+                  color: Boolean(errors.email)
+                    ? "#f44336"
+                    : "rgba(0, 0, 0, 0.6)",
+                }}
+              >
+                Email
+              </InputLabel>
+
+              <OutlinedInput
+                fullWidth
+                id="email"
+                name="email"
+                label="Email"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.email && Boolean(errors.email)}
+                // helperText={touched.email && errors.email}
+                margin="normal"
+                variant="outlined"
+                autoComplete="off"
+                // InputLabelProps={{ shrink: true }}
+              />
+              <FormHelperText
+                id="outlined-adornment-password"
+                sx={{
+                  color: Boolean(errors.email) ? "#f44336" : "None",
+                }}
+              >
+                {errors.email}
+              </FormHelperText>
+            </FormControl>
 
             <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
               <InputLabel htmlFor="outlined-adornment-password">
@@ -178,7 +200,7 @@ export default function LoginForm() {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 error={touched.password && Boolean(errors.password)}
-                helperText={touched.password && errors.password}
+                // helperText={touched.password && errors.password}
                 margin="normal"
                 variant="outlined"
                 // InputLabelProps={{ shrink: true }}
@@ -201,9 +223,24 @@ export default function LoginForm() {
                   </InputAdornment>
                 }
               />
+              <FormHelperText
+                id="outlined-adornment-password"
+                sx={{
+                  color: Boolean(errors.password) ? "#f44336" : "None",
+                }}
+              >
+                {errors.password}
+              </FormHelperText>
             </FormControl>
 
-            <Box textAlign="right" my={2}>
+            <div
+              style={{
+                textAlign: "right",
+                marginTop: 2,
+                marginBottom: 7,
+                width: "100%",
+              }}
+            >
               <Link
                 href="/forgot-password"
                 underline="disable"
@@ -211,7 +248,7 @@ export default function LoginForm() {
               >
                 Forgot your password?
               </Link>
-            </Box>
+            </div>
 
             <Button
               fullWidth
@@ -238,8 +275,7 @@ export default function LoginForm() {
         <Link
           href="/register"
           underline="disable"
-          color="primary"
-          style={{ marginLeft: 5 }}
+          style={{ marginLeft: 5, color: "rgb(34 197 94)" }}
         >
           Sign Up
         </Link>
@@ -250,6 +286,6 @@ export default function LoginForm() {
           {error}
         </Typography>
       )}
-    </Box>
+    </div>
   );
 }

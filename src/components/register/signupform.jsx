@@ -1,24 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Formik, Form, ErrorMessage } from "formik";
 import * as Yup from "yup";
-import {
-  TextField,
-  Button,
-  Typography,
-  Box,
-  Link,
-  CircularProgress,
-  OutlinedInput,
-  Grid,
-  FormControl,
-  InputLabel,
-  InputAdornment,
-  IconButton,
-} from "@mui/material";
-import { withStyles } from "@mui/styles";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
+import CircularProgress from "@mui/material/CircularProgress";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Grid from "@mui/material/Grid";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
+import FormHelperText from "@mui/material/FormHelperText";
 import Text from "@/components/common/Text";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -33,44 +30,54 @@ const theme = createTheme({
   },
 });
 
-export default function SignUpForm() {
+const SignUpForm = React.memo(() => {
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = React.useState(false);
-  const handleClickShowPassword = () => setShowPassword((show) => !show);
+  const [showPassword, setShowPassword] = useState(false);
+  const handleClickShowPassword = useCallback(
+    () => setShowPassword((show) => !show),
+    []
+  );
 
   const router = useRouter();
 
-  const initialValues = {
-    email: "",
-    password: "",
-  };
-  const handleMouseDownPassword = (event) => {
+  const initialValues = useMemo(
+    () => ({
+      email: "",
+      password: "",
+      username: "",
+      firstName: "",
+      lastName: "",
+    }),
+    []
+  );
+
+  const handleMouseDownPassword = useCallback((event) => {
     event.preventDefault();
-  };
+  }, []);
 
-  const validationSchema = Yup.object({
-    email: Yup.string()
-      .email("Please enter a valid email address.")
-      .required("Email is required."),
-    password: Yup.string()
-      .required("Password is required.")
-      .min(8, "Password should be of minimum 8 characters length"),
-    // .matches(
-    //   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-    //   "Must Contain 8 Characters, One Uppercase, One Lowercase, One Number and one special case Character"
-    // ),
-    username: Yup.string()
-      .required("Username is required.")
-      .min(5, "Username should be of minimum 5 characters length"),
-    firstName: Yup.string()
-      .required("First Name is required.")
-      .min(2, "First Name should be of minimum 2 characters length"),
-    lastName: Yup.string()
-      .required("Last Name is required.")
-      .min(2, "Last Name should be of minimum 2 characters length"),
-  });
+  const validationSchema = useMemo(
+    () =>
+      Yup.object({
+        email: Yup.string()
+          .email("Please enter a valid email address.")
+          .required("Email is required."),
+        password: Yup.string()
+          .required("Password is required.")
+          .min(8, "Password should be of minimum 8 characters length"),
+        username: Yup.string()
+          .required("Username is required.")
+          .min(5, "Username should be of minimum 5 characters length"),
+        firstName: Yup.string()
+          .required("First Name is required.")
+          .min(2, "First Name should be of minimum 2 characters length"),
+        lastName: Yup.string()
+          .required("Last Name is required.")
+          .min(2, "Last Name should be of minimum 2 characters length"),
+      }),
+    []
+  );
 
-  const handleSubmit = async (values, { setSubmitting }) => {
+  const handleSubmit = useCallback(async (values, { setSubmitting }) => {
     setSubmitting(true);
 
     const payload = {
@@ -104,7 +111,7 @@ export default function SignUpForm() {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, []);
 
   return (
     <Box
@@ -112,9 +119,6 @@ export default function SignUpForm() {
         maxWidth: 400,
         mx: "auto",
         p: 4,
-        // bgcolor: "background.paper",
-        // boxShadow: 2,
-        // borderRadius: 2,
       }}
     >
       <Text weight={600} size={24} style={{ color: "#4F4F4F", width: "100%" }}>
@@ -150,26 +154,55 @@ export default function SignUpForm() {
           isSubmitting,
         }) => (
           <Form noValidate autoComplete="off">
-            <TextField
-              fullWidth
-              id="username"
-              name="username"
-              label="Username"
-              value={values.username}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.username && Boolean(errors.username)}
-              helperText={touched.username && errors.username}
-              margin="normal"
-              variant="outlined"
-              autoComplete="off"
-              // InputLabelProps={{ shrink: true }}
-            />
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <InputLabel
+                htmlFor="username"
+                sx={{
+                  color: Boolean(errors.username)
+                    ? "#f44336"
+                    : "rgba(0, 0, 0, 0.6)",
+                }}
+              >
+                Username
+              </InputLabel>
+              <OutlinedInput
+                fullWidth
+                id="username"
+                name="username"
+                label="Username"
+                value={values.username}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.username && Boolean(errors.username)}
+                helperText={touched.username && errors.username}
+                margin="normal"
+                variant="outlined"
+                autoComplete="off"
+              />
+              <FormHelperText
+                id="username-helper-text"
+                sx={{
+                  color: Boolean(errors.email) ? "#f44336" : "None",
+                }}
+              >
+                {" "}
+                {errors.username}
+              </FormHelperText>
+            </FormControl>
             <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <FormControl sx={{ width: "100%" }} variant="outlined">
-                    <InputLabel htmlFor="firstName">First Name</InputLabel>
+                    <InputLabel
+                      htmlFor="firstName"
+                      sx={{
+                        color: Boolean(errors.firstName)
+                          ? "#f44336"
+                          : "rgba(0, 0, 0, 0.6)",
+                      }}
+                    >
+                      First Name
+                    </InputLabel>
                     <OutlinedInput
                       id="firstName"
                       name="firstName"
@@ -184,11 +217,29 @@ export default function SignUpForm() {
                       variant="outlined"
                       InputLabelProps={{ shrink: true }}
                     />
+                    <FormHelperText
+                      id="firstName-helper-text"
+                      sx={{
+                        color: Boolean(errors.firstName) ? "#f44336" : "None",
+                      }}
+                    >
+                      {" "}
+                      {errors.firstName}{" "}
+                    </FormHelperText>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <FormControl sx={{ width: "100%" }} variant="outlined">
-                    <InputLabel htmlFor="lastName">Last Name</InputLabel>
+                    <InputLabel
+                      htmlFor="lastName"
+                      sx={{
+                        color: Boolean(errors.lastName)
+                          ? "#f44336"
+                          : "rgba(0, 0, 0, 0.6)",
+                      }}
+                    >
+                      Last Name
+                    </InputLabel>
                     <OutlinedInput
                       id="lastName"
                       name="lastName"
@@ -203,28 +254,64 @@ export default function SignUpForm() {
                       variant="outlined"
                       InputLabelProps={{ shrink: true }}
                     />
+                    <FormHelperText
+                      id="lastName-helper-text"
+                      sx={{
+                        color: Boolean(errors.lastName) ? "#f44336" : "None",
+                      }}
+                    >
+                      {" "}
+                      {errors.lastName}{" "}
+                    </FormHelperText>
                   </FormControl>
                 </Grid>
               </Grid>
             </FormControl>
-            <TextField
-              fullWidth
-              id="email"
-              name="email"
-              label="Email"
-              value={values.email}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              error={touched.email && Boolean(errors.email)}
-              helperText={touched.email && errors.email}
-              margin="normal"
-              variant="outlined"
-              autoComplete="off"
-              // InputLabelProps={{ shrink: true }}
-            />
+            <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
+              <InputLabel
+                htmlFor="email"
+                sx={{
+                  color: Boolean(errors.email)
+                    ? "#f44336"
+                    : "rgba(0, 0, 0, 0.6)",
+                }}
+              >
+                Email
+              </InputLabel>
+              <OutlinedInput
+                fullWidth
+                id="email"
+                name="email"
+                label="Email"
+                value={values.email}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                error={touched.email && Boolean(errors.email)}
+                helperText={touched.email && errors.email}
+                margin="normal"
+                variant="outlined"
+                autoComplete="off"
+              />
+              <FormHelperText
+                id="email-helper-text"
+                sx={{
+                  color: Boolean(errors.email) ? "#f44336" : "None",
+                }}
+              >
+                {" "}
+                {errors.email}{" "}
+              </FormHelperText>
+            </FormControl>
 
             <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
-              <InputLabel htmlFor="outlined-adornment-password">
+              <InputLabel
+                htmlFor="outlined-adornment-password"
+                sx={{
+                  color: Boolean(errors.password)
+                    ? "#f44336"
+                    : "rgba(0, 0, 0, 0.6)",
+                }}
+              >
                 Password
               </InputLabel>
               <OutlinedInput
@@ -260,6 +347,15 @@ export default function SignUpForm() {
                   </InputAdornment>
                 }
               />
+              <FormHelperText
+                id="password-helper-text"
+                sx={{
+                  color: Boolean(errors.password) ? "#f44336" : "None",
+                }}
+              >
+                {" "}
+                {errors.password}{" "}
+              </FormHelperText>
             </FormControl>
 
             <Box textAlign="right" my={2}>
@@ -298,12 +394,11 @@ export default function SignUpForm() {
           href="/login"
           underline="disable"
           color="primary"
-          style={{ marginLeft: 5 }}
+          style={{ marginLeft: 5, color: "rgb(34 197 94)" }}
         >
           Sign In
         </Link>
       </Text>
-      {/* show error */}
       {error && (
         <Typography color="error" variant="body2" align="center">
           {error}
@@ -311,4 +406,6 @@ export default function SignUpForm() {
       )}
     </Box>
   );
-}
+});
+
+export default SignUpForm;
