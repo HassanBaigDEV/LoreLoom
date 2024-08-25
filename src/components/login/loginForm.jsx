@@ -148,7 +148,17 @@ export default function LoginForm() {
           handleBlur,
           isSubmitting,
         }) => (
-          <Form noValidate autoComplete="off">
+          <Form
+            noValidate
+            autoComplete="off"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              width: 320,
+            }}
+          >
             <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
               <InputLabel
                 htmlFor="email"
@@ -156,6 +166,11 @@ export default function LoginForm() {
                   color: Boolean(errors.email)
                     ? "#f44336"
                     : "rgba(0, 0, 0, 0.6)",
+                  "&.Mui-focused": {
+                    color: Boolean(errors.email)
+                      ? "#f44336 !important"
+                      : "#1976d2 !important",
+                  },
                 }}
               >
                 Email
@@ -187,7 +202,19 @@ export default function LoginForm() {
             </FormControl>
 
             <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
-              <InputLabel htmlFor="outlined-adornment-password">
+              <InputLabel
+                htmlFor="outlined-adornment-password"
+                sx={{
+                  color: Boolean(errors.password)
+                    ? "#f44336"
+                    : "rgba(0, 0, 0, 0.6)",
+                  "&.Mui-focused": {
+                    color: Boolean(errors.password)
+                      ? "#f44336 !important"
+                      : "#1976d2 !important",
+                  },
+                }}
+              >
                 Password
               </InputLabel>
               <OutlinedInput
