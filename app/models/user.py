@@ -22,5 +22,5 @@ class User(BaseModel):
 
 
 class CreateUser(User):
-    hashed_password: str
+    password: str
     pass

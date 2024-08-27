@@ -4,6 +4,7 @@ from functools import lru_cache
 
 settings = get_settings()
 
+
 @lru_cache
 def get_database():
     # client = MongoClient(
@@ -11,5 +12,6 @@ def get_database():
     # )
     client = AsyncIOMotorClient(settings.MONGO_URI)
     return client["LoreLoom"]
-    
+
+
 db = get_database()

@@ -36,11 +36,24 @@ blacklisted_tokens_collection = db["blacklisted_tokens"]
 
 @auth_router.post("/register")
 async def register(user: CreateUser, request: Request):
+    if not user.email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if not user.password:
+        raise HTTPException(status_code=400, detail="Password is required")
+    if not user.first_name:
+        raise HTTPException(status_code=400, detail="First name is required")
+    if not user.last_name:
+        raise HTTPException(status_code=400, detail="Last name is required")
+    if not user.username:
+        raise HTTPException(status_code=400, detail="Username is required")
+    existing_username = await users_collection.find_one({"username": user.username})
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Username already exists")
     existing_user = await users_collection.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="User already exists")
 
-    user.hashed_password = hash_password(user.hashed_password)
+    user.password = hash_password(user.password)
     # user.role = "user"
     new_user = user.model_dump()
     new_user["_id"] = str(ObjectId())
@@ -73,9 +86,15 @@ async def register(user: CreateUser, request: Request):
 
 @auth_router.post("/login", response_model=TokenResponse)
 async def login(form_data: LoginModel):
+    if not form_data.username:
+        raise HTTPException(status_code=400, detail="Email is required")
+    if not form_data.password:
+        raise HTTPException(status_code=400, detail="Password is required")
+
     print(form_data.username)
     user = await users_collection.find_one({"email": form_data.username})
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+    print(user)
+    if not user or not verify_password(form_data.password, user["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
@@ -98,7 +117,7 @@ async def login(form_data: LoginModel):
 # async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 #     print(form_data.username)
 #     user = await users_collection.find_one({"email": form_data.username})
-#     if not user or not verify_password(form_data.password, user["hashed_password"]):
+#     if not user or not verify_password(form_data.password, user["password"]):
 #         raise HTTPException(
 #             status_code=status.HTTP_401_UNAUTHORIZED,
 #             detail="Invalid credentials",
