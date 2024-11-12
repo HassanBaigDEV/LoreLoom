@@ -5,7 +5,8 @@ import uuid
 from app.config.mongo import db, stories
 from datetime import datetime
 
-async def generate_title(story_id: uuid.UUID) -> str:
+
+async def generate_title(story_id: str) -> str:
     title_template = """<|im_start|>system
     You are tasked with generating creative and unique story titles. Your goal is to come up with an original and engaging title.<|im_end|>
     <|im_start|>user
@@ -23,14 +24,10 @@ async def generate_title(story_id: uuid.UUID) -> str:
     # Update story document
     await stories.update_one(
         {"story_id": str(story_id)},
-        {
-            "$set": {
-                "title": title_str,
-                "updated_at": datetime.utcnow()
-            }
-        }
+        {"$set": {"title": title_str, "updated_at": datetime.utcnow()}},
     )
     return title_str
+
 
 async def generate_premise(story_id: uuid.UUID, title: str) -> str:
     chatML_template = f"""<|im_start|>system
@@ -49,11 +46,6 @@ async def generate_premise(story_id: uuid.UUID, title: str) -> str:
     # Update story document
     await stories.update_one(
         {"story_id": str(story_id)},
-        {
-            "$set": {
-                "premise": premise_str,
-                "updated_at": datetime.utcnow()
-            }
-        }
+        {"$set": {"premise": premise_str, "updated_at": datetime.utcnow()}},
     )
     return premise_str
