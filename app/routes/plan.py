@@ -21,7 +21,7 @@ async def get_title(story_id: str, user_id: str):
     try:
         # Check if story exists and belongs to user
         story = await stories.find_one(
-            {"story_id": story_id, "author": user_id}
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
         if not story:
             raise HTTPException(status_code=404, detail="Story not found")

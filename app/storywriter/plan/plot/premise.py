@@ -4,6 +4,7 @@ from ..llm import model
 import uuid
 from app.config.mongo import db, stories
 from datetime import datetime
+from bson import ObjectId
 
 
 async def generate_title(story_id: str) -> str:
@@ -23,7 +24,7 @@ async def generate_title(story_id: str) -> str:
 
     # Update story document
     await stories.update_one(
-        {"story_id": str(story_id)},
+        {"story_id": ObjectId(story_id)},
         {"$set": {"title": title_str, "updated_at": datetime.utcnow()}},
     )
     return title_str
