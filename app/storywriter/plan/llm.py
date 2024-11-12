@@ -6,6 +6,7 @@ import json
 import re
 import heapq
 from collections import deque
+import os
 
 
 # Configure logging
@@ -13,9 +14,18 @@ logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+# Get the absolute path to the model
+current_dir = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.abspath(
+    os.path.join(
+        current_dir,
+        "../../../models/Hermes-3-Llama-3.1-8B-GGUF/Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
+    )
+)
+
 # Load the Llama model globally
 model = Llama(
-    model_path="D:/LMStudio/models/NousResearch/Hermes-3-Llama-3.1-8B-GGUF/Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
+    model_path=model_path,
     n_ctx=8096,
-    verbose=True,  # Verbose is required to pass to the callback manager
+    verbose=True,
 )

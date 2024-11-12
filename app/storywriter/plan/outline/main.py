@@ -2,14 +2,17 @@ import json
 import logging
 import re
 from collections import deque
-from typing import List
+from typing import List, Dict
 import uuid
+from datetime import datetime
+from uuid import UUID
 
 from ..plot.premise import generate_premise, generate_title
 from ..plot.settings import generate_setting
 from ..outline.schema import OutlineNode
 from ..llm import model
 from ..db.vector import find_similar_parts, store_story_part
+from app.config.mongo import db, stories
 
 
 # BFS-based outline expansion
@@ -325,83 +328,88 @@ def generate_node_entities(node: OutlineNode, plan: dict) -> None:
 
 
 # Main function to generate the full outline
-def generate_full_outline(
-    story_id: uuid.UUID, max_depth: int = 2, expansion_method="vaguest_first"
+async def generate_full_outline(
+    story_id: uuid.UUID,
+    max_depth: int = 2,
+    expansion_method: str = "vaguest_first",
+    premise: str = "",
+    setting: str = "",
+    characters: list = [],
 ) -> OutlineNode:
+  
     # title = generate_title(story_id)
     # premise = generate_premise(story_id, title)
     # setting = generate_setting(story_id, title, premise)
 
     # characters = generate_characters(stoty_id, title, premise, setting)
 
-    
-    premise = """
-    In a distant future where humanity has colonized several planets, a group of rebels discovers an ancient artifact with the power to control time. They must navigate a web of political intrigue, form unlikely alliances, and uncover secrets about their own pasts, all while evading a ruthless government agent who seeks the artifact for his own sinister plans. The fate of multiple worlds hangs in the balance as they race against time to unlock the artifact's true potential.
-    """
-    setting = """
-    # Title: Chronos: The Shattered Temporal Veil
-
-    # Location: The Nexus System (A collection of planets, moons, and asteroids in the far reaches of the Milky Way)
-
-    # Time Period: 24th Century
-
-    # Atmosphere: The Nexus System is a vast and diverse collection of celestial bodies, each with its own unique environment. From the lush, tropical jungles of Veridis Prime to the frozen wastelands of Terra Nova, the system is a testament to humanity's adaptability and resilience. The atmosphere is a blend of futuristic technology and ancient mystery, as the remnants of a long-lost civilization intertwine with the present-day societies. The Nexus System is also a place of political tension, as various factions vie for control of the artifact and the power it represents.
-
-    # Political Landscape: The Nexus System is governed by a coalition of planetary governments, known as the Council of Nexus. However, this coalition is fragile, with many members harboring their own agendas. The most powerful of these factions is the
+    # premise = """
+    # In a distant future where humanity has colonized several planets, a group of rebels discovers an ancient artifact with the power to control time. They must navigate a web of political intrigue, form unlikely alliances, and uncover secrets about their own pasts, all while evading a ruthless government agent who seeks the artifact for his own sinister plans. The fate of multiple worlds hangs in the balance as they race against time to unlock the artifact's true potential.
     # """
-    characters = [
-        {
-            "name": "Lyra Novak",
-            "physicalAppearance": "Tall and lean, with piercing blue eyes and shoulder-length silver hair. Her skin is marked with the scars of numerous battles, but she carries herself with an air of confidence and grace.",
-            "behavioralPatterns": "A natural leader, Lyra is quick-witted and adaptable. She is always looking for solutions and is not afraid to make tough decisions. Her loyalty to her team and her determination to protect the artifact are unwavering.",
-            "genderAndSexualOrientation": "Female, bisexual",
-            "relationships": {
-                "Alliance": "Forms an unlikely alliance with the enigmatic time traveler, Zephyr.",
-                "Rival": "Is in constant competition with the ruthless government agent, Cyrus Blackwell.",
-            },
-            "likesAndDislikes": {
-                "Likes": [
-                    "Adventure",
-                    "Her crew",
-                    "The artifact's potential",
-                    "Puzzle-solving",
-                ],
-                "Dislikes": ["Deceit", "Authoritarianism", "Loss of control"],
-            },
-        },
-        {
-            "name": "Zephyr",
-            "physicalAppearance": "Zephyr is a mysterious figure with hair that shimmers in an array of colors and eyes that seem to change with the light. His body is adorned with intricate markings that suggest a connection to the temporal energy.",
-            "behavioralPatterns": "Zephyr is a calm and intuitive being. He possesses a deep understanding of the artifact's power and the secrets it holds. His actions are guided by a higher purpose, but his true motives remain hidden.",
-            "genderAndSexualOrientation": "Genderfluid, asexual",
-            "relationships": {
-                "Mentor": "Mentors Lyra and helps her understand the complexities of time manipulation.",
-                "Confidant": "Shares a close bond with the empathic technician, Iris.",
-            },
-            "likesAndDislikes": {
-                "Likes": [
-                    "Ancient mysteries",
-                    "The natural order of time",
-                    "Knowledge",
-                ],
-                "Dislikes": ["Violence", "Haste", "Lack of self-awareness"],
-            },
-        },
-        {
-            "name": "Cyrus Blackwell",
-            "physicalAppearance": "Cyrus is a formidable figure with chiseled features, dark hair, and piercing black eyes. His muscular build and imposing presence make him a formidable adversary.",
-            "behavioralPatterns": "Cyrus is ruthless and cunning, driven by a thirst for power and a desire to control his own destiny. He is willing to do whatever it takes to obtain the artifact, even if it means sacrificing others.",
-            "genderAndSexualOrientation": "Male, heterosexual",
-            "relationships": {
-                "Rival": "Is in constant competition with Lyra Novak.",
-                "Underling": "Commands a loyal group of agents, each with their own skills and specialties.",
-            },
-            "likesAndDislikes": {
-                "Likes": ["Power", "Control", "Manipulation"],
-                "Dislikes": ["Weakness", "Emotions", "Limitations"],
-            },
-        },
-    ]
+    # setting = """
+    # # Title: Chronos: The Shattered Temporal Veil
+
+    # # Location: The Nexus System (A collection of planets, moons, and asteroids in the far reaches of the Milky Way)
+
+    # # Time Period: 24th Century
+
+    # # Atmosphere: The Nexus System is a vast and diverse collection of celestial bodies, each with its own unique environment. From the lush, tropical jungles of Veridis Prime to the frozen wastelands of Terra Nova, the system is a testament to humanity's adaptability and resilience. The atmosphere is a blend of futuristic technology and ancient mystery, as the remnants of a long-lost civilization intertwine with the present-day societies. The Nexus System is also a place of political tension, as various factions vie for control of the artifact and the power it represents.
+
+    # # Political Landscape: The Nexus System is governed by a coalition of planetary governments, known as the Council of Nexus. However, this coalition is fragile, with many members harboring their own agendas. The most powerful of these factions is the
+    # # """
+    # characters = [
+    #     {
+    #         "name": "Lyra Novak",
+    #         "physicalAppearance": "Tall and lean, with piercing blue eyes and shoulder-length silver hair. Her skin is marked with the scars of numerous battles, but she carries herself with an air of confidence and grace.",
+    #         "behavioralPatterns": "A natural leader, Lyra is quick-witted and adaptable. She is always looking for solutions and is not afraid to make tough decisions. Her loyalty to her team and her determination to protect the artifact are unwavering.",
+    #         "genderAndSexualOrientation": "Female, bisexual",
+    #         "relationships": {
+    #             "Alliance": "Forms an unlikely alliance with the enigmatic time traveler, Zephyr.",
+    #             "Rival": "Is in constant competition with the ruthless government agent, Cyrus Blackwell.",
+    #         },
+    #         "likesAndDislikes": {
+    #             "Likes": [
+    #                 "Adventure",
+    #                 "Her crew",
+    #                 "The artifact's potential",
+    #                 "Puzzle-solving",
+    #             ],
+    #             "Dislikes": ["Deceit", "Authoritarianism", "Loss of control"],
+    #         },
+    #     },
+    #     {
+    #         "name": "Zephyr",
+    #         "physicalAppearance": "Zephyr is a mysterious figure with hair that shimmers in an array of colors and eyes that seem to change with the light. His body is adorned with intricate markings that suggest a connection to the temporal energy.",
+    #         "behavioralPatterns": "Zephyr is a calm and intuitive being. He possesses a deep understanding of the artifact's power and the secrets it holds. His actions are guided by a higher purpose, but his true motives remain hidden.",
+    #         "genderAndSexualOrientation": "Genderfluid, asexual",
+    #         "relationships": {
+    #             "Mentor": "Mentors Lyra and helps her understand the complexities of time manipulation.",
+    #             "Confidant": "Shares a close bond with the empathic technician, Iris.",
+    #         },
+    #         "likesAndDislikes": {
+    #             "Likes": [
+    #                 "Ancient mysteries",
+    #                 "The natural order of time",
+    #                 "Knowledge",
+    #             ],
+    #             "Dislikes": ["Violence", "Haste", "Lack of self-awareness"],
+    #         },
+    #     },
+    #     {
+    #         "name": "Cyrus Blackwell",
+    #         "physicalAppearance": "Cyrus is a formidable figure with chiseled features, dark hair, and piercing black eyes. His muscular build and imposing presence make him a formidable adversary.",
+    #         "behavioralPatterns": "Cyrus is ruthless and cunning, driven by a thirst for power and a desire to control his own destiny. He is willing to do whatever it takes to obtain the artifact, even if it means sacrificing others.",
+    #         "genderAndSexualOrientation": "Male, heterosexual",
+    #         "relationships": {
+    #             "Rival": "Is in constant competition with Lyra Novak.",
+    #             "Underling": "Commands a loyal group of agents, each with their own skills and specialties.",
+    #         },
+    #         "likesAndDislikes": {
+    #             "Likes": ["Power", "Control", "Manipulation"],
+    #             "Dislikes": ["Weakness", "Emotions", "Limitations"],
+    #         },
+    #     },
+    # ]
 
     plan = {
         "premise": premise,
@@ -435,6 +443,8 @@ def generate_full_outline(
     #     break
     # expand_outline_node_vfs(root_node, max_depth, plan)
 
+    await stories.update_one(
+        {"story_id": str(story_id)},
+        {"$set": {"outline": json_data, "updated_at": datetime.utcnow()}},
+    )
     return root_node
-
-
