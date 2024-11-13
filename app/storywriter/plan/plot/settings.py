@@ -15,9 +15,8 @@ async def generate_setting(story_id: str, title: str, premise: str) -> str:
     <|im_start|>assistant
     """
 
-    setting = model(chatML_template, max_tokens=256)
+    setting = model(chatML_template, max_tokens=512)
     setting_str = setting["choices"][0]["text"].strip()  # type: ignore
-    model.close()
     # embeddings = embed_model.get_text_embedding(setting_str)
     # store_story_part("setting", story_id, setting_str, embeddings)
     logging.debug(f"Generated Setting: {setting_str}")

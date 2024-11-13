@@ -24,8 +24,21 @@ model_path = os.path.abspath(
 )
 
 # Load the Llama model globally
+
 model = Llama(
     model_path=model_path,
     n_ctx=8096,
     verbose=True,
 )
+
+# # Function to initialize or reload the model
+# def load_model() -> Llama:
+#     global model
+#     return
+
+
+# def close_model():
+#     global model
+#     if model is not None:
+#         model.close()
+#         model = None
