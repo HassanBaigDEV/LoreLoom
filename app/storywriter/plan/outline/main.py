@@ -6,6 +6,7 @@ from typing import List, Dict
 import uuid
 from datetime import datetime
 from uuid import UUID
+from bson import ObjectId
 
 from ..plot.premise import generate_premise, generate_title
 from ..plot.settings import generate_setting
@@ -17,7 +18,7 @@ from app.config.mongo import db, stories
 
 # BFS-based outline expansion
 def bfs_expand_outline(
-    story_id: uuid.UUID, root: OutlineNode, plan: dict, max_depth: int = 3
+    story_id: str, root: OutlineNode, plan: dict, max_depth: int = 3
 ):
     queue = deque([root])
 
@@ -89,7 +90,7 @@ def bfs_expand_outline(
 
 
 def vaguest_first_expand_outline(
-    story_id: uuid.UUID, root: OutlineNode, plan: dict, max_depth: int = 3
+    story_id: str, root: OutlineNode, plan: dict, max_depth: int = 3
 ):
     nodes = deque([root])
 
@@ -139,7 +140,7 @@ def vaguest_first_expand_outline(
             logging.error(f"Failed to write to outline.json: {e}")
 
 
-def generate_subevents(story_id: uuid.UUID, node: OutlineNode, plan: dict) -> List[str]:
+def generate_subevents(story_id: str, node: OutlineNode, plan: dict) -> List[str]:
     print("Generating subevents...")
 
     # Check if similar subevents already exist in the database
@@ -329,14 +330,14 @@ def generate_node_entities(node: OutlineNode, plan: dict) -> None:
 
 # Main function to generate the full outline
 async def generate_full_outline(
-    story_id: uuid.UUID,
+    story_id: str,
     max_depth: int = 2,
     expansion_method: str = "vaguest_first",
     premise: str = "",
     setting: str = "",
     characters: list = [],
 ) -> OutlineNode:
-  
+
     # title = generate_title(story_id)
     # premise = generate_premise(story_id, title)
     # setting = generate_setting(story_id, title, premise)

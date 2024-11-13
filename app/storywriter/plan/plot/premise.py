@@ -30,7 +30,7 @@ async def generate_title(story_id: str) -> str:
     return title_str
 
 
-async def generate_premise(story_id: uuid.UUID, title: str) -> str:
+async def generate_premise(story_id: str, title: str) -> str:
     chatML_template = f"""<|im_start|>system
     You are tasked with generating creative and unique story premises. Your goal is to come up with an original and engaging premise.<|im_end|>
     <|im_start|>user
@@ -46,7 +46,7 @@ async def generate_premise(story_id: uuid.UUID, title: str) -> str:
 
     # Update story document
     await stories.update_one(
-        {"story_id": str(story_id)},
+        {"story_id": ObjectId(story_id)},
         {"$set": {"premise": premise_str, "updated_at": datetime.utcnow()}},
     )
     return premise_str

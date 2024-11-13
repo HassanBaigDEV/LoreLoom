@@ -3,9 +3,10 @@ import uuid
 from ..llm import model
 from app.config.mongo import db, stories
 from datetime import datetime
+from bson import ObjectId
 
 
-async def generate_setting(story_id: uuid.UUID, title: str, premise: str) -> str:
+async def generate_setting(story_id: str, title: str, premise: str) -> str:
     chatML_template = f"""
     <|im_start|>system
     You are tasked with generating a detailed setting for a story based on a given premise. Include the location, time period, and atmosphere.<|im_end|>
@@ -22,7 +23,7 @@ async def generate_setting(story_id: uuid.UUID, title: str, premise: str) -> str
     logging.debug(f"Generated Setting: {setting_str}")
 
     await stories.update_one(
-        {"story_id": str(story_id)},
+        {"story_id": ObjectId(story_id)},
         {"$set": {"setting": setting_str, "updated_at": datetime.utcnow()}},
     )
     return setting_str

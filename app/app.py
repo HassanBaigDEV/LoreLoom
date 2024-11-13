@@ -5,6 +5,9 @@ from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.plan import router as plan_router
 import logging
+from bson import ObjectId
+from app.models.story import Story  # Import the Story class
+from app.config.mongo import db  # Import the database connection
 
 logging.basicConfig(level=logging.INFO)  # Set global log level to INFO
 
@@ -40,6 +43,25 @@ app.add_middleware(
 # app.include_router(user_router, prefix="/user", tags=["User"])
 
 app.include_router(plan_router, prefix="/plan", tags=["plan"])
+
+stories = db["stories"]  # Define the stories collection
+
+@app.post("/stories")
+async def create_story(user_id: str):
+    # story_id = uuid.UUID()
+    # create a mongoDB ObjectId
+    story_id = ObjectId()
+
+    story = Story(_id=story_id, author=ObjectId(user_id))
+
+    await stories.insert_one(story.model_dump())
+    # Add the story reference to the user object in the users collection
+    users = db["users"]
+    await users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$push": {"stories": story_id}}
+    )
+    return {"story_id": str(user_id), "author": str(ObjectId(user_id))}
 
 
 @app.get("/healthcheck")

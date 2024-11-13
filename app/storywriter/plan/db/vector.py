@@ -50,7 +50,7 @@ def get_db_connection():
 #     c.execute(f"CREATE DATABASE {db_name}")
 
 
-def store_story_part(part_name: str, story_id: uuid.UUID, part_text: str, text: str):
+def store_story_part(part_name: str, story_id: str, part_text: str, text: str):
     conn = get_db_connection()
     cursor = conn.cursor()
     embedding = embed_model.get_text_embedding(text)
@@ -75,7 +75,7 @@ def store_story_part(part_name: str, story_id: uuid.UUID, part_text: str, text: 
         conn.close()
 
 
-def find_similar_parts(part_name: str, story_id: uuid.UUID, text: str, top_n: int = 5):
+def find_similar_parts(part_name: str, story_id: str, text: str, top_n: int = 5):
     conn = get_db_connection()
     cursor = conn.cursor()
     story_id_str = str(story_id)
