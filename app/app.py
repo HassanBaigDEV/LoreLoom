@@ -3,7 +3,9 @@ from fastapi import FastAPI, Depends
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes import draft
 from app.routes.plan import router as plan_router
+from app.routes.draft import router as draft_router
 import logging
 from bson import ObjectId
 from app.models.story import Story  # Import the Story class
@@ -43,6 +45,7 @@ app.add_middleware(
 # app.include_router(user_router, prefix="/user", tags=["User"])
 
 app.include_router(plan_router, prefix="/plan", tags=["plan"])
+app.include_router(draft_router, prefix="/draft", tags=["draft"])
 
 stories = db["stories"]  # Define the stories collection
 

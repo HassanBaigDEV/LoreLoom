@@ -8,6 +8,11 @@ logging.basicConfig(level=logging.INFO)  # Set global log level to INFO
 client = AsyncIOMotorClient(settings.MONGO_URI)
 # print(settings.MONGO_URI)
 db = client["LoreLoom"]
+if db is not None:
+    logging.info("Connected to MongoDB", db)
+else:
+    logging.error("Failed to connect to MongoDB")
+    raise Exception("Failed to connect to MongoDB")
 
 # Collections
 users = db.users

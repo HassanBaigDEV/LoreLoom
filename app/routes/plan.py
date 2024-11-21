@@ -1,3 +1,5 @@
+from re import M
+from turtle import st
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 from bson import ObjectId
@@ -10,7 +12,10 @@ import logging
 from app.storywriter.plan.plot.premise import generate_title, generate_premise
 from app.storywriter.plan.plot.settings import generate_setting
 from app.storywriter.plan.characters.main import generate_characters
-from app.storywriter.plan.outline.main import generate_full_outline
+from app.storywriter.plan.outline.main import (
+    generate_full_outline,
+    create_numbered_outline,
+)
 
 router = APIRouter()
 
@@ -28,7 +33,9 @@ async def get_title(story_id: str, user_id: str):
         user_id_obj = ObjectId(user_id)
 
         # Check if story exists and belongs to user
-        story = await stories.find_one({"story_id": story_id_obj, "author": user_id_obj})
+        story = await stories.find_one(
+            {"story_id": story_id_obj, "author": user_id_obj}
+        )
         if not story:
             # raise HTTPException(status_code=404, detail="Story not found")
             logging.error("Story not found")
@@ -61,7 +68,9 @@ async def get_premise(story_id: str, user_id: str):
         if not story.get("title"):
             # raise HTTPException(status_code=400, detail="Title must be generated first")
             logging.error("Title must be generated first")
-            return HTTPException(status_code=400, detail="Title must be generated first")
+            return HTTPException(
+                status_code=400, detail="Title must be generated first"
+            )
 
         premise = await generate_premise(story_id, story["title"])
         return premise
@@ -99,15 +108,22 @@ async def get_setting(story_id: str, user_id: str):
 
 @router.get("/generate-characters/{story_id}")
 async def get_characters(story_id: str, user_id: str):
+    logging.info("Generating characters")
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
         if not story:
-            raise HTTPException(status_code=404, detail="Story not found")
+            # raise HTTPException(status_code=404, detail="Story not found")
+            logging.error("Story not found")
+            return HTTPException(status_code=404, detail="Story not found")
 
         if not story.get("premise") or not story.get("setting"):
-            raise HTTPException(
+            # raise HTTPException(
+            #     status_code=400, detail="Premise and setting must be generated first"
+            # )
+            logging.error("Premise and setting must be generated first")
+            return HTTPException(
                 status_code=400, detail="Premise and setting must be generated first"
             )
 
@@ -116,9 +132,13 @@ async def get_characters(story_id: str, user_id: str):
         )
         return characters
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
+        # raise HTTPException(status_code=400, detail="Invalid ID format")
+        logging.error("Invalid ID format")
+        return HTTPException(status_code=400, detail="Invalid ID format")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Exception: {e}")
+        return HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/generate-full-outline/{story_id}")
@@ -126,14 +146,19 @@ async def get_full_outline(
     story_id: str,
     user_id: str,
     max_depth: int = 2,
-    expansion_method: str = "vaguest_first",
+    continue_from_previous: bool = False,
 ):
+    logging.info(
+        "Generating full outline", story_id, user_id, max_depth, continue_from_previous
+    )
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
         if not story:
-            raise HTTPException(status_code=404, detail="Story not found")
+            # raise HTTPException(status_code=404, detail="Story not found")
+            logging.error("Story not found")
+            return HTTPException(status_code=404, detail="Story not found")
 
         if not all(
             key in story for key in ["title", "premise", "setting", "characters"]
@@ -143,17 +168,33 @@ async def get_full_outline(
                 detail="Title, premise, setting, and characters must be generated first",
             )
 
-        root_node = await generate_full_outline(
-            story_id,
-            max_depth,
-            expansion_method=expansion_method,
-            premise=story["premise"],
-            setting=story["setting"],
-            characters=story["characters"],
-        )
+        # root_node = await generate_full_outline(
+        #     story_id,
+        #     max_depth,
+        # )
 
-        return root_node.model_dump()
+        # # return root_node.model_dump()
+        # outline = await create_numbered_outline(
+        #     story_id,
+        #     num_events=max_depth,
+        #     continue_from_previous=continue_from_previous,
+        # )
+        # return outline
+        # return root_node.model_dump()
+        outline = await create_numbered_outline(
+            story_id,
+            num_events=max_depth,
+            continue_from_previous=continue_from_previous,
+        )
+        return outline
+
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
+        # raise HTTPException(status_code=400, detail="Invalid ID format")
+        logging.error("Invalid ID format")
+        return HTTPException(
+            status_code=400, detail="Invalid ID format or story not found"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Exception: {e}")
+        return HTTPException(status_code=500, detail=str(e))
