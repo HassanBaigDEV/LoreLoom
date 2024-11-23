@@ -15,7 +15,7 @@ export default async function page() {
       <div className="flex flex-col min-h-screen bg-gray-50">
         <header className="flex items-center justify-between bg-white border-b border-gray-300 rounded-b-lg p-7">
           <div className="flex-1 pl-32">
-            <h1 className="text-2xl font-bold text-gray-700">loreloom</h1>
+            <h1 className="text-2xl font-bold text-gray-700">StoryWeaver</h1>
           </div>
           <nav className="flex items-center pr-32 space-x-4">
             <a href="#" className="text-sm text-gray-700 hover:underline">
@@ -55,7 +55,7 @@ export default async function page() {
         </div>
         <div className="text-center text-gray-700">
           <h1 className="mt-20 text-6xl font-bold">
-            Welcome to <br /> Loreloom
+            Welcome to <br /> StoryWeaver
           </h1>
           <p className="font-bold mt-5 text-gray-500 text font-['Arial', sans-serif] text-lg">
             Our AI-powered story generator, that <br /> can take that spark and

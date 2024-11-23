@@ -19,6 +19,9 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 
 import { createTheme } from "@mui/material/styles";
+import { useAtom } from "jotai";
+import { userAtom, isLoadingAtom } from "@/store/atoms";
+import apiClient from "@/lib/axios";
 
 const theme = createTheme({
   palette: {
@@ -32,6 +35,9 @@ export default function LoginForm() {
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const handleClickShowPassword = () => setShowPassword((show) => !show);
+
+  const [, setUser] = useAtom(userAtom);
+  const [, setIsLoading] = useAtom(isLoadingAtom);
 
   const router = useRouter();
 
@@ -52,9 +58,20 @@ export default function LoginForm() {
       .min(8, "Password should be of minimum 8 characters length"),
   });
 
+  const fetchUserProfile = async () => {
+    try {
+      const response = await apiClient.get("/user/me");
+      setUser(response.data);
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      setError("Error loading user profile");
+    }
+  };
+
   const handleSubmit = async (values, { setSubmitting }) => {
     setError("");
     setSubmitting(true);
+    setIsLoading(true);
 
     const payload = {
       email: values.email,
@@ -73,6 +90,9 @@ export default function LoginForm() {
       if (response.status === 200) {
         const data = await response.json();
         console.log("Login successful:", data);
+
+        await fetchUserProfile();
+
         router.push("/dashboard");
       } else {
         const errorData = await response.json();
@@ -83,6 +103,7 @@ export default function LoginForm() {
       console.error("Login error:", err);
     } finally {
       setSubmitting(false);
+      setIsLoading(false);
     }
   };
 

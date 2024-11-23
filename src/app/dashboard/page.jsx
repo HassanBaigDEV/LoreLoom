@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import DashboardOverview from "@/components/dashboard/overview";
 import Statistics from "@/components/dashboard/stat";
 import Feedback from "@/components/dashboard/feedback";
@@ -8,8 +8,28 @@ import Header from "@/components/common/header";
 import Stories from "@/components/dashboard/stories";
 import HelpButton from "@/components/common/help";
 import Footer from "@/components/common/footer";
+import { useAuth } from '@/hooks/useAuth';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
+  const { user, isAuthenticated, checkAuth } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    const validateAuth = async () => {
+      const userData = await checkAuth();
+      if (!userData) {
+        router.push('/login');
+      }
+    };
+
+    validateAuth();
+  }, []);
+
+  if (!isAuthenticated) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <>
       <div className="py-6 bg-gray-100">

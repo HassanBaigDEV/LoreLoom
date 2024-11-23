@@ -4,7 +4,7 @@ export default function Header() {
   return (
     <header className="flex items-center justify-between bg-white border-b border-gray-300 rounded-b-lg p-7">
       <div className="flex-1 pl-32">
-        <h1 className="text-2xl font-bold text-gray-700">loreloom</h1>
+        <h1 className="text-2xl font-bold text-gray-700">StoryWeaver</h1>
       </div>
       <nav className="flex items-center pr-32 space-x-4">
         <a href="/" className="text-sm text-gray-700 hover:underline">

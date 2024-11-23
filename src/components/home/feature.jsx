@@ -12,7 +12,7 @@ export default function FeatureSection() {
   return (
     <div className="text-center text-gray-700">
       <h1 className="mt-20 text-6xl font-bold">
-        Welcome to <br /> Loreloom
+        Welcome to <br /> StoryWeaver
       </h1>
       <p className="font-bold mt-5 text-gray-500 text-lg font-['Arial', sans-serif]">
         Our AI-powered story generator, that <br /> can take that spark and turn

@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="mt-auto bg-gray-100">
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-2">
-          <span className="text-gray-600">Copyright ©2024 Loreloom</span>
+          <span className="text-gray-600">Copyright ©2024 StoryWeaver</span>
         </div>
         <div className="flex items-center justify-end">
           <div className="flex items-center p-2 space-x-4 rounded-full bg-blue-50">

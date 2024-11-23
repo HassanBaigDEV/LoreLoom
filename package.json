@@ -1,5 +1,5 @@
 {
-  "name": "loreloom",
+  "name": "StoryWeaver",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,6 +20,7 @@
     "cookies-next": "^4.2.1",
     "formik": "^2.4.6",
     "framer-motion": "^11.3.29",
+    "jotai": "^2.10.3",
     "js-cookie": "^3.0.5",
     "jsonwebtoken": "^9.0.2",
     "next": "14.2.5",
