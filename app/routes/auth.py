@@ -56,7 +56,7 @@ async def register(user: CreateUser, request: Request):
     user.password = hash_password(user.password)
     # user.role = "user"
     new_user = user.model_dump()
-    new_user["_id"] = str(ObjectId())
+    new_user["_id"] = ObjectId()
     await users_collection.insert_one(new_user)
 
     access_token = create_access_token(data={"sub": new_user["_id"]})

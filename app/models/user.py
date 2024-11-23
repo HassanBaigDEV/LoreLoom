@@ -19,6 +19,12 @@ class User(BaseModel):
     is_verified: bool = False
     photo: Optional[str] = None
     role: Role = Role.USER
+    stories: Optional[list] = []
+
+
+class UserResponse(User):
+    id: str
+    pass
 
 
 class CreateUser(User):
