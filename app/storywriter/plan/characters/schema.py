@@ -1,11 +1,16 @@
 # Pydantic character model
-from typing import Optional, Dict, List
-from pydantic import BaseModel
+from typing import Optional, Dict, List, Literal
+from pydantic import BaseModel, Field
 import json
 
 
 class Character(BaseModel):
     name: str
+    type: Literal["character", "entity", "location"] = Field(
+        default="character",
+        description="Type of entity (character, entity, or location)",
+    )
+    role: str = Field(description="Role or function in the story")
     physicalAppearance: str
     behavioralPatterns: str
     genderAndSexualOrientation: str

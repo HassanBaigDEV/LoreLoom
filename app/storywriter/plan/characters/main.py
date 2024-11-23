@@ -23,12 +23,15 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
     [
         {{
             "name": "Ayla Windsong",
+            "type": "character",
+            "role": "Protagonist",
             "physicalAppearance": "A lithe woman with sun-kissed skin, braided auburn hair, and piercing green eyes. She has a crescent-shaped scar on her left cheek.",
             "behavioralPatterns": "Fiercely independent but deeply loyal to her close friends. She often acts impulsively but has a knack for thinking on her feet.",
             "genderAndSexualOrientation": "Female, bisexual",
             "relationships": {{
                 "Alaric Frost": "Childhood friend and rival",
-                "Kaela Rune": "Mentor and confidant"
+                "Ancient Temple": "Sacred place she guards",
+                "Magic Staff": "Her trusted weapon and tool"
             }},
             "likesAndDislikes": {{
                 "Likes": ["Exploring the unknown", "Playing the lute", "Collecting rare artifacts"],
@@ -36,25 +39,29 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
             }}
         }},
         {{
-            "name": "Alaric Frost",
-            "physicalAppearance": "A tall man with silver-streaked black hair, a chiseled jawline, and sharp blue eyes. He wears a tattered cloak and carries a well-worn longsword.",
-            "behavioralPatterns": "Reserved and calculating, often preferring strategy over brute force. However, he has a hidden temper that flares when his loved ones are threatened.",
-            "genderAndSexualOrientation": "Male, heterosexual",
+            "name": "Ancient Temple of Whispers",
+            "type": "location",
+            "role": "Sacred Site",
+            "physicalAppearance": "A towering structure of weathered stone, covered in glowing runes and surrounded by mist.",
+            "behavioralPatterns": "The temple seems to respond to visitors' emotions, with its runes glowing brighter or dimmer.",
+            "genderAndSexualOrientation": "N/A",
             "relationships": {{
-                "Ayla Windsong": "Rival with lingering respect",
-                "Kaela Rune": "Former mentor"
+                "Ayla Windsong": "Current Guardian",
+                "Magic Staff": "Source of its power",
+                "Dark Cultists": "Those who seek to corrupt it"
             }},
             "likesAndDislikes": {{
-                "Likes": ["Strategizing battles", "Meditating by the river", "Reading old manuscripts"],
-                "Dislikes": ["Arrogance", "Losing control", "Loud environments"]
+                "Likes": ["Pure magic", "Worthy guardians", "Ancient rituals"],
+                "Dislikes": ["Dark magic", "Corruption", "Desecration"]
             }}
         }}
     ]
     ```
     Use this as a guide to ensure your response meets expectations.<|im_end|>
     <|im_start|>user
-    Based on the premise: {premise} and the setting: {setting}, generate a list of main characters (at least 3) detailing their attributes in JSON format.
-    Here's the JSON schema you must adhere to:\n<schema>\n{character_schema}\n</schema>.<|im_end|>
+    Based on the premise: {premise} and the setting: {setting}, generate a list of characters, entities, and locations (at least 5) detailing their attributes in JSON format.
+    Here's the JSON schema you must adhere to:\n<schema>\n{character_schema}\n</schema>.
+    <|im_end|>
     <|im_start|>assistant
 """
 

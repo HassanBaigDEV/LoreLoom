@@ -1,6 +1,7 @@
 from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime
+from bson import ObjectId
 
 
 class SceneDetail(BaseModel):
@@ -41,6 +42,10 @@ class EntityInvolvement(BaseModel):
 class OutlineNode(BaseModel):
     """A node in the story outline representing a scene or chapter"""
 
+    id: str = Field(
+        default_factory=lambda: str(ObjectId()),
+        description="Unique identifier for the outline point",
+    )
     text: str = Field(..., description="Brief summary of the scene/chapter")
     event_type: str = Field(
         default="scene", description="Type: chapter, scene, or action"

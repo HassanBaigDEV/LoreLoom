@@ -2,8 +2,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.config.settings import settings
 import logging
 
-logging.basicConfig(level=logging.INFO)  # Set global log level to INFO
+# Set the logging level for the MongoDB driver to WARNING
+logging.getLogger("pymongo").setLevel(logging.WARNING)
 
+# Set the logging level for the entire application
+logging.basicConfig(level=logging.INFO)
 
 client = AsyncIOMotorClient(settings.MONGO_URI)
 # print(settings.MONGO_URI)
@@ -17,6 +20,8 @@ else:
 # Collections
 users = db.users
 stories = db.stories
+passages = db.passages
+vectors = db.vectors
 
 
 # Create indexes
