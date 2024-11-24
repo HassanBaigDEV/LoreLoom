@@ -63,7 +63,7 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
     Here's the JSON schema you must adhere to:\n<schema>\n{character_schema}\n</schema>.
     <|im_end|>
     <|im_start|>assistant
-"""
+    """
 
     # print("chatML_template")
     characters = model(chatML_template, max_tokens=4000)
@@ -82,6 +82,11 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
 def process_characters_json(characters_json: str) -> List[Dict]:
     try:
         characters_list = json.loads(characters_json)
+        validated_characters = []
+        for char_data in characters_list:
+            character = Character(**char_data)
+            validated_characters.append(character.model_dump())
+
         return characters_list
     except json.JSONDecodeError as e:
         logging.error(f"Error decoding JSON: {e}")

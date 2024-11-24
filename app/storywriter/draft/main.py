@@ -6,7 +6,7 @@ import tiktoken
 from pymongo import UpdateOne
 
 from ..plan.db.vector import store_story_part, find_similar_parts
-from ..plan.llm import model, get_llm_response_text
+from ..plan.llm import model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema
@@ -397,8 +397,8 @@ class DraftGenerator:
 
             # Direct access to response
             passage_text = (
-                response["choices"][0]["text"]
-                if response.get("choices")
+                response["choices"][0]["text"]  # type: ignore
+                if response.get("choices")  # type: ignore
                 else "Failed to generate passage text."
             )
 
@@ -418,8 +418,8 @@ class DraftGenerator:
                 stream=False,
             )
             summary = (
-                summary_response["choices"][0]["text"]
-                if summary_response.get("choices")
+                summary_response["choices"][0]["text"]  # type: ignore
+                if summary_response.get("choices")  # type: ignore
                 else "Summary not available."
             )
 
@@ -438,8 +438,8 @@ class DraftGenerator:
 
             # Simple string splitting for entities
             entity_text = (
-                entity_response["choices"][0]["text"]
-                if entity_response.get("choices")
+                entity_response["choices"][0]["text"]  # type: ignore
+                if entity_response.get("choices")  # type: ignore
                 else ""
             )
             mentioned_entities = [

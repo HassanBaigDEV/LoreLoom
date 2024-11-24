@@ -66,9 +66,9 @@ except Exception as e:
 
 
 # Add this helper function
-def get_llm_response_text(response) -> str:
-    """Extract text from LLM response safely."""
-    if hasattr(response, "choices") and len(response.choices) > 0:
-        if hasattr(response.choices[0], "text"):
-            return response.choices[0].text.strip()
-    return ""
+# def get_llm_response_text(response) -> str:
+#     """Extract text from LLM response safely."""
+#     if hasattr(response, "choices") and len(response.choices) > 0:
+#         if hasattr(response.choices[0], "text"):
+#             return response.choices[0].text.strip()
+#     return ""

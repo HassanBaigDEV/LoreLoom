@@ -1,5 +1,5 @@
 # app/main.py
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,8 +52,6 @@ stories = db["stories"]  # Define the stories collection
 
 @app.post("/stories")
 async def create_story(user_id: str):
-    # story_id = uuid.UUID()
-    # create a mongoDB ObjectId
     story_id = ObjectId()
     print(user_id)
 
@@ -62,8 +60,12 @@ async def create_story(user_id: str):
     await stories.insert_one(story.model_dump())
     # Add the story reference to the user object in the users collection
     users = db["users"]
-    await users.update_one({"_id": user_id}, {"$push": {"stories": story_id}})
-    return {"story_id": story_id, "author": str(ObjectId(user_id))}
+    await users.update_one({"_id": ObjectId(user_id)}, {"$push": {"stories": story_id}})
+    # Convert ObjectIds to strings before returning
+    return {
+        "story_id": str(story_id),
+        "author": str(ObjectId(user_id))
+    }
 
 
 @app.get("/healthcheck")

@@ -1,7 +1,7 @@
 from re import M
 from turtle import st
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict
+from typing import List, Dict, Optional
 from bson import ObjectId
 from app.models.story import Story
 from app.config.mongo import stories
@@ -16,6 +16,7 @@ from app.storywriter.plan.outline.main import (
     generate_full_outline,
     create_numbered_outline,
 )
+from app.storywriter.plan.characters.schema import Character
 
 router = APIRouter()
 
@@ -197,4 +198,396 @@ async def get_full_outline(
     except Exception as e:
         # raise HTTPException(status_code=500, detail=str(e))
         logging.error(f"Exception: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/edit-title/{story_id}")
+async def edit_title(story_id: str, user_id: str, new_title: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"title": new_title, "updated_at": datetime.utcnow()}}
+        )
+        return {"message": "Title updated successfully", "title": new_title}
+    except Exception as e:
+        logger.error(f"Error updating title: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.put("/edit-premise/{story_id}")
+async def edit_premise(story_id: str, user_id: str, new_premise: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"premise": new_premise, "updated_at": datetime.utcnow()}}
+        )
+        return {"message": "Premise updated successfully", "premise": new_premise}
+    except Exception as e:
+        logger.error(f"Error updating premise: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.put("/edit-setting/{story_id}")
+async def edit_setting(story_id: str, user_id: str, new_setting: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"setting": new_setting, "updated_at": datetime.utcnow()}}
+        )
+        return {"message": "Setting updated successfully", "setting": new_setting}
+    except Exception as e:
+        logger.error(f"Error updating setting: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.put("/edit-character/{story_id}")
+async def edit_character(
+    story_id: str, 
+    user_id: str, 
+    character_name: str,
+    updated_character: dict
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        # Validate the updated character data using the Character model
+        character = Character(**updated_character)
+        
+        # Update the specific character in the characters array
+        await stories.update_one(
+            {
+                "story_id": ObjectId(story_id),
+                "characters.name": character_name
+            },
+            {
+                "$set": {
+                    "characters.$": character.model_dump(),
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return {
+            "message": "Character updated successfully",
+            "character": character.model_dump()
+        }
+    except Exception as e:
+        logger.error(f"Error updating character: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.put("/edit-outline-point/{story_id}")
+async def edit_outline_point(
+    story_id: str,
+    user_id: str,
+    point_number: str,
+    updated_point: dict
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        # Update the specific outline point
+        await stories.update_one(
+            {
+                "story_id": ObjectId(story_id),
+                "outline.number": point_number
+            },
+            {
+                "$set": {
+                    "outline.$": updated_point,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return {
+            "message": "Outline point updated successfully",
+            "outline_point": updated_point
+        }
+    except Exception as e:
+        logger.error(f"Error updating outline point: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.post("/add-character/{story_id}")
+async def add_character(
+    story_id: str,
+    user_id: str,
+    new_character: dict
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        # Validate the new character data
+        character = Character(**new_character)
+        
+        # Add the new character to the characters array
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {
+                "$push": {"characters": character.model_dump()},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        return {
+            "message": "Character added successfully",
+            "character": character.model_dump()
+        }
+    except Exception as e:
+        logger.error(f"Error adding character: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.post("/add-outline-point/{story_id}")
+async def add_outline_point(
+    story_id: str,
+    user_id: str,
+    new_point: dict,
+    position: Optional[int] = None
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        outline = story.get("outline", [])
+        
+        # If position is specified, insert at that position
+        if position is not None and position <= len(outline):
+            outline.insert(position, new_point)
+            # Renumber the outline points
+            for i, point in enumerate(outline, 1):
+                point["number"] = str(i)
+        else:
+            # Add to the end
+            new_point["number"] = str(len(outline) + 1)
+            outline.append(new_point)
+
+        # Update the entire outline
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {
+                "$set": {
+                    "outline": outline,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return {
+            "message": "Outline point added successfully",
+            "outline_point": new_point
+        }
+    except Exception as e:
+        logger.error(f"Error adding outline point: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete-character/{story_id}")
+async def delete_character(
+    story_id: str,
+    user_id: str,
+    character_name: str
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        # Remove the character from the characters array
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {
+                "$pull": {"characters": {"name": character_name}},
+                "$set": {"updated_at": datetime.utcnow()}
+            }
+        )
+        return {"message": f"Character {character_name} deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting character: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/delete-outline-point/{story_id}")
+async def delete_outline_point(
+    story_id: str,
+    user_id: str,
+    point_number: str
+):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        outline = story.get("outline", [])
+        # Remove the point and renumber remaining points
+        outline = [point for point in outline if point["number"] != point_number]
+        for i, point in enumerate(outline, 1):
+            point["number"] = str(i)
+
+        # Update the entire outline
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {
+                "$set": {
+                    "outline": outline,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+        )
+        return {"message": f"Outline point {point_number} deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting outline point: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/title/{story_id}")
+async def get_existing_title(story_id: str, user_id: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        title = story.get("title")
+        if not title:
+            return HTTPException(status_code=404, detail="Title not found")
+
+        return {"title": title}
+    except Exception as e:
+        logger.error(f"Error retrieving title: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/premise/{story_id}")
+async def get_existing_premise(story_id: str, user_id: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        premise = story.get("premise")
+        if not premise:
+            return HTTPException(status_code=404, detail="Premise not found")
+
+        return {"premise": premise}
+    except Exception as e:
+        logger.error(f"Error retrieving premise: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/setting/{story_id}")
+async def get_existing_setting(story_id: str, user_id: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        setting = story.get("setting")
+        if not setting:
+            return HTTPException(status_code=404, detail="Setting not found")
+
+        return {"setting": setting}
+    except Exception as e:
+        logger.error(f"Error retrieving setting: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/characters/{story_id}")
+async def get_existing_characters(story_id: str, user_id: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        characters = story.get("characters", [])
+        return {"characters": characters}
+    except Exception as e:
+        logger.error(f"Error retrieving characters: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/character/{story_id}/{character_name}")
+async def get_specific_character(story_id: str, user_id: str, character_name: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        characters = story.get("characters", [])
+        character = next(
+            (char for char in characters if char["name"] == character_name), None
+        )
+        
+        if not character:
+            return HTTPException(status_code=404, detail=f"Character {character_name} not found")
+
+        return {"character": character}
+    except Exception as e:
+        logger.error(f"Error retrieving character: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/outline/{story_id}")
+async def get_existing_outline(story_id: str, user_id: str):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        outline = story.get("outline", [])
+        return {"outline": outline}
+    except Exception as e:
+        logger.error(f"Error retrieving outline: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+@router.get("/story-elements/{story_id}")
+async def get_all_story_elements(story_id: str, user_id: str):
+    """Get all story elements in a single request"""
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        return {
+            "title": story.get("title"),
+            "premise": story.get("premise"),
+            "setting": story.get("setting"),
+            "characters": story.get("characters", []),
+            "outline": story.get("outline", [])
+        }
+    except Exception as e:
+        logger.error(f"Error retrieving story elements: {e}")
         return HTTPException(status_code=500, detail=str(e))

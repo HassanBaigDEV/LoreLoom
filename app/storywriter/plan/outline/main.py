@@ -138,7 +138,7 @@ async def generate_initial_outline(plan: dict) -> OutlineNode:
 
     try:
         response = model(outline_prompt, max_tokens=1024)
-        response_text = response["choices"][0]["text"].strip()
+        response_text = response["choices"][0]["text"].strip()  # type: ignore
         structure = json.loads(response_text)
 
         root = OutlineNode(
@@ -228,7 +228,7 @@ NUMBERED_OUTLINE_SCHEMA = json.dumps(NumberedEvent.model_json_schema())
 
 async def create_numbered_outline(
     story_id: str, num_events: int, continue_from_previous: bool = False
-) -> List[str]:
+) -> List[Dict]:
     """Create a numbered outline for a specified number of events."""
     try:
         # Fetch the existing story document
@@ -288,21 +288,14 @@ async def create_numbered_outline(
                 response = model(event_prompt, max_tokens=1024)
                 response_text = response["choices"][0]["text"]  # type:ignore
                 print(f"Generated event {i}: {response_text}")
-                event_data = json.loads(response_text)
+                
+                try:
+                    event_data = json.loads(response_text)
+                    outline.append(event_data)
+                except json.JSONDecodeError as e:
+                    logging.error(f"Failed to parse event JSON: {e}")
+                    raise ValueError(f"Invalid event data format: {response_text}")
 
-                # Format the event text
-                # event = event_data["events"][0]
-                print(f"Event data: {event_data}")
-                # event_text = (
-                #     f"{i}. {event['title']}\n"
-                #     f"   Description: {event['description']}\n"
-                #     f"   Purpose: {event['purpose']}\n"
-                #     f"   Setting: {event['setting']}\n"
-                #     f"   Characters: {', '.join(event['characters_involved'])}\n"
-                #     f"   Duration: {event['estimated_duration']}"
-                # )
-                outline.append(event_data)
-                # outline.append(event_text)
             except Exception as e:
                 logging.error(f"Error generating event {i}: {e}")
                 raise ValueError("Event generation failed")
