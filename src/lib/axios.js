@@ -100,7 +100,6 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-
 // import axios from "axios";
 
 // const isServer = typeof window === "undefined";
@@ -180,3 +179,4 @@ export default apiClient;
 // );
 
 // export default apiClient;
+

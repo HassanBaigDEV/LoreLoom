@@ -25,7 +25,7 @@ export default function CreateStory() {
         throw new Error("User not found");
       }
 
-      const response = await storyApiClient.post("/stories",null, {
+      const response = await storyApiClient.post("/stories", null, {
         params: { user_id: user.id },
         // query: { user_id: user.id },
       });

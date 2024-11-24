@@ -1,17 +1,17 @@
 import axios from "axios";
+import { toast } from 'react-hot-toast';
 
 const storyApiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_STORY_API_URI || "http://localhost:7777",
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 30000, // 30 second timeout
+  timeout: 300000, // 5 minutes timeout
 });
 
 // Add request interceptor for logging and error handling
 storyApiClient.interceptors.request.use(
   (config) => {
-    // Log the request (only in development)
     if (process.env.NODE_ENV === 'development') {
       console.log('Story API Request:', {
         url: config.url,
@@ -23,6 +23,7 @@ storyApiClient.interceptors.request.use(
     return config;
   },
   (error) => {
+    toast.error('Failed to make request to server');
     console.error('Story API Request Error:', error);
     return Promise.reject(error);
   }
@@ -31,33 +32,38 @@ storyApiClient.interceptors.request.use(
 // Add response interceptor for error handling
 storyApiClient.interceptors.response.use(
   (response) => {
-    // Check if response contains an error property (your API specific)
     if (response.data && response.data.status_code >= 400) {
+      toast.error(response.data.detail || 'API Error');
       return Promise.reject(new Error(response.data.detail || 'API Error'));
     }
     return response;
   },
   (error) => {
-    // Handle specific error cases
     if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout - please try again');
+      toast.error('Request is taking longer than usual. Please wait...');
+      return Promise.reject(new Error('Request timeout - please wait'));
     }
 
     if (!error.response) {
-      throw new Error('Network error - please check your connection');
+      toast.error('Network error - please check your connection');
+      return Promise.reject(new Error('Network error - please check your connection'));
     }
 
     // Handle specific HTTP error codes
     switch (error.response.status) {
       case 400:
-        throw new Error(error.response.data.detail || 'Invalid request');
+        toast.error(error.response.data.detail || 'Invalid request');
+        break;
       case 404:
-        throw new Error('Resource not found');
+        toast.error('Resource not found');
+        break;
       case 500:
-        throw new Error('Server error - please try again later');
+        toast.error('Server error - please try again later');
+        break;
       default:
-        throw new Error('An unexpected error occurred');
+        toast.error('An unexpected error occurred');
     }
+    return Promise.reject(error);
   }
 );
 
