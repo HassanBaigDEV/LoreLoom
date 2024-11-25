@@ -1,12 +1,13 @@
 from re import M
 from turtle import st
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body
 from typing import List, Dict, Optional
 from bson import ObjectId
 from app.models.story import Story
 from app.config.mongo import stories
 from datetime import datetime
 import logging
+from pydantic import BaseModel
 
 # Import the generator functions
 from app.storywriter.plan.plot.premise import generate_title, generate_premise
@@ -24,6 +25,38 @@ router = APIRouter()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# Add request models
+class TitleUpdate(BaseModel):
+    new_title: str
+
+class PremiseUpdate(BaseModel):
+    new_premise: str
+
+class SettingUpdate(BaseModel):
+    new_setting: str
+
+class CharacterUpdate(BaseModel):
+    character_name: str
+    updated_character: Dict
+
+class OutlinePointUpdate(BaseModel):
+    point_number: str
+    updated_point: Dict
+
+class NewCharacter(BaseModel):
+    new_character: Dict
+
+class NewOutlinePoint(BaseModel):
+    new_point: Dict
+    position: Optional[int] = None
+
+class CharacterDelete(BaseModel):
+    character_name: str
+
+class OutlinePointDelete(BaseModel):
+    point_number: str
 
 
 @router.get("/generate-title/{story_id}")
@@ -202,7 +235,7 @@ async def get_full_outline(
 
 
 @router.put("/edit-title/{story_id}")
-async def edit_title(story_id: str, user_id: str, new_title: str):
+async def edit_title(story_id: str, user_id: str, data: TitleUpdate):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -212,15 +245,15 @@ async def edit_title(story_id: str, user_id: str, new_title: str):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"title": new_title, "updated_at": datetime.utcnow()}}
+            {"$set": {"title": data.new_title, "updated_at": datetime.utcnow()}}
         )
-        return {"message": "Title updated successfully", "title": new_title}
+        return {"message": "Title updated successfully", "title": data.new_title}
     except Exception as e:
         logger.error(f"Error updating title: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.put("/edit-premise/{story_id}")
-async def edit_premise(story_id: str, user_id: str, new_premise: str):
+async def edit_premise(story_id: str, user_id: str, data: PremiseUpdate):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -230,15 +263,15 @@ async def edit_premise(story_id: str, user_id: str, new_premise: str):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"premise": new_premise, "updated_at": datetime.utcnow()}}
+            {"$set": {"premise": data.new_premise, "updated_at": datetime.utcnow()}}
         )
-        return {"message": "Premise updated successfully", "premise": new_premise}
+        return {"message": "Premise updated successfully", "premise": data.new_premise}
     except Exception as e:
         logger.error(f"Error updating premise: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.put("/edit-setting/{story_id}")
-async def edit_setting(story_id: str, user_id: str, new_setting: str):
+async def edit_setting(story_id: str, user_id: str, data: SettingUpdate):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -248,20 +281,15 @@ async def edit_setting(story_id: str, user_id: str, new_setting: str):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"setting": new_setting, "updated_at": datetime.utcnow()}}
+            {"$set": {"setting": data.new_setting, "updated_at": datetime.utcnow()}}
         )
-        return {"message": "Setting updated successfully", "setting": new_setting}
+        return {"message": "Setting updated successfully", "setting": data.new_setting}
     except Exception as e:
         logger.error(f"Error updating setting: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.put("/edit-character/{story_id}")
-async def edit_character(
-    story_id: str, 
-    user_id: str, 
-    character_name: str,
-    updated_character: dict
-):
+async def edit_character(story_id: str, user_id: str, data: CharacterUpdate):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -270,13 +298,13 @@ async def edit_character(
             return HTTPException(status_code=404, detail="Story not found")
 
         # Validate the updated character data using the Character model
-        character = Character(**updated_character)
+        character = Character(**data.updated_character)
         
         # Update the specific character in the characters array
         await stories.update_one(
             {
                 "story_id": ObjectId(story_id),
-                "characters.name": character_name
+                "characters.name": data.character_name
             },
             {
                 "$set": {
@@ -294,12 +322,7 @@ async def edit_character(
         return HTTPException(status_code=500, detail=str(e))
 
 @router.put("/edit-outline-point/{story_id}")
-async def edit_outline_point(
-    story_id: str,
-    user_id: str,
-    point_number: str,
-    updated_point: dict
-):
+async def edit_outline_point(story_id: str, user_id: str, data: OutlinePointUpdate):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -311,29 +334,25 @@ async def edit_outline_point(
         await stories.update_one(
             {
                 "story_id": ObjectId(story_id),
-                "outline.number": point_number
+                "outline.number": data.point_number
             },
             {
                 "$set": {
-                    "outline.$": updated_point,
+                    "outline.$": data.updated_point,
                     "updated_at": datetime.utcnow()
                 }
             }
         )
         return {
             "message": "Outline point updated successfully",
-            "outline_point": updated_point
+            "outline_point": data.updated_point
         }
     except Exception as e:
         logger.error(f"Error updating outline point: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.post("/add-character/{story_id}")
-async def add_character(
-    story_id: str,
-    user_id: str,
-    new_character: dict
-):
+async def add_character(story_id: str, user_id: str, data: NewCharacter):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -342,7 +361,7 @@ async def add_character(
             return HTTPException(status_code=404, detail="Story not found")
 
         # Validate the new character data
-        character = Character(**new_character)
+        character = Character(**data.new_character)
         
         # Add the new character to the characters array
         await stories.update_one(
@@ -361,12 +380,7 @@ async def add_character(
         return HTTPException(status_code=500, detail=str(e))
 
 @router.post("/add-outline-point/{story_id}")
-async def add_outline_point(
-    story_id: str,
-    user_id: str,
-    new_point: dict,
-    position: Optional[int] = None
-):
+async def add_outline_point(story_id: str, user_id: str, data: NewOutlinePoint):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -377,15 +391,15 @@ async def add_outline_point(
         outline = story.get("outline", [])
         
         # If position is specified, insert at that position
-        if position is not None and position <= len(outline):
-            outline.insert(position, new_point)
+        if data.position is not None and data.position <= len(outline):
+            outline.insert(data.position, data.new_point)
             # Renumber the outline points
             for i, point in enumerate(outline, 1):
                 point["number"] = str(i)
         else:
             # Add to the end
-            new_point["number"] = str(len(outline) + 1)
-            outline.append(new_point)
+            data.new_point["number"] = str(len(outline) + 1)
+            outline.append(data.new_point)
 
         # Update the entire outline
         await stories.update_one(
@@ -399,18 +413,14 @@ async def add_outline_point(
         )
         return {
             "message": "Outline point added successfully",
-            "outline_point": new_point
+            "outline_point": data.new_point
         }
     except Exception as e:
         logger.error(f"Error adding outline point: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/delete-character/{story_id}")
-async def delete_character(
-    story_id: str,
-    user_id: str,
-    character_name: str
-):
+async def delete_character(story_id: str, user_id: str, data: CharacterDelete):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -422,21 +432,17 @@ async def delete_character(
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
             {
-                "$pull": {"characters": {"name": character_name}},
+                "$pull": {"characters": {"name": data.character_name}},
                 "$set": {"updated_at": datetime.utcnow()}
             }
         )
-        return {"message": f"Character {character_name} deleted successfully"}
+        return {"message": f"Character {data.character_name} deleted successfully"}
     except Exception as e:
         logger.error(f"Error deleting character: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/delete-outline-point/{story_id}")
-async def delete_outline_point(
-    story_id: str,
-    user_id: str,
-    point_number: str
-):
+async def delete_outline_point(story_id: str, user_id: str, data: OutlinePointDelete):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
@@ -446,7 +452,7 @@ async def delete_outline_point(
 
         outline = story.get("outline", [])
         # Remove the point and renumber remaining points
-        outline = [point for point in outline if point["number"] != point_number]
+        outline = [point for point in outline if point["number"] != data.point_number]
         for i, point in enumerate(outline, 1):
             point["number"] = str(i)
 
@@ -460,7 +466,7 @@ async def delete_outline_point(
                 }
             }
         )
-        return {"message": f"Outline point {point_number} deleted successfully"}
+        return {"message": f"Outline point {data.point_number} deleted successfully"}
     except Exception as e:
         logger.error(f"Error deleting outline point: {e}")
         return HTTPException(status_code=500, detail=str(e))
