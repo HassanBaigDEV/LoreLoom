@@ -5,4 +5,18 @@ import { atomWithStorage } from 'jotai/utils';
 export const userAtom = atomWithStorage('user', null);
 
 // Loading state atom
-export const isLoadingAtom = atom(false); 
+export const isLoadingAtom = atom(false);
+
+// New atoms for story state
+export const storyDataAtom = atom({
+  title: "",
+  premise: "",
+  setting: "",
+  characters: [],
+  outline: [],
+});
+
+export const storyProgressAtom = atom(0);
+export const storyLoadingAtom = atom(false);
+export const storyErrorAtom = atom("");
+export const currentStoryIdAtom = atomWithStorage('currentStoryId', null);

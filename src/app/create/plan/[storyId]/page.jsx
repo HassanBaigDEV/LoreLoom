@@ -6,36 +6,46 @@ import {
   Box,
   Container,
   Typography,
-  LinearProgress,
   Paper,
-  Divider,
   CircularProgress,
-  IconButton,
+  Button,
 } from "@mui/material";
+import { useAtom } from 'jotai';
+import { 
+  storyDataAtom, 
+  storyProgressAtom, 
+  storyLoadingAtom, 
+  storyErrorAtom,
+  currentStoryIdAtom 
+} from '@/store/atoms';
 import storyApiClient from "@/lib/storyApi";
 import PlanHeader from "@/components/plan/Header";
 import StoryElement from "@/components/plan/StoryElement";
 import ProgressIndicator from "@/components/plan/ProgressIndicator";
 import { Toaster, toast } from "react-hot-toast";
-import TypewriterText from "@/components/common/TypewriterText";
-import { EditIcon } from "@mui/icons-material";
 
 export default function PlanStory({ params }) {
   const router = useRouter();
   const { storyId } = params;
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [storyData, setStoryData] = useState({
-    title: "",
-    premise: "",
-    setting: "",
-    characters: [],
-    outline: [],
-  });
+  const [pageLoading, setPageLoading] = useState(true);
+  
+  // Jotai state
+  const [storyData, setStoryData] = useAtom(storyDataAtom);
+  const [progress, setProgress] = useAtom(storyProgressAtom);
+  const [loading, setLoading] = useAtom(storyLoadingAtom);
+  const [error, setError] = useAtom(storyErrorAtom);
+  const [, setCurrentStoryId] = useAtom(currentStoryIdAtom);
 
-  // Fetch existing story elements on mount
+  const calculateProgress = (data) => {
+    const elements = ["title", "premise", "setting", "characters", "outline"];
+    const completed = elements.filter((elem) =>
+      Array.isArray(data[elem]) ? data[elem].length > 0 : Boolean(data[elem])
+    ).length;
+    setProgress((completed / elements.length) * 100);
+  };
+
   useEffect(() => {
+    setCurrentStoryId(storyId);
     const fetchStoryElements = async () => {
       try {
         const user = JSON.parse(localStorage.getItem("user"));
@@ -52,19 +62,27 @@ export default function PlanStory({ params }) {
         calculateProgress(response.data);
       } catch (err) {
         console.error("Error fetching story elements:", err);
+        toast.error("Failed to load story elements");
+      } finally {
+        setPageLoading(false);
       }
     };
 
     fetchStoryElements();
-  }, [storyId]);
+  }, [storyId, setStoryData, setCurrentStoryId]);
 
-  const calculateProgress = (data) => {
-    const elements = ["title", "premise", "setting", "characters", "outline"];
-    const completed = elements.filter((elem) =>
-      Array.isArray(data[elem]) ? data[elem].length > 0 : Boolean(data[elem])
-    ).length;
-    setProgress((completed / elements.length) * 100);
-  };
+  if (pageLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <CircularProgress size={40} className="text-green-500" />
+          <Typography className="mt-4 text-gray-600">
+            Loading your story...
+          </Typography>
+        </div>
+      </div>
+    );
+  }
 
   const handleGenerate = async (elementType) => {
     setLoading(true);
@@ -102,8 +120,10 @@ export default function PlanStory({ params }) {
       const response = await storyApiClient.put(
         `/plan/edit-${elementType}/${storyId}`,
         {
-          user_id: user.id,
-          [`new_${elementType}`]: newContent,
+          [`new_${elementType}`]: newContent
+        },
+        {
+          params: { user_id: user.id }
         }
       );
 
@@ -111,14 +131,15 @@ export default function PlanStory({ params }) {
         ...prev,
         [elementType]: response.data[elementType],
       }));
+      toast.success(`${elementType} updated successfully!`);
     } catch (err) {
       console.error(`Error updating ${elementType}:`, err);
-      setError(`Failed to update ${elementType}. Please try again.`);
+      toast.error(`Failed to update ${elementType}. Please try again.`);
     }
   };
 
   const handleProceed = () => {
-    router.push("/write"); // or wherever you want to go next
+    router.push("/write");
   };
 
   return (
@@ -148,6 +169,8 @@ export default function PlanStory({ params }) {
                 onGenerate={() => handleGenerate("title")}
                 onEdit={(content) => handleEdit("title", content)}
                 isFirst={true}
+                storyId={storyId}
+                setStoryData={setStoryData}
               />
 
               {storyData?.title && (
@@ -158,6 +181,8 @@ export default function PlanStory({ params }) {
                   loading={loading}
                   onGenerate={() => handleGenerate("premise")}
                   onEdit={(content) => handleEdit("premise", content)}
+                  storyId={storyId}
+                  setStoryData={setStoryData}
                 />
               )}
 
@@ -169,6 +194,8 @@ export default function PlanStory({ params }) {
                   loading={loading}
                   onGenerate={() => handleGenerate("setting")}
                   onEdit={(content) => handleEdit("setting", content)}
+                  storyId={storyId}
+                  setStoryData={setStoryData}
                 />
               )}
 
@@ -180,7 +207,9 @@ export default function PlanStory({ params }) {
                   loading={loading}
                   onGenerate={() => handleGenerate("characters")}
                   onEdit={(content) => handleEdit("characters", content)}
+                  storyId={storyId}
                   isCharacters={true}
+                  setStoryData={setStoryData}
                 />
               )}
 
@@ -192,7 +221,9 @@ export default function PlanStory({ params }) {
                   loading={loading}
                   onGenerate={() => handleGenerate("outline")}
                   onEdit={(content) => handleEdit("outline", content)}
+                  storyId={storyId}
                   isOutline={true}
+                  setStoryData={setStoryData}
                 />
               )}
             </motion.div>
