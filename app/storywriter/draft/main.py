@@ -4,6 +4,7 @@ from typing import List, Dict, Optional, Tuple
 from bson import ObjectId
 import tiktoken
 from pymongo import UpdateOne
+from datetime import datetime
 
 from ..plan.db.vector import store_story_part, find_similar_parts
 from ..plan.llm import model
@@ -14,6 +15,8 @@ from ..plan.outline.schema import (
     OutlineNode,
 )
 from ..plan.characters.schema import Character
+from app.utils.text_validation import retry_generation, is_complete_sentence
+from .rewrite.main import PassageRewriter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +25,7 @@ logger = logging.getLogger(__name__)
 tokenizer = tiktoken.get_encoding("cl100k_base")
 
 # Initialize passages collection
-passages = db.passages
+passage_collection = db.passages
 
 
 class DraftGenerator:
@@ -57,12 +60,8 @@ class DraftGenerator:
         story = await self.load_plan_data()
 
         try:
-            # Find specific outline point in array
+            # Find specific outline point
             outline = story.get("outline", [])
-            if not outline:
-                raise ValueError("No outline found in story")
-
-            # Find the specific outline point by number
             current_point = next(
                 (
                     point
@@ -71,28 +70,34 @@ class DraftGenerator:
                 ),
                 None,
             )
-
             if not current_point:
                 raise ValueError(f"Outline point {outline_point_id} not found")
 
-            # Get recent passages with batch query
+            # Get characters from outline point first
+            character_contexts = await self._get_outline_characters(current_point)
+
+            # Get recent passages
             recent_passages = await self._get_recent_passages()
 
-            # Get relevant character descriptions
-            # Only try to get similar passages if we have previous passages
-            character_contexts = []
+            # Add relevant characters from recent passages
             if recent_passages:
                 recent_passage_text = recent_passages[0]["content"]
-                character_contexts = await self._get_relevant_characters(
+                additional_chars = await self._get_relevant_characters(
                     recent_passage_text
                 )
-            else:
-                # If no previous passages, get all characters from the story
-                character_contexts = await self._get_all_characters()
+
+                # Add only characters not already included
+                existing_names = {char["name"] for char in character_contexts}
+                character_contexts.extend(
+                    char
+                    for char in additional_chars
+                    if char["name"] not in existing_names
+                )
 
             return PassageContext(
                 premise=story.get("premise", ""),
                 setting=story.get("setting", ""),
+                genre=story.get("genre", ""),
                 relevant_characters=character_contexts,
                 previous_summaries=(
                     [p.get("summary", "") for p in recent_passages]
@@ -113,7 +118,7 @@ class DraftGenerator:
             {"$sort": {"created_at": -1}},
             {"$limit": limit},
         ]
-        return await passages.aggregate(pipeline).to_list(length=limit)
+        return await passage_collection.aggregate(pipeline).to_list(length=limit)
 
     async def _get_all_characters(self) -> List[Dict]:
         """Get all characters from the story when there are no previous passages"""
@@ -159,21 +164,25 @@ class DraftGenerator:
                 char_name = ctx[0]
                 char_doc = await stories.find_one(
                     {"story_id": ObjectId(self.story_id), "characters.name": char_name},
-                    {"characters.$": 1}
+                    {"characters.$": 1},
                 )
 
                 if char_doc and char_doc.get("characters"):
                     char_data = char_doc["characters"][0]
                     character = Character(**char_data)
-                    characters.append({
-                        "name": character.name,
-                        "type": character.type,
-                        "role": character.role,
-                        "description": character.physicalAppearance,
-                        "behavior": character.behavioralPatterns,
-                        "relationships": character.relationships,
-                        "relevance": self.character_relevance.get(character.name, 0)
-                    })
+                    characters.append(
+                        {
+                            "name": character.name,
+                            "type": character.type,
+                            "role": character.role,
+                            "description": character.physicalAppearance,
+                            "behavior": character.behavioralPatterns,
+                            "relationships": character.relationships,
+                            "relevance": self.character_relevance.get(
+                                character.name, 0
+                            ),
+                        }
+                    )
 
             return characters
         except Exception as e:
@@ -380,71 +389,47 @@ class DraftGenerator:
             logger.error(f"Error updating character relevance: {e}")
 
     async def generate_passage(self, outline_point_id: str) -> GeneratedPassage:
-        """Generate a story passage for the given outline point"""
         try:
-            # Get context and create prompt
             context = await self.retrieve_relevant_context(outline_point_id)
             prompt = self.prepare_prompt(context)
 
-            # Generate the passage text with optimized parameters
-            response = model(
-                prompt,
-                max_tokens=1024,  # Reduced max tokens
-                temperature=0.7,  # Add temperature for better generation
-                top_p=0.9,  # Add top_p for faster sampling
-                stream=False,  # Disable streaming for faster response
-            )
+            async def _generate_passage() -> str:
+                response = model(
+                    prompt,
+                    max_tokens=1024,
+                    temperature=0.7,
+                    top_p=0.9,
+                    stream=False,
+                )
+                passage_text = response["choices"][0]["text"] if response.get("choices") else ""  # type: ignore
+                return passage_text
 
-            # Direct access to response
-            passage_text = (
-                response["choices"][0]["text"]  # type: ignore
-                if response.get("choices")  # type: ignore
-                else "Failed to generate passage text."
-            )
+            passage_text = await retry_generation(_generate_passage)
+            if not passage_text:
+                raise ValueError(
+                    "Failed to generate a valid passage after multiple attempts"
+                )
 
-            # Quick summary generation with reduced tokens
-            summary_prompt = f"""
-            <|im_start|>system
-            Summarize in one sentence:
-            {passage_text[:500]}  # Only summarize first 500 chars
-            <|im_end|>
-            <|im_start|>assistant
-            """
+            # Generate summary with validation
+            async def _generate_summary() -> str:
+                summary_prompt = f"""
+                <|im_start|>system
+                Summarize in one complete sentence:
+                {passage_text[:500]}
+                <|im_end|>
+                <|im_start|>assistant
+                """
+                summary_response = model(
+                    summary_prompt,
+                    max_tokens=128,
+                    temperature=0.5,
+                    stream=False,
+                )
+                return summary_response["choices"][0]["text"] if summary_response.get("choices") else ""  # type: ignore
 
-            summary_response = model(
-                summary_prompt,
-                max_tokens=128,  # Reduced tokens for summary
-                temperature=0.5,  # Lower temperature for more focused summary
-                stream=False,
-            )
-            summary = (
-                summary_response["choices"][0]["text"]  # type: ignore
-                if summary_response.get("choices")  # type: ignore
-                else "Summary not available."
-            )
-
-            # Simple entity extraction without JSON parsing
-            entity_prompt = f"""
-            <|im_start|>system
-            List character names from text, comma-separated:
-            {passage_text[:500]}
-            <|im_end|>
-            <|im_start|>assistant
-            """
-
-            entity_response = model(
-                entity_prompt, max_tokens=128, temperature=0.3, stream=False
-            )
-
-            # Simple string splitting for entities
-            entity_text = (
-                entity_response["choices"][0]["text"]  # type: ignore
-                if entity_response.get("choices")  # type: ignore
-                else ""
-            )
-            mentioned_entities = [
-                name.strip() for name in entity_text.split(",") if name.strip()
-            ]
+            summary = await retry_generation(_generate_summary)
+            if not summary:
+                summary = "Summary generation failed."
 
             # Create and store passage
             passage = GeneratedPassage(
@@ -453,37 +438,97 @@ class DraftGenerator:
                 outline_point_id=outline_point_id,
                 content=passage_text,
                 summary=summary,
-                mentioned_entities=mentioned_entities,
+                mentioned_entities=await self._extract_entities(passage_text),
             )
 
-            # Store in MongoDB
-            await passages.insert_one(passage.model_dump())
-
-            # Update character relevance in background
-            try:
-                await self._update_character_relevance(mentioned_entities)
-            except Exception as e:
-                logger.error(f"Character relevance update failed: {e}")
-
+            await self._store_passage(passage)
             return passage
 
         except Exception as e:
             logger.error(f"Error generating passage: {e}")
-            return GeneratedPassage(
-                passage_id=str(ObjectId()),
-                story_id=self.story_id,
-                outline_point_id=outline_point_id,
-                content="Failed to generate passage.",
-                summary="Generation failed",
-                mentioned_entities=[],
+            raise
+
+    async def _extract_entities(self, passage_text: str) -> List[str]:
+        """Extract and validate character names and entities from passage text"""
+        # First extraction
+        prompt = f"""
+        <|im_start|>system
+        You are an expert at identifying character names and important entities in story text.
+        Analyze this passage and list all character names and significant entities (like magical artifacts, important locations, etc).
+        Return only the names/entities as a comma-separated list.
+        
+        Example output format:
+        John Smith, Sarah Jones, The Crystal Cave, Ancient Sword of Light
+        
+        Passage to analyze:
+        {passage_text}
+        <|im_end|>
+        <|im_start|>assistant
+        """
+
+        try:
+            response = model(prompt, max_tokens=256, temperature=0.3)
+            if not isinstance(response, dict) or "choices" not in response:
+                logger.error("Invalid response format from entity extraction model")
+                return []
+
+            entities_text = response["choices"][0]["text"].strip()  # type: ignore
+            potential_entities = [
+                entity.strip()
+                for entity in entities_text.split(",")
+                if entity.strip() and len(entity.strip()) > 1
+            ]
+
+            # Validate each entity
+            validation_prompt = f"""
+            <|im_start|>system
+            Verify if these entities actually appear in the passage. Return only valid entities as a comma-separated list.
+            
+            Passage:
+            {passage_text}
+            
+            Potential entities to verify:
+            {', '.join(potential_entities)}
+            
+            For each entity, verify:
+            1. It is explicitly mentioned in the passage
+            2. It is a significant character, location, or object
+            3. It is not a common noun or general reference
+            
+            Return only the verified entities, comma-separated.
+            <|im_end|>
+            <|im_start|>assistant
+            """
+
+            validation_response = model(
+                validation_prompt, max_tokens=256, temperature=0.2
             )
+            if (
+                not isinstance(validation_response, dict)
+                or "choices" not in validation_response
+            ):
+                return potential_entities  # Fallback to unvalidated entities
+
+            validated_text = validation_response["choices"][0]["text"].strip()  # type: ignore
+            validated_entities = [
+                entity.strip()
+                for entity in validated_text.split(",")
+                if entity.strip() and len(entity.strip()) > 1
+            ]
+
+            logger.info(f"Validated entities: {validated_entities}")
+            return validated_entities
+
+        except Exception as e:
+            logger.error(f"Error extracting entities: {e}")
+            return []
 
     async def _store_passage(self, passage: GeneratedPassage):
         """Store the passage in MongoDB and vector store"""
         try:
             # Store in MongoDB
             passage_dict = passage.model_dump()
-            await passages.insert_one(passage_dict)
+            await passage_collection.insert_one(passage_dict)
 
             # Store in vector store for similarity search
             store_story_part("passage", self.story_id, passage.content, passage.content)
@@ -497,21 +542,28 @@ class DraftGenerator:
             formatted_chars = []
             for char in characters:
                 char_desc = [
-                    f"- {char['name']} ({char['type']} - {char['role']}):",
-                    f"  Physical: {char['description']}",
-                    f"  Behavior: {char['behavior']}",
-                    "  Relationships:"
+                    f"- {char['name']} ({char.get('type', 'character')} - {char.get('role', 'Unknown')}):",
+                    f"  Physical: {char.get('description', '')}",
+                    f"  Behavior: {char.get('behavior', '')}",
+                    "  Relationships:",
                 ]
 
-                for rel_name, rel_desc in char["relationships"].items():
-                    char_desc.append(f"    - {rel_name}: {rel_desc}")
+                # Safely handle relationships
+                relationships = char.get("relationships", {})
+                if relationships:
+                    for rel_name, rel_desc in relationships.items():
+                        char_desc.append(f"    - {rel_name}: {rel_desc}")
 
                 formatted_chars.append("\n".join(char_desc))
 
-            return "\n\n".join(formatted_chars)
+            return (
+                "\n\n".join(formatted_chars)
+                if formatted_chars
+                else "No character information available."
+            )
         except Exception as e:
             logger.error(f"Error formatting characters: {e}")
-            return ""
+            return "Error retrieving character information."
 
     def _format_summaries(self, summaries: List[str]) -> str:
         """Format previous summaries for the prompt"""
@@ -546,3 +598,174 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"LLM test failed: {e}")
             return False
+
+    async def generate_passages(
+        self, outline_point_id: str, num_variations: int = 3
+    ) -> List[GeneratedPassage]:
+        """Generate multiple variations of a passage"""
+        try:
+            context = await self.retrieve_relevant_context(outline_point_id)
+            passages = []
+
+            for _ in range(num_variations):
+                passage = await self.generate_passage(outline_point_id)
+                passages.append(passage)
+
+            # Evaluate and rank passages
+            rewriter = PassageRewriter(self.story_id)
+            best_passage, scores = await rewriter.process_passages(passages, context)
+
+            # If the best passage needs improvement (score < 0.7)
+            if scores["total"] < 0.7:
+                logger.info(f"Best passage score: {scores}")
+
+            # Process new entities in the best passage
+            await self._process_new_entities(best_passage, context)
+
+            # Store all passages but mark the best one
+            for passage in passages:
+                passage_dict = passage.model_dump()
+                passage_dict["is_best"] = passage.passage_id == best_passage.passage_id
+                await passage_collection.insert_one(passage_dict)
+
+            return passages
+
+        except Exception as e:
+            logger.error(f"Error generating passages: {e}")
+            raise
+
+    async def _process_new_entities(
+        self, passage: GeneratedPassage, context: PassageContext
+    ):
+        """Process and add new entities found in the passage"""
+        try:
+            # Get existing character names
+            story = await stories.find_one({"story_id": ObjectId(self.story_id)})
+            if not story:
+                return
+
+            existing_chars = {char["name"] for char in story.get("characters", [])}
+
+            # Find new entities
+            new_entities = set(passage.mentioned_entities) - existing_chars
+            if not new_entities:
+                return
+
+            # Generate character profiles for new entities
+            new_characters = []
+            for entity in new_entities:
+                # Validate entity's role in the passage
+                role_prompt = f"""
+                <|im_start|>system
+                Analyze this entity's role in the passage and determine if it should be added as a character.
+                Entity: {entity}
+                Passage: {passage.content}
+                
+                Return ONLY "character", "location", or "object" based on the entity's nature.
+                <|im_end|>
+                <|im_start|>assistant
+                """
+
+                role_response = model(role_prompt, max_tokens=8, temperature=0.1)
+                if (
+                    not isinstance(role_response, dict)
+                    or "choices" not in role_response
+                ):
+                    continue
+
+                entity_type = role_response["choices"][0]["text"].strip().lower()  # type: ignore
+
+                if entity_type in ["character", "location", "object"]:
+                    char_data = await self._generate_new_character(
+                        entity, entity_type, passage.content, context
+                    )
+                    if char_data:
+                        new_characters.append(char_data)
+
+            if new_characters:
+                # Add new characters to the story
+                await stories.update_one(
+                    {"story_id": ObjectId(self.story_id)},
+                    {
+                        "$push": {"characters": {"$each": new_characters}},
+                        "$set": {"updated_at": datetime.utcnow()},
+                    },
+                )
+                logger.info(f"Added {len(new_characters)} new characters to the story")
+
+        except Exception as e:
+            logger.error(f"Error processing new entities: {e}")
+
+    async def _generate_new_character(
+        self,
+        entity_name: str,
+        entity_type: str,
+        passage_content: str,
+        context: PassageContext,
+    ) -> Optional[Dict]:
+        """Generate a new character entry based on passage context"""
+        prompt = f"""
+        <|im_start|>system
+        Generate a detailed description for a new {entity_type} discovered in the story.
+        Use the story context and passage to ensure consistency.
+        
+        Story Genre: {context.genre}
+        Story Premise: {context.premise}
+        Setting: {context.setting}
+        Current Passage: {passage_content}
+        Entity Name: {entity_name}
+        Entity Type: {entity_type}
+        
+        Generate a character profile in JSON format following this schema:
+        {character_schema}
+        <|im_end|>
+        <|im_start|>assistant
+        """
+
+        try:
+            response = model(prompt, max_tokens=1024)
+            if not isinstance(response, dict) or "choices" not in response:
+                return None
+
+            char_data = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+
+            # Validate with Character model
+            character = Character(**char_data)
+            return character.model_dump()
+        except Exception as e:
+            logger.error(f"Error generating new character {entity_name}: {e}")
+            return None
+
+    async def _get_outline_characters(self, outline_point: Dict) -> List[Dict]:
+        """Get character details for characters mentioned in the outline point"""
+        try:
+            characters_involved = outline_point.get("characters_involved", [])
+            story = await stories.find_one({"story_id": ObjectId(self.story_id)})
+            if not story:
+                return []
+
+            outline_characters = []
+            for char_name in characters_involved:
+                char_data = next(
+                    (
+                        char
+                        for char in story.get("characters", [])
+                        if char["name"] == char_name
+                    ),
+                    None,
+                )
+                if char_data:
+                    outline_characters.append(
+                        {
+                            "name": char_data["name"],
+                            "description": char_data["physicalAppearance"],
+                            "behavior": char_data["behavioralPatterns"],
+                            "relationships": char_data["relationships"],
+                            "relevance": 1.0,  # High relevance as they're directly involved
+                        }
+                    )
+
+            return outline_characters
+        except Exception as e:
+            logger.error(f"Error getting outline characters: {e}")
+            return []

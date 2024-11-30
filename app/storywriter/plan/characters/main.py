@@ -14,9 +14,16 @@ from app.config.mongo import db, stories
 
 # Generate characters based on premise and setting
 async def generate_characters(story_id: str, premise: str, setting: str) -> List[Dict]:
+    # Get story for genre
+    story = await stories.find_one({"story_id": ObjectId(story_id)})
+    if not story:
+        raise ValueError("Story not found")
+    
+    genre = story.get("genre", "")
+    
     chatML_template = f"""
     <|im_start|>system
-    You are tasked with generating detailed character descriptions based on a given premise and setting. The output should be structured in a strict JSON format. Ensure that the descriptions are unique, creative, and fit well within the context of the provided premise and setting.
+    You are tasked with generating detailed character and entity descriptions for a {genre} story based on the given premise and setting. The output should be structured in a strict JSON format. Ensure that the descriptions are unique, creative, and fit well within the context of the provided premise and setting, while adhering to common character archetypes and tropes found in {genre} stories.
     
     Example of a correctly formatted response:
     ```json

@@ -9,6 +9,7 @@ class Story(BaseModel):
     story_id: ObjectId = Field(default_factory=ObjectId, alias="_id")
     author: ObjectId  # Reference to users collection
     title: Optional[str] = None
+    genre: Optional[str] = None
     premise: Optional[str] = None
     setting: Optional[str] = None
     characters: Optional[List[Dict]] = None

@@ -213,3 +213,38 @@ async def test_llm():
     except Exception as e:
         logger.error(f"Error testing LLM: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-passages/{story_id}")
+async def generate_passages(
+    story_id: str,
+    outline_point_id: str,
+    user_id: str,
+    num_variations: int = 3
+):
+    """Generate multiple passage variations for a specific outline point"""
+    try:
+        # Validate story ownership
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            logger.error(f"Story {story_id} not found or unauthorized")
+            return HTTPException(status_code=404, detail="Story not found or unauthorized")
+
+        # Initialize draft generator
+        draft_gen = DraftGenerator(story_id)
+
+        # Generate passages
+        passages = await draft_gen.generate_passages(outline_point_id, num_variations)
+
+        return {
+            "passages": [p.model_dump() for p in passages],
+            "message": "Multiple passages generated successfully"
+        }
+    except ValueError as ve:
+        logger.error(f"ValueError: {ve}")
+        return HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating passages: {e}")
+        return HTTPException(status_code=500, detail=str(e))

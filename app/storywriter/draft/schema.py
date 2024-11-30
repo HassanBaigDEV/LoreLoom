@@ -9,6 +9,8 @@ class PassageContext(BaseModel):
 
     premise: str
     setting: str
+    genre: str
+    tone: str = "neutral"
     relevant_characters: List[Dict]
     previous_summaries: List[str]
     recent_passage: Optional[str]

@@ -51,11 +51,11 @@ stories = db["stories"]  # Define the stories collection
 
 
 @app.post("/stories")
-async def create_story(user_id: str):
+async def create_story(user_id: str, genre: str):
     story_id = ObjectId()
     print(user_id)
 
-    story = Story(_id=story_id, author=ObjectId(user_id))
+    story = Story(_id=story_id, author=ObjectId(user_id), genre=genre)
 
     await stories.insert_one(story.model_dump())
     # Add the story reference to the user object in the users collection
@@ -64,7 +64,8 @@ async def create_story(user_id: str):
     # Convert ObjectIds to strings before returning
     return {
         "story_id": str(story_id),
-        "author": str(ObjectId(user_id))
+        "author": str(ObjectId(user_id)),
+        "genre": genre
     }
 
 
