@@ -29,8 +29,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import storyApiClient from "@/lib/storyApi";
-import { useAtom } from 'jotai';
-import { storyDataAtom, storyLoadingAtom, storyErrorAtom } from '@/store/atoms';
+import { useAtom } from "jotai";
+import { storyDataAtom, storyLoadingAtom, storyErrorAtom } from "@/store/atoms";
 
 export default function StoryElement({
   title,
@@ -44,7 +44,7 @@ export default function StoryElement({
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [loading, setLoading] = useAtom(storyLoadingAtom);
   const [error, setError] = useAtom(storyErrorAtom);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -132,7 +132,21 @@ export default function StoryElement({
   const handleGenerate = async () => {
     try {
       setLoadingId(title.toLowerCase());
-      const result = await onGenerate();
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
+
+      const response = await storyApiClient.get(
+        `/plan/generate-${title.toLowerCase()}/${storyId}`,
+        {
+          params: { user_id: user.id },
+        }
+      );
+
+      setStoryData((prev) => ({
+        ...prev,
+        [title.toLowerCase()]: response.data,
+      }));
+
       setIsTyping(true);
       toast.success(`${title} generated successfully!`);
     } catch (error) {
@@ -266,6 +280,35 @@ export default function StoryElement({
         itemId: null,
         itemName: null,
       });
+    }
+  };
+
+  const handleManualSave = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
+
+      const fieldName = title.toLowerCase();
+      const response = await storyApiClient.put(
+        `/plan/edit-${fieldName}/${storyId}`,
+        {
+          [`new_${fieldName}`]: manualInput,
+        },
+        {
+          params: { user_id: user.id },
+        }
+      );
+
+      setStoryData((prev) => ({
+        ...prev,
+        [fieldName]: response.data[fieldName],
+      }));
+
+      setManualInput("");
+      toast.success(`${title} saved successfully!`);
+    } catch (error) {
+      console.error(`Error saving ${title}:`, error);
+      toast.error(`Failed to save ${title.toLowerCase()}`);
     }
   };
 
@@ -571,7 +614,7 @@ export default function StoryElement({
               <div className="flex justify-between items-center">
                 <Button
                   variant="outlined"
-                  onClick={() => onEdit(manualInput)}
+                  onClick={handleManualSave}
                   disabled={!manualInput}
                   className="px-6"
                 >
