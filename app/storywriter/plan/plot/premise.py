@@ -1,6 +1,6 @@
 # Generate the story premise
 import logging
-from ..llm import model
+from ...llm import model
 import uuid
 from app.config.mongo import db, stories
 from datetime import datetime

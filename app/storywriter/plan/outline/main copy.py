@@ -10,7 +10,7 @@ from bson import ObjectId
 from ..plot.premise import generate_premise, generate_title
 from ..plot.settings import generate_setting
 from ..outline.schema import OutlineNode
-from ..llm import model
+from ...llm import model
 from app.config.mongo import stories
 
 

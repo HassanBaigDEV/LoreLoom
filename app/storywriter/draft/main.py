@@ -1,13 +1,14 @@
 import logging
 import json
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Union
 from bson import ObjectId
 import tiktoken
 from pymongo import UpdateOne
 from datetime import datetime
+import asyncio
 
 from ..plan.db.vector import store_story_part, find_similar_parts
-from ..plan.llm import model
+from ..llm import model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema
@@ -15,7 +16,11 @@ from ..plan.outline.schema import (
     OutlineNode,
 )
 from ..plan.characters.schema import Character
-from app.utils.text_validation import retry_generation, is_complete_sentence
+from app.utils.text_validation import (
+    retry_generation,
+    is_complete_sentence,
+    get_logit_bias,
+)
 from .rewrite.main import PassageRewriter
 
 logging.basicConfig(level=logging.INFO)
@@ -602,37 +607,207 @@ class DraftGenerator:
     async def generate_passages(
         self, outline_point_id: str, num_variations: int = 3
     ) -> List[GeneratedPassage]:
-        """Generate multiple variations of a passage"""
+        """Generate multiple variations of a passage efficiently"""
         try:
             context = await self.retrieve_relevant_context(outline_point_id)
+            base_prompt = self.prepare_prompt(context)
+
+            # Batch generate multiple variations in a single prompt
+            batch_prompt = f"""
+            <|im_start|>system
+            Generate {num_variations} unique story passages based on the context.
+            Each passage should be a complete scene that advances the story.
+            Use [PASSAGE_END] to separate passages.
+            Do not include any variation numbers or labels.
+            
+            Context and Requirements:
+            {base_prompt}
+            
+            Begin generating passages:
+            <|im_end|>
+            <|im_start|>assistant
+            """
+
+            # Get logit bias
+            logit_bias = get_logit_bias()
+
+            response = model(
+                batch_prompt,
+                max_tokens=1024 * num_variations,
+                logit_bias=logit_bias,
+                temperature=0.7,
+                frequency_penalty=0.3,  # Reduce repetition
+                presence_penalty=0.3,  # Encourage diversity
+            )
+            if not isinstance(response, dict) or "choices" not in response:
+                raise ValueError("Invalid response from LLM")
+
+            # Split variations and process them
+            raw_passages = response["choices"][0]["text"].split("[PASSAGE_END]")  # type: ignore
             passages = []
 
-            for _ in range(num_variations):
-                passage = await self.generate_passage(outline_point_id)
-                passages.append(passage)
+            # Process passages in parallel
+            async def process_passage(passage_text: str) -> Optional[GeneratedPassage]:
+                if not passage_text.strip():
+                    return None
 
-            # Evaluate and rank passages
-            rewriter = PassageRewriter(self.story_id)
-            best_passage, scores = await rewriter.process_passages(passages, context)
+                try:
+                    # Generate summary and extract entities in parallel
+                    summary_task = self._generate_summary(passage_text)
+                    entities_task = self._extract_entities(passage_text)
 
-            # If the best passage needs improvement (score < 0.7)
-            if scores["total"] < 0.7:
-                logger.info(f"Best passage score: {scores}")
+                    summary, entities = await asyncio.gather(
+                        summary_task, entities_task
+                    )
 
-            # Process new entities in the best passage
-            await self._process_new_entities(best_passage, context)
+                    return GeneratedPassage(
+                        passage_id=str(ObjectId()),
+                        story_id=self.story_id,
+                        outline_point_id=outline_point_id,
+                        content=passage_text.strip(),
+                        summary=summary or "Summary generation failed.",
+                        mentioned_entities=entities,
+                    )
+                except Exception as e:
+                    logger.error(f"Error processing passage: {e}")
+                    return None
 
-            # Store all passages but mark the best one
+            # Process all passages concurrently
+            passage_tasks = [
+                process_passage(text)
+                for text in raw_passages[:num_variations]
+                if text.strip()
+            ]
+            processed_passages = await asyncio.gather(*passage_tasks)
+            passages = [p for p in processed_passages if p is not None]
+
+            if not passages:
+                raise ValueError("Failed to generate any valid passages")
+
+            # Quick evaluation without LLM calls
+            best_passage = await self._quick_evaluate_passages(passages, context)
+
+            # Store passages
+            store_tasks = []
             for passage in passages:
                 passage_dict = passage.model_dump()
                 passage_dict["is_best"] = passage.passage_id == best_passage.passage_id
-                await passage_collection.insert_one(passage_dict)
+                store_tasks.append(passage_collection.insert_one(passage_dict))
+
+            await asyncio.gather(*store_tasks)
+
+            # Process new entities for best passage only
+            await self._process_new_entities(best_passage, context)
 
             return passages
 
         except Exception as e:
             logger.error(f"Error generating passages: {e}")
             raise
+
+    async def _quick_evaluate_passages(
+        self, passages: List[GeneratedPassage], context: PassageContext
+    ) -> GeneratedPassage:
+        """Evaluate passages using heuristics instead of LLM calls"""
+
+        async def score_passage(
+            passage: GeneratedPassage,
+        ) -> Tuple[GeneratedPassage, float]:
+            score = 0.0
+
+            # Length score (prefer medium-length passages)
+            words = len(passage.content.split())
+            length_score = (
+                1.0 - abs(500 - words) / 500
+            )  # Optimal length around 500 words
+            score += length_score * 0.2
+
+            # Entity coverage score
+            outline_chars = set(context.current_outline.get("characters_involved", []))
+            passage_chars = set(passage.mentioned_entities)
+            coverage = (
+                len(outline_chars & passage_chars) / len(outline_chars)
+                if outline_chars
+                else 0
+            )
+            score += coverage * 0.3
+
+            # Keyword relevance score
+            outline_keywords = set(self._extract_keywords(context.current_outline))
+            passage_keywords = set(self._extract_keywords(passage.content))
+            relevance = (
+                len(outline_keywords & passage_keywords) / len(outline_keywords)
+                if outline_keywords
+                else 0
+            )
+            score += relevance * 0.3
+
+            # Readability score
+            readability = self._calculate_readability(passage.content)
+            score += readability * 0.2
+
+            return passage, score
+
+        # Score all passages concurrently
+        scored_passages = await asyncio.gather(
+            *[score_passage(passage) for passage in passages]
+        )
+
+        # Return the passage with the highest score
+        return max(scored_passages, key=lambda x: x[1])[0]
+
+    def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
+        """Extract important keywords from text"""
+        if isinstance(text, dict):
+            text = " ".join(str(v) for v in text.values())
+
+        # Simple keyword extraction (can be improved)
+        words = text.lower().split()
+        stopwords = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+        }
+        return [w for w in words if w not in stopwords and len(w) > 3]
+
+    def _calculate_readability(self, text: str) -> float:
+        """Calculate a simple readability score"""
+        sentences = text.split(".")
+        words = text.split()
+
+        if not sentences or not words:
+            return 0.0
+
+        avg_sentence_length = len(words) / len(sentences)
+        # Prefer sentences between 10-20 words
+        return 1.0 - abs(15 - avg_sentence_length) / 15
+
+    async def _generate_summary(self, text: str) -> Optional[str]:
+        """Generate a summary for a passage"""
+        prompt = f"""
+        <|im_start|>system
+        Summarize in one complete sentence:
+        {text[:500]}
+        <|im_end|>
+        <|im_start|>assistant
+        """
+
+        try:
+            response = model(prompt, max_tokens=128, temperature=0.5)
+            if not isinstance(response, dict) or "choices" not in response:
+                return None
+            return response["choices"][0]["text"].strip()  # type: ignore
+        except Exception as e:
+            logger.error(f"Error generating summary: {e}")
+            return None
 
     async def _process_new_entities(
         self, passage: GeneratedPassage, context: PassageContext
@@ -650,23 +825,69 @@ class DraftGenerator:
             new_entities = set(passage.mentioned_entities) - existing_chars
             if not new_entities:
                 return
-
+            logger.info(f"New entities: {new_entities}")
             # Generate character profiles for new entities
             new_characters = []
             for entity in new_entities:
                 # Validate entity's role in the passage
                 role_prompt = f"""
                 <|im_start|>system
-                Analyze this entity's role in the passage and determine if it should be added as a character.
+                You are a story analyzer determining entity types.
+                Analyze this entity and classify it as exactly one of these types: character, location, or object.
+                
                 Entity: {entity}
                 Passage: {passage.content}
                 
-                Return ONLY "character", "location", or "object" based on the entity's nature.
+                Rules:
+                1. Only respond with one word: "character", "location", or "object"
+                2. No punctuation or additional text
+                3. No explanations
+                
+                Classification:
                 <|im_end|>
                 <|im_start|>assistant
                 """
 
-                role_response = model(role_prompt, max_tokens=8, temperature=0.1)
+                # Create logit bias to restrict output
+                allowed_tokens = {
+                    "character": 1.0,
+                    "location": 1.0,
+                    "object": 1.0,
+                }
+                discouraged_tokens = {
+                    "://": -100.0,
+                    "http": -100.0,
+                    "https": -100.0,
+                    ".": -100.0,
+                    ",": -100.0,
+                    ":": -100.0,
+                    "/": -100.0,
+                }
+
+                # Encode tokens
+                enc = tiktoken.get_encoding("cl100k_base")
+                logit_bias = {}
+
+                # Add bias for allowed tokens
+                for word, bias in allowed_tokens.items():
+                    tokens = enc.encode(word)
+                    for token in tokens:
+                        logit_bias[str(token)] = bias
+
+                # Add bias against unwanted tokens
+                for word, bias in discouraged_tokens.items():
+                    tokens = enc.encode(word)
+                    for token in tokens:
+                        logit_bias[str(token)] = bias
+
+                role_response = model(
+                    role_prompt,
+                    max_tokens=1,
+                    temperature=0.1,
+                    logit_bias=logit_bias,
+                    stop=["\n", ".", ",", ":", "/"],  # Stop on any punctuation
+                )
+
                 if (
                     not isinstance(role_response, dict)
                     or "choices" not in role_response
@@ -674,6 +895,7 @@ class DraftGenerator:
                     continue
 
                 entity_type = role_response["choices"][0]["text"].strip().lower()  # type: ignore
+                logger.info(f"Entity type for {entity}: {entity_type}")
 
                 if entity_type in ["character", "location", "object"]:
                     char_data = await self._generate_new_character(
@@ -681,7 +903,7 @@ class DraftGenerator:
                     )
                     if char_data:
                         new_characters.append(char_data)
-
+            logger.info(f"New characters: {new_characters}")
             if new_characters:
                 # Add new characters to the story
                 await stories.update_one(

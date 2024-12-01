@@ -7,7 +7,7 @@ from datetime import datetime
 from uuid import UUID
 from bson import ObjectId
 
-from ..llm import model
+from ...llm import model
 from .schema import Character, character_schema
 from app.config.mongo import db, stories
 

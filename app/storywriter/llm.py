@@ -23,7 +23,7 @@ def initialize_model():
         model_path = os.path.abspath(
             os.path.join(
                 current_dir,
-                "../../../_models/Hermes-3-Llama-3.1-8B-GGUF/Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
+                "../../_models/Hermes-3-Llama-3.1-8B-GGUF/Hermes-3-Llama-3.1-8B.Q4_K_M.gguf",
             )
         )
 

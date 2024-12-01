@@ -1,7 +1,8 @@
 from typing import Dict, List
 from app.storywriter.draft.schema import GeneratedPassage, PassageContext
-from app.storywriter.plan.llm import model
+from app.storywriter.llm import model
 import logging
+from app.utils.text_validation import get_logit_bias
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,10 @@ class PassageImprover:
 
         prompt = f"""
         <|im_start|>system
-        Rewrite the following passage incorporating these improvements:
+        Rewrite the following passage incorporating these improvements.
+        Do not include any labels or numbering.
+        
+        Improvements to incorporate:
         {improvement_text}
         
         Original passage:
@@ -60,16 +64,19 @@ class PassageImprover:
         """
 
         try:
-            response = model(prompt, max_tokens=1024)
+            # Get logit bias
+            logit_bias = get_logit_bias()
+
+            response = model(
+                prompt, max_tokens=1024, logit_bias=logit_bias, temperature=0.7
+            )
             return response["choices"][0]["text"].strip()  # type: ignore
         except Exception as e:
             logger.error(f"Error applying improvements: {e}")
             return passage.content
 
     async def _get_coherence_improvements(
-        self,
-        passage: GeneratedPassage,
-        context: PassageContext
+        self, passage: GeneratedPassage, context: PassageContext
     ) -> List[str]:
         """Generate coherence improvement suggestions"""
         prompt = f"""
@@ -88,7 +95,7 @@ class PassageImprover:
         <|im_end|>
         <|im_start|>assistant
         """
-        
+
         try:
             response = model(prompt, max_tokens=256)
             suggestions = response["choices"][0]["text"].strip().split("\n")  # type: ignore
@@ -98,9 +105,7 @@ class PassageImprover:
             return ["Unable to generate coherence suggestions"]
 
     async def _get_relevance_improvements(
-        self,
-        passage: GeneratedPassage,
-        context: PassageContext
+        self, passage: GeneratedPassage, context: PassageContext
     ) -> List[str]:
         """Generate relevance improvement suggestions"""
         prompt = f"""
@@ -119,7 +124,7 @@ class PassageImprover:
         <|im_end|>
         <|im_start|>assistant
         """
-        
+
         try:
             response = model(prompt, max_tokens=256)
             suggestions = response["choices"][0]["text"].strip().split("\n")  # type: ignore
@@ -129,9 +134,7 @@ class PassageImprover:
             return ["Unable to generate relevance suggestions"]
 
     async def _get_style_improvements(
-        self,
-        passage: GeneratedPassage,
-        context: PassageContext
+        self, passage: GeneratedPassage, context: PassageContext
     ) -> List[str]:
         """Generate style improvement suggestions"""
         prompt = f"""
@@ -152,7 +155,7 @@ class PassageImprover:
         <|im_end|>
         <|im_start|>assistant
         """
-        
+
         try:
             response = model(prompt, max_tokens=256)
             suggestions = response["choices"][0]["text"].strip().split("\n")  # type: ignore

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from ..llm import model
+from ...llm import model
 from app.config.mongo import db, stories
 from datetime import datetime
 from bson import ObjectId
