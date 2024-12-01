@@ -1,37 +1,24 @@
-# app/main.py
+from datetime import datetime
+from typing import Optional, List, Dict
+from pydantic import BaseModel, Field
+from bson import ObjectId
 from fastapi import FastAPI, Depends, Query
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import draft
 from app.routes.plan import router as plan_router
 from app.routes.draft import router as draft_router
 import logging
-from bson import ObjectId
-from app.models.story import Story  # Import the Story class
 from app.config.mongo import db  # Import the database connection
 
 logging.basicConfig(level=logging.INFO)  # Set global log level to INFO
-
-
-# from fastapi import BackgroundTasks
-# from app.config.database import db
-# from datetime import datetime
-
-# password_resets_collection = db["password_resets"]
-
-# async def cleanup_expired_tokens():
-#     await password_resets_collection.delete_many(
-#         {"expires_at": {"$lt": datetime.utcnow()}}
-#     )
-
 
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI()
 app.state.limiter = limiter
 
-# add cors configuration
+# Add CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,32 +27,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include auth routes
-# app.include_router(auth_router, prefix="/auth", tags=["Auth"])
-# app.include_router(user_router, prefix="/user", tags=["User"])
-
+# Include routers
 app.include_router(plan_router, prefix="/plan", tags=["plan"])
 app.include_router(draft_router, prefix="/draft", tags=["draft"])
 
 stories = db["stories"]  # Define the stories collection
+users = db["users"]  # Define the users collection
+
+
+class Story(BaseModel):
+    story_id: ObjectId = Field(default_factory=ObjectId)
+    author: ObjectId  # Reference to users collection
+    title: Optional[str] = None
+    genre: Optional[str] = None
+    premise: Optional[str] = None
+    setting: Optional[str] = None
+    characters: Optional[List[Dict]] = None
+    outline: Optional[Dict] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        arbitrary_types_allowed = True
+        json_encoders = {
+            ObjectId: str,  # Convert ObjectId to string when serializing to JSON
+        }
 
 
 @app.post("/stories")
-async def create_story(user_id: str, genre: str):
+async def create_story(
+    user_id: str = Query(..., description="User ID of the story author"),
+    title: Optional[str] = None,
+    genre: Optional[str] = None,
+):
     story_id = ObjectId()
-    print(user_id)
 
-    story = Story(_id=story_id, author=ObjectId(user_id), genre=genre)
+    # Create a Story instance
+    story = Story(
+        story_id=story_id,
+        author=ObjectId(user_id),
+        title=title,
+        genre=genre,
+    )
 
-    await stories.insert_one(story.model_dump())
-    # Add the story reference to the user object in the users collection
-    users = db["users"]
+    # Insert the story into the database
+    await stories.insert_one(story.dict(by_alias=True))
+
+    # Add the story reference to the user's document
     await users.update_one({"_id": ObjectId(user_id)}, {"$push": {"stories": story_id}})
-    # Convert ObjectIds to strings before returning
+
+    # Return the response with serialized ObjectId fields
     return {
         "story_id": str(story_id),
-        "author": str(ObjectId(user_id)),
-        "genre": genre
+        "author": str(user_id),
+        "title": title,
+        "genre": genre,
     }
 
 
