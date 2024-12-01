@@ -20,7 +20,7 @@ export default function UpgradeBanner() {
       </p>
       <button
         onClick={handleSubRedirect}
-        className="px-4 py-2 text-white transition duration-300 bg-blue-500 rounded-lg hover:bg-blue-600"
+        className="px-4 py-2 text-white transition duration-300 bg-green-500 rounded-lg hover:bg-green-600"
       >
         Upgrade
       </button>

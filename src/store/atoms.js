@@ -12,6 +12,7 @@ export const storyDataAtom = atom({
   title: "",
   premise: "",
   setting: "",
+  genre: "",
   characters: [],
   outline: [],
 });
