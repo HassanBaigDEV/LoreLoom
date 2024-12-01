@@ -11,6 +11,15 @@ import Footer from "@/components/common/footer";
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
+const LoadingSpinner = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-opacity-75 bg-gray-50">
+    <div className="relative">
+      <div className="w-16 h-16 border-t-4 border-b-4 border-orange-500 rounded-full animate-spin"></div>
+      <div className="mt-4 font-medium text-center text-gray-600">Loading...</div>
+    </div>
+  </div>
+);
+
 export default function Page() {
   const { user, isAuthenticated, checkAuth } = useAuth();
   const router = useRouter();
@@ -27,7 +36,7 @@ export default function Page() {
   }, []);
 
   if (!isAuthenticated) {
-    return <div>Loading...</div>;
+    return <LoadingSpinner />;
   }
 
   return (

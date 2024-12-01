@@ -46,10 +46,10 @@ export default function CreateStory() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+      className="min-h-screen px-4 py-12 bg-gray-50 sm:px-6 lg:px-8"
     >
       <div className="max-w-3xl mx-auto">
-        <Box className="bg-white rounded-lg shadow-lg p-8 text-center">
+        <Box className="p-8 text-center bg-white rounded-lg shadow-lg">
           <Typography
             variant="h4"
             component="h1"

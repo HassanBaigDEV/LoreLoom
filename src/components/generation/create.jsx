@@ -1,13 +1,50 @@
+"use client";
+
 import React from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import CategoryButton from "@/components/generation/button";
 import {
   TextInput,
   TextAreaInput,
   SelectInput,
 } from "@/components/generation/form";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import UpgradeBanner from "@/components/generation/banner";
 
 export default function CreateStory() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleCreateStory = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      console.log("user", user?.id);
+      if (!user?.id) {
+        throw new Error("User not found");
+      }
+
+      const response = await storyApiClient.post("/stories", null, {
+        params: { user_id: user.id },
+        // query: { user_id: user.id },
+      });
+
+      const { story_id } = response.data;
+      localStorage.setItem("current_story_id", story_id);
+      router.push(`/create/plan/${story_id}`);
+    } catch (err) {
+      console.log("Error creating story:", err);
+      setError("Failed to create story. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const categories = [
     "Sci-Fi",
     "Jamaican",
@@ -16,7 +53,7 @@ export default function CreateStory() {
     "Animal",
     "Inspirational",
   ];
-  const ageOptions = ["3-5 years", "6-8 years", "9-12 years", "13+ years"];
+  const ageOptions = ["Below 18 years", "18+ years"];
 
   return (
     <div className="min-h-screen p-8 bg-gray-200">
@@ -53,13 +90,30 @@ export default function CreateStory() {
             <SelectInput label="Age" options={ageOptions} />
           </div>
           <TextAreaInput
-            label="Plot"
-            placeholder="Enter plot here"
+            label="Premise"
+            placeholder="Enter Premise here"
             maxLength={1739}
           />
-          <button className="w-full py-3 mt-6 text-gray-700 transition duration-300 bg-gray-300 rounded-lg hover:bg-gray-400">
-            Create
-          </button>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            onClick={handleCreateStory}
+            disabled={isLoading}
+            className="w-full py-3 text-gray-700 transition duration-300 bg-gray-300 rounded-lg hover:bg-gray-400"
+          >
+            {isLoading ? (
+              <CircularProgress size={24} className="text-white" />
+            ) : (
+              "Create"
+            )}
+          </Button>
+
+          {error && (
+            <Typography color="error" className="mt-4">
+              {error}
+            </Typography>
+          )}
         </div>
       </div>
     </div>
