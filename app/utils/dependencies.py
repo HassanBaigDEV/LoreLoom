@@ -27,6 +27,18 @@ async def get_current_user(
         payload  # Return the user payload (e.g., user_id) for further use in the route
     )
 
+def get_current_admin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have the required admin role",
+        )
+    return current_user
+
+async def get_current_active_admin(current_admin: dict = Depends(get_current_admin)):
+    if current_admin["is_active"]:
+        return current_admin
+    raise HTTPException(status_code=400, detail="Inactive admin")
 
 async def get_current_active_user(current_user: dict = Depends(get_current_user)):
     if current_user["is_active"]:
