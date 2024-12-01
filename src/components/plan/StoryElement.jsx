@@ -44,7 +44,6 @@ export default function StoryElement({
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [loading, setLoading] = useAtom(storyLoadingAtom);
   const [error, setError] = useAtom(storyErrorAtom);
-
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -134,7 +133,6 @@ export default function StoryElement({
       setLoadingId(title.toLowerCase());
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
-
       const response = await storyApiClient.get(
         `/plan/generate-${title.toLowerCase()}/${storyId}`,
         {
@@ -325,14 +323,14 @@ export default function StoryElement({
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {Array.isArray(content) ? (
           content.map((character, index) => (
             <Card
               key={index}
-              className="p-4 hover:shadow-lg transition-shadow duration-300"
+              className="p-4 transition-shadow duration-300 hover:shadow-lg"
             >
-              <div className="flex justify-between items-start">
+              <div className="flex items-start justify-between">
                 <Typography variant="h6" className="mb-2 text-gray-800">
                   {character.name}
                 </Typography>
@@ -463,9 +461,9 @@ export default function StoryElement({
         {content.map((point, index) => (
           <Card
             key={index}
-            className="p-4 hover:shadow-lg transition-shadow duration-300"
+            className="p-4 transition-shadow duration-300 hover:shadow-lg"
           >
-            <div className="flex justify-between items-start">
+            <div className="flex items-start justify-between">
               <Typography variant="h6" className="text-gray-800">
                 {point.number}. {point.title}
               </Typography>
@@ -551,7 +549,7 @@ export default function StoryElement({
     ];
 
     return (
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <ButtonGroup variant="contained" className="shadow-lg">
           <Button
             onClick={options[0].handler}
@@ -561,7 +559,7 @@ export default function StoryElement({
             {options[0].label}
           </Button>
           <Button
-            className="bg-green-500 hover:bg-green-600 px-2"
+            className="px-2 bg-green-500 hover:bg-green-600"
             onClick={() => setIsEditing(true)}
           >
             {options[1].label}
@@ -576,7 +574,7 @@ export default function StoryElement({
       variant="outlined"
       onClick={handleRegenerate}
       startIcon={<RefreshIcon />}
-      className="mb-4 border-green-500 text-green-500 hover:border-green-600 hover:bg-green-50"
+      className="mb-4 text-green-500 border-green-500 hover:border-green-600 hover:bg-green-50"
     >
       Regenerate {title}
     </Button>
@@ -611,7 +609,7 @@ export default function StoryElement({
                 placeholder={`Enter your ${title.toLowerCase()} or use AI to generate one`}
                 className="bg-gray-50"
               />
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <Button
                   variant="outlined"
                   onClick={handleManualSave}
@@ -623,7 +621,7 @@ export default function StoryElement({
                 <Tooltip title={`Generate ${title} using AI`}>
                   <IconButton
                     onClick={handleGenerate}
-                    className="bg-green-500 hover:bg-green-600 p-3 shadow-lg transform hover:scale-105 transition-all duration-200"
+                    className="p-3 transition-all duration-200 transform bg-green-500 shadow-lg hover:bg-green-600 hover:scale-105"
                     size="large"
                   >
                     <AutoFixHighIcon className="text-white" />
@@ -700,7 +698,7 @@ export default function StoryElement({
     }
 
     return (
-      <div className="relative bg-gray-50 p-4 rounded-lg">
+      <div className="relative p-4 rounded-lg bg-gray-50">
         {isTyping ? (
           <TypewriterText
             text={
@@ -717,7 +715,7 @@ export default function StoryElement({
                 ? content
                 : JSON.stringify(content, null, 2)}
             </Typography>
-            <div className="absolute top-2 right-2 flex space-x-1">
+            <div className="absolute flex space-x-1 top-2 right-2">
               <IconButton
                 onClick={handleRegenerate}
                 size="small"
@@ -743,17 +741,17 @@ export default function StoryElement({
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+        <Card className="transition-shadow duration-300 border border-gray-200 hover:shadow-lg">
           <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <Typography
                   variant="h6"
-                  className="text-gray-800 font-semibold"
+                  className="font-semibold text-gray-800"
                 >
                   {title}
                 </Typography>
-                <Typography variant="body2" className="text-gray-600 mt-1">
+                <Typography variant="body2" className="mt-1 text-gray-600">
                   {description}
                 </Typography>
               </div>
@@ -772,7 +770,7 @@ export default function StoryElement({
         </Card>
 
         {(isCharacters || isOutline) && content && !isEditing && (
-          <div className="mt-4 flex justify-center">
+          <div className="flex justify-center mt-4">
             <Button
               variant="outlined"
               startIcon={<AddCircleOutlineIcon />}

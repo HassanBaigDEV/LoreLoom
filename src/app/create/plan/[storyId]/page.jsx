@@ -45,7 +45,10 @@ export default function PlanStory({ params }) {
         const response = await storyApiClient.get(
           `/plan/story-elements/${storyId}`,
           {
-            params: { user_id: user.id },
+            params: { 
+              story_id:storyId,
+              user_id: user.id
+             },
           }
         );
 
@@ -57,7 +60,7 @@ export default function PlanStory({ params }) {
     };
 
     fetchStoryElements();
-  }, [storyId]);
+  }, [storyId, storyData]);
 
   const calculateProgress = (data) => {
     const elements = ["title", "premise", "setting", "characters", "outline"];
@@ -67,33 +70,32 @@ export default function PlanStory({ params }) {
     setProgress((completed / elements.length) * 100);
   };
 
-  const handleGenerate = async (elementType) => {
-    setLoading(true);
-    setError("");
+  // const handleGenerate = async (elementType, storyid) => {
+  //   setLoading(true);
+  //   setError("");
 
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
+  //   try {
+  //     const user = JSON.parse(localStorage.getItem("user"));
+  //     if (!user?.id) throw new Error("User not found");
+  //     const response = await storyApiClient.get(
+  //       `/plan/generate-${elementType}/${storyid}`,
+  //       {
+  //         params: { user_id: user.id },
+  //       }
+  //     );
 
-      const response = await storyApiClient.get(
-        `/plan/generate-${elementType}/${storyId}`,
-        {
-          params: { user_id: user.id },
-        }
-      );
-
-      setStoryData((prev) => {
-        const newData = { ...prev, [elementType]: response.data };
-        calculateProgress(newData);
-        return newData;
-      });
-    } catch (err) {
-      console.error(`Error generating ${elementType}:`, err);
-      setError(`Failed to generate ${elementType}. Please try again.`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     setStoryData((prev) => {
+  //       const newData = { ...prev, [elementType]: response.data };
+  //       calculateProgress(newData);
+  //       return newData;
+  //     });
+  //   } catch (err) {
+  //     console.error(`Error generating ${elementType}:`, err);
+  //     setError(`Failed to generate ${elementType}. Please try again.`);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleEdit = async (elementType, newContent) => {
     try {
@@ -145,10 +147,8 @@ export default function PlanStory({ params }) {
                 title="Title"
                 description="Create a captivating title for your story"
                 content={storyData?.title}
-                loading={loading}
-                onGenerate={() => handleGenerate("title")}
-                onEdit={(content) => handleEdit("title", content)}
                 isFirst={true}
+                storyId={storyId}
               />
 
               {storyData?.title && (
@@ -156,9 +156,7 @@ export default function PlanStory({ params }) {
                   title="Premise"
                   description="Define the core concept of your story"
                   content={storyData?.premise}
-                  loading={loading}
-                  onGenerate={() => handleGenerate("premise")}
-                  onEdit={(content) => handleEdit("premise", content)}
+                  storyId={storyId}
                 />
               )}
 
@@ -167,9 +165,7 @@ export default function PlanStory({ params }) {
                   title="Setting"
                   description="Establish the world where your story takes place"
                   content={storyData?.setting}
-                  loading={loading}
-                  onGenerate={() => handleGenerate("setting")}
-                  onEdit={(content) => handleEdit("setting", content)}
+                  storyId={storyId}
                 />
               )}
 
@@ -178,9 +174,7 @@ export default function PlanStory({ params }) {
                   title="Characters"
                   description="Bring your story's characters to life"
                   content={storyData?.characters}
-                  loading={loading}
-                  onGenerate={() => handleGenerate("characters")}
-                  onEdit={(content) => handleEdit("characters", content)}
+                  storyId={storyId}
                   isCharacters={true}
                 />
               )}
@@ -190,9 +184,7 @@ export default function PlanStory({ params }) {
                   title="Outline"
                   description="Structure your story's plot"
                   content={storyData?.outline}
-                  loading={loading}
-                  onGenerate={() => handleGenerate("outline")}
-                  onEdit={(content) => handleEdit("outline", content)}
+                  storyId={storyId}
                   isOutline={true}
                 />
               )}
