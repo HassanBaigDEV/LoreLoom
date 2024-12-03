@@ -6,7 +6,8 @@ import {
   storyLoadingAtom,
   storyErrorAtom,
   currentStoryIdAtom,
-  storiesAtom
+  storiesAtom,
+  pStoriesAtom
 } from '@/store/atoms';
 import apiClient from '@/lib/axios';
 
@@ -16,6 +17,7 @@ export function useStories() {
   // Atoms
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [stories, setStories] = useAtom(storiesAtom);
+  const [pStories, setPStories] = useAtom(pStoriesAtom);
   const [, setProgress] = useAtom(storyProgressAtom);
   const [, setIsLoading] = useAtom(storyLoadingAtom);
   const [, setError] = useAtom(storyErrorAtom);
@@ -44,16 +46,38 @@ export function useStories() {
     }
   };
 
+  const fetchPStories = async () => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await apiClient.get('author/pStories');
+      console.log(response.data);
+      setPStories(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch stories:', error);
+      setError("Failed to fetch stories");
+      setPStories([]);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     // State
     stories,
+    pStories,
     storyData,
     currentStoryId,
     
     // Methods
     fetchStories,
+    fetchPStories,
     
     // Setters for direct manipulation
+    setPStories,
     setStories,
     setStoryData,
     setCurrentStoryId,

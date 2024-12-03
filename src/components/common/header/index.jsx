@@ -1,15 +1,23 @@
 "use client"; // Ensures the component runs in client mode
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import avatar from "@/assets/images/avatar.webp";
 
 export default function Header() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(false);
+  const [user, setUser] = useState(null); // Use state to store the user
   const router = useRouter();
   const pathname = usePathname();
-  const user = JSON.parse(localStorage.getItem("user"));
+
+  // Fetch user data from localStorage only on the client side
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const toggleOverlay = () => {
     setIsOverlayVisible(!isOverlayVisible);
@@ -18,6 +26,7 @@ export default function Header() {
   const handleLoginRedirect = () => {
     router.push("/auth/login");
   };
+
   const handleSettings = () => {
     router.push("/Usettings");
   };
@@ -68,8 +77,14 @@ export default function Header() {
                 className="rounded-full"
               />
               <div className="ml-3">
-                <p className="text-sm font-semibold text-gray-500">{user.last_name}</p>
-                <p className="text-sm text-gray-500">{user.email}</p>
+                {user ? ( // Render user data only if available
+                  <>
+                    <p className="text-sm font-semibold text-gray-500">{user.last_name}</p>
+                    <p className="text-sm text-gray-500">{user.email}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
               </div>
             </div>
             <button

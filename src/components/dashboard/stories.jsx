@@ -46,7 +46,7 @@ export default function Stories() {
                 className="w-full h-auto mx-auto rounded-3xl brightness-75"
               />
               <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 left-4 rounded-xl">
-                <p className="text-xs">{story.genre}</p>
+                <p className="text-xs ">{story.genre}</p>
               </div>
               <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 right-4 rounded-xl">
                 <StoriesIcon className="w-10" />
@@ -56,7 +56,7 @@ export default function Stories() {
                   <h1 className="font-bold">
                   {story.title.split(':')[0].replace(/^"|"$/g, '')}
                   </h1>
-                  <p className="text-xs">Read story by {user.last_name}</p>
+                  <p className="text-xs">Read story by {user.username}</p>
                 </button>
               </div>
             </div>
