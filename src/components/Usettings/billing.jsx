@@ -22,7 +22,7 @@ const BillingSection = () => {
             height={100}
           />
           <div>
-            <p className="text-lg font-bold text-gray-700">StoryBook Lite</p>
+            <p className="text-lg font-bold text-gray-700">StoryWeaver Lite</p>
             <p className="text-sm text-gray-600">You are on the free plan</p>
             <a
               href="/upgrade"

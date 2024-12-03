@@ -1,30 +1,68 @@
 // components/Stories.js
-import React from "react";
-import StoryIcon from "@/assets/images/story.svg";
+import React, { useEffect } from "react";
+import { useStories } from "@/hooks/useStories";
+import { useAtom } from "jotai";
+import { userAtom } from "@/store/atoms";
+import Image from "next/image";
+import cover from "@/assets/images/boyanddog.webp";
+import StoriesIcon from "@/assets/images/story.svg";
 
 export default function Stories() {
+  const [user] = useAtom(userAtom);
+  const { stories, fetchStories } = useStories();
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchStories(user.id);
+    }
+  }, [user]);
+
+  if (!stories?.length) {
+    return (
+      <div className="mt-8 mb-48">
+        <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
+          <StoriesIcon className="h-8 mr-2 w-9" />
+          Stories
+        </div>
+        <div className="flex items-center justify-center w-full h-64">
+          <p className="text-gray-500">No stories found</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-8 mb-48">
+    <main className="flex flex-col min-h-screen">
       <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
-        <StoryIcon className="h-8 mr-2 w-9" />
+        <StoriesIcon className="h-8 mr-2 w-9" />
         Stories
       </div>
-      <div className="flex mt-4 space-x-4">
-        <div className="flex flex-col items-center justify-center w-64 h-64 bg-gray-200 rounded-lg">
-          <div className="w-16 h-16 bg-green-400 rounded-full"></div>
-          <div className="mt-2 font-semibold text-gray-700">
-            Lord of Mysteries
-          </div>
-          <div className="text-sm text-gray-500">Mystery</div>
+      <section className="m-8">
+        <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
+          {stories.map((story, index) => (
+            <div key={index} className="relative block w-full">
+              <Image
+                src={cover}
+                className="w-full h-auto mx-auto rounded-3xl brightness-75"
+              />
+              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 left-4 rounded-xl">
+                <p className="text-xs">{story.genre}</p>
+              </div>
+              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 right-4 rounded-xl">
+                <StoriesIcon className="w-10" />
+              </div>
+              <div className="absolute flex justify-between p-2 text-white bg-opacity-40 rounded-xl bottom-2 left-2 right-2">
+                <button className="px-3 py-1 text-sm text-white bg-green-500 bg-opacity-50 rounded-xl">
+                  <h1 className="font-bold">
+                  {story.title.split(':')[0].replace(/^"|"$/g, '')}
+                  </h1>
+                  <p className="text-xs">Read story by {user.last_name}</p>
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="flex flex-col items-center justify-center w-64 h-64 bg-gray-200 rounded-lg">
-          <div className="w-16 h-16 bg-green-400 rounded-full"></div>
-          <div className="mt-2 font-semibold text-gray-700">
-            Reverend Insanity
-          </div>
-          <div className="text-sm text-gray-500">Mystery</div>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

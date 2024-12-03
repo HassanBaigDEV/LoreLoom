@@ -3,12 +3,13 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import user from "@/assets/images/avatar.webp";
+import avatar from "@/assets/images/avatar.webp";
 
 export default function Header() {
   const [isOverlayVisible, setIsOverlayVisible] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const user = JSON.parse(localStorage.getItem("user"));
 
   const toggleOverlay = () => {
     setIsOverlayVisible(!isOverlayVisible);
@@ -49,7 +50,7 @@ export default function Header() {
       <div className="relative flex items-center justify-end flex-1">
         <Image
           className="w-8 h-8 rounded-full cursor-pointer"
-          src={user}
+          src={avatar}
           alt="Profile Picture"
           width={32}
           height={32}
@@ -57,18 +58,18 @@ export default function Header() {
         />
 
         {isOverlayVisible && (
-          <div className="absolute right-0 z-20 w-56 p-4 mt-48 bg-white rounded-lg shadow-lg">
+          <div className="absolute right-0 z-20 p-4 mt-48 bg-white rounded-lg shadow-lg w-58">
             <div className="flex items-center mb-4">
               <Image
-                src={user}
+                src={avatar}
                 alt="Profile Picture"
                 width={40}
                 height={40}
                 className="rounded-full"
               />
               <div className="ml-3">
-                <p className="text-sm font-semibold text-gray-500">MOIZZZ</p>
-                <p className="text-sm text-gray-500">moiza354@gmail.com</p>
+                <p className="text-sm font-semibold text-gray-500">{user.last_name}</p>
+                <p className="text-sm text-gray-500">{user.email}</p>
               </div>
             </div>
             <button

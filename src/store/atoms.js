@@ -7,6 +7,8 @@ export const userAtom = atomWithStorage('user', null);
 // Loading state atom
 export const isLoadingAtom = atom(false);
 
+export const storiesAtom = atom([]);
+
 // New atoms for story state
 export const storyDataAtom = atom({
   title: "",

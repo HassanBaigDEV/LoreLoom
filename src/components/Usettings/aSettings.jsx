@@ -1,8 +1,11 @@
+"use client";
 import React from "react";
 import Image from "next/image";
-import user from "@/assets/images/git.webp";
+import avatar from "@/assets/images/git.webp";
 
 const AccountSettings = () => {
+  const user = JSON.parse(localStorage.getItem("user"));
+  
   return (
     <div className="container p-6 mx-auto rounded-lg shadow bg-gray-50">
       <h2 className="mb-6 text-2xl font-bold text-gray-700">
@@ -19,7 +22,7 @@ const AccountSettings = () => {
               type="text"
               placeholder="Username"
               className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-              value="moizzz"
+              value={user.last_name}
             />
           </div>
 
@@ -32,7 +35,7 @@ const AccountSettings = () => {
                 type="text"
                 placeholder="First Name"
                 className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-                value="Abdul"
+                value={user.first_name}
               />
             </div>
 
@@ -44,7 +47,7 @@ const AccountSettings = () => {
                 type="text"
                 placeholder="Last Name"
                 className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-                value="Moiz"
+                value={user.last_name}
               />
             </div>
           </div>
@@ -57,7 +60,7 @@ const AccountSettings = () => {
               type="email"
               placeholder="Email"
               className="w-full px-3 py-2 leading-tight text-gray-700 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
-              value="moizsb@gmail.com"
+              value={user.email}
             />
           </div>
 
@@ -94,7 +97,7 @@ const AvatarSection = () => {
       <div className="flex flex-col items-center">
         <Image
           className="w-24 h-24 mb-4 text-gray-700 rounded-full"
-          src={user}
+          src={avatar}
           alt="Avatar"
         />
         <button className="font-bold text-blue-500">Choose Avatar</button>

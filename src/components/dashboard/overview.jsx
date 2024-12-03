@@ -7,7 +7,7 @@ import gen from "@/assets/images/gen.webp";
 
 export default function DashboardOverview() {
   const router = useRouter();
-
+  const user = JSON.parse(localStorage.getItem("user"));
   const handleSyGenRedirect = () => {
     router.push("/generator");
   };
@@ -19,7 +19,7 @@ export default function DashboardOverview() {
     <div className="col-span-2 row-span-2 overflow-hidden bg-white rounded-lg shadow">
       <div className="px-4 py-5 sm:p-6">
         <h3 className="text-lg font-medium leading-6 text-gray-900">
-          Hey moizzz!
+          Hey {user.last_name}!
         </h3>
         <p className="max-w-2xl mt-1 text-sm text-gray-500">
           Stories left for today - 3/3
@@ -31,9 +31,9 @@ export default function DashboardOverview() {
           >
             Create a story
           </button>
-          <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-black bg-gray-200 border border-transparent rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+          {/* <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-black bg-gray-200 border border-transparent rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
             Generate an image
-          </button>
+          </button> */}
         </div>
         <div className="relative w-auto mt-5">
           <Image
