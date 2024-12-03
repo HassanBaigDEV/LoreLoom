@@ -8,6 +8,8 @@ from app.config.database import db
 # MongoDB Collection
 stories_collection = db["stories"]
 
+users_collection = db["users"]
+
 # FastAPI Router
 story_router = APIRouter()
 
@@ -49,6 +51,8 @@ class StoryBase(BaseModel):
     outline: Optional[List[OutlineSegment]] = []
     characters: Optional[List[Character]] = []
     genre: str
+    privacy: str
+    author_name: Optional [str] = ""
 
     class Config:
         allow_population_by_field_name = True
@@ -94,6 +98,36 @@ async def get_stories(author: Optional[str] = None, genre: Optional[str] = None)
 
     stories = await stories_collection.find(query).to_list(length=100)
     return [objectid_to_str(story) for story in stories]
+
+@story_router.get("/pStories", response_model=List[StoryResponse])
+async def get_stories():
+    """
+    Retrieve a list of public stories with author's name.
+    """
+    # Query to fetch only public stories
+    query = {"privacy": "public"}
+
+    # Fetch stories from the database
+    stories = await stories_collection.find(query).to_list(length=100)
+
+    # Add author's name to each story
+    stories_with_author = []
+    for story in stories:
+        author_id = story.get("author")
+        if author_id:
+            # Fetch the author's first and last name from the users collection
+            author = await users_collection.find_one({"_id": ObjectId(author_id)})
+            if author:
+                story["author_name"] = author.username 
+            else:
+                story["author_name"] = "Unknown Author"  # If author not found
+        else:
+            story["author_name"] = "Unknown Author"  # If no author ID in the story
+        
+        # Convert ObjectId to string and append the modified story to the result list
+        stories_with_author.append(objectid_to_str(story))
+
+    return stories_with_author
 
 
 # @story_router.post("/stories", response_model=StoryResponse)
