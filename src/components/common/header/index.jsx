@@ -24,7 +24,7 @@ export default function Header() {
   };
 
   const handleLoginRedirect = () => {
-    router.push("/auth/login");
+    router.push("/login");
   };
 
   const handleSettings = () => {

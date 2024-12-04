@@ -10,6 +10,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import storyApiClient from "@/lib/storyApi";
 
 export default function CreateStory() {
+  
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,36 +20,50 @@ export default function CreateStory() {
     premise: "",
     setting: "",
     genre: "",
+    privacy: "private",
     characters: [],
     outline: [],
   });
 
+  const handlePrivacyChange = (e) => {
+    if (!e || !e.target) {
+      console.error("Event or event target is undefined");
+      return;
+    }
+    const { value } = e.target;
+    setStoryData((prevData) => ({
+      ...prevData,
+      privacy: value, // Update privacy in story data
+    }));
+  };
+
   const handleCreateStory = async () => {
     setIsLoading(true);
     setError("");
-  
+
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) {
         throw new Error("User not found");
       }
-  
+
       // Prepare the data to be sent in the body of the request
       const bodyData = {
         title: storyData.title,
-        genre: storyData.genre
+        genre: storyData.genre,
       };
-  
+
       // Make the API request to create the story
       const response = await storyApiClient.post("/stories", bodyData, {
-        params: { 
+        params: {
           user_id: user.id,
           title: storyData.title,
-          genre: storyData.genre
-         },  // Sending user_id as URL params
+          genre: storyData.genre,
+          privacy: storyData.privacy,
+        }, // Sending user_id as URL params
       });
-      console.log(response); 
-  
+      console.log(response);
+
       // Handle the successful response
       const { story_id } = response.data;
       localStorage.setItem("current_story_id", story_id);
@@ -60,7 +75,6 @@ export default function CreateStory() {
       setIsLoading(false);
     }
   };
-  
 
   const categories = [
     "Sci-Fi",
@@ -70,7 +84,7 @@ export default function CreateStory() {
     "Animal",
     "Inspirational",
   ];
-  const ageOptions = ["Below 18 years", "18+ years"];
+  const privacyOptions = ["private", "public"];
 
   const handleCategorySelect = (category) => {
     setSelectedCategory((prevCategory) => {
@@ -137,7 +151,13 @@ export default function CreateStory() {
               onChange={handleTitleChange} // Use onChange instead of onKeyDown
               value={storyData.title}
             />
-            <SelectInput label="Age" options={ageOptions} />
+            <SelectInput
+              label="Privacy"
+              options={privacyOptions}
+              value={storyData.privacy}
+              onChange={handlePrivacyChange}
+            />
+            {/* <SelectInput label="Privacy" options={privacyOptions} /> */}
           </div>
           <Button
             variant="contained"
