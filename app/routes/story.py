@@ -46,8 +46,8 @@ class Character(BaseModel):
 class StoryBase(BaseModel):
     author: ObjectIdStr
     title: str
-    premise: str
-    setting: str
+    premise: Optional[str]
+    setting: Optional[str]
     outline: Optional[List[OutlineSegment]] = []
     characters: Optional[List[Character]] = []
     genre: str
@@ -113,10 +113,10 @@ async def get_stories():
     # Add author's name to each story
     stories_with_author = []
     for story in stories:
-        author_id = story.get("author")
+        author_id = str(story.get("author"))
         if author_id:
             # Fetch the author's first and last name from the users collection
-            author = await users_collection.find_one({"_id": ObjectId(author_id)})
+            author = await users_collection.find_one({"_id": author_id})
             if author:
                 story["author_name"] = author.username 
             else:
