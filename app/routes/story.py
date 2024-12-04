@@ -104,7 +104,6 @@ async def get_stories():
     """
     Retrieve a list of public stories with author's name.
     """
-    # Query to fetch only public stories
     query = {"privacy": "public"}
 
     # Fetch stories from the database
@@ -114,15 +113,16 @@ async def get_stories():
     stories_with_author = []
     for story in stories:
         author_id = str(story.get("author"))
+            
         if author_id:
             # Fetch the author's first and last name from the users collection
             author = await users_collection.find_one({"_id": author_id})
             if author:
-                story["author_name"] = author.username 
+                story["author_name"] = author.get("username", "Unknown Author")
             else:
-                story["author_name"] = "Unknown Author"  # If author not found
+                story["author_name"] = "Unknown Author"  
         else:
-            story["author_name"] = "Unknown Author"  # If no author ID in the story
+            story["author_name"] = "Unknown Author" 
         
         # Convert ObjectId to string and append the modified story to the result list
         stories_with_author.append(objectid_to_str(story))
