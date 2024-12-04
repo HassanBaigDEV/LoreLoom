@@ -40,6 +40,7 @@ class Story(BaseModel):
     author: ObjectId  # Reference to users collection
     title: Optional[str] = None
     genre: Optional[str] = None
+    privacy: Optional[str] = None
     premise: Optional[str] = None
     setting: Optional[str] = None
     characters: Optional[List[Dict]] = None
@@ -59,6 +60,7 @@ async def create_story(
     user_id: str = Query(..., description="User ID of the story author"),
     title: Optional[str] = None,
     genre: Optional[str] = None,
+    privacy: Optional[str] = None,
 ):
     story_id = ObjectId()
 
@@ -68,13 +70,14 @@ async def create_story(
         author=ObjectId(user_id),
         title=title,
         genre=genre,
+        privacy=privacy
     )
 
     # Insert the story into the database
     await stories.insert_one(story.dict(by_alias=True))
 
     # Add the story reference to the user's document
-    await users.update_one({"_id": ObjectId(user_id)}, {"$push": {"stories": story_id}})
+    await users.update_one({"_id": user_id}, {"$push": {"stories": story_id}})
 
     # Return the response with serialized ObjectId fields
     return {
@@ -82,6 +85,7 @@ async def create_story(
         "author": str(user_id),
         "title": title,
         "genre": genre,
+        "privacy": privacy
     }
 
 

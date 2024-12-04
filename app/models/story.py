@@ -10,6 +10,7 @@ class Story(BaseModel):
     author: ObjectId  # Reference to users collection
     title: Optional[str] = None
     genre: Optional[str] = None
+    privacy: Optional[str] = None
     premise: Optional[str] = None
     setting: Optional[str] = None
     characters: Optional[List[Dict]] = None
