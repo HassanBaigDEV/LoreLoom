@@ -6,6 +6,11 @@ import tiktoken
 from pymongo import UpdateOne
 from datetime import datetime
 import asyncio
+import re
+import spacy
+from typing import Set
+from functools import wraps
+import time
 
 from ..plan.db.vector import store_story_part, find_similar_parts
 from ..llm import model
@@ -32,6 +37,34 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 # Initialize passages collection
 passage_collection = db.passages
 
+# Add this decorator for function logging
+def log_function_call(func):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        logger.info(f"Starting {func.__name__}")
+        start_time = time.time()
+        try:
+            result = await func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.info(f"Completed {func.__name__} in {elapsed:.2f}s")
+            return result
+        except Exception as e:
+            logger.error(f"Failed {func.__name__}: {str(e)}")
+            raise
+    return wrapper
+
+# Add this for LLM call logging
+def log_llm_call(prompt: str, **kwargs) -> Dict:
+    logger.info(f"Starting LLM call with params: {kwargs}")
+    start_time = time.time()
+    try:
+        response = model(prompt, **kwargs)
+        elapsed = time.time() - start_time
+        logger.info(f"Completed LLM call in {elapsed:.2f}s")
+        return response
+    except Exception as e:
+        logger.error(f"Failed LLM call: {str(e)}")
+        raise
 
 class DraftGenerator:
     def __init__(self, story_id: str, max_tokens: int = 4096):
@@ -39,6 +72,7 @@ class DraftGenerator:
         self.character_relevance: Dict[str, float] = {}
         self.max_tokens = max_tokens
         self.token_buffer = 512  # Reserve tokens for the response
+        self.nlp = spacy.load("en_core_web_sm")  # Load spaCy model
 
     async def load_plan_data(self) -> Dict:
         """Load story plan data from MongoDB"""
@@ -290,56 +324,61 @@ class DraftGenerator:
         self, character_name: str, passage_text: str
     ) -> None:
         """Update character description based on new developments"""
-        prompt = f"""
-        <|im_start|>system
-        You are a creative writer tasked with analyzing a passage and extracting new character development details.
-        <|im_end|>
-        <|im_start|>user
-        Analyze the following passage and extract new character development details for {character_name}:
-        
-        {passage_text}
-        
-        Return a JSON object with:
-        1. physicalAppearance: Updated physical description
-        2. behavioralPatterns: Updated behavior patterns
-        3. relationships: Updated relationships with other characters
-        4. likesAndDislikes: Updated preferences
-        example of a correctly formatted response:
-         {{
-            "name": "Ayla Windsong",
-            "physicalAppearance": "A lithe woman with sun-kissed skin, braided auburn hair, and piercing green eyes. She has a crescent-shaped scar on her left cheek.",
-            "behavioralPatterns": "Fiercely independent but deeply loyal to her close friends. She often acts impulsively but has a knack for thinking on her feet.",
-            "genderAndSexualOrientation": "Female, bisexual",
-            "relationships": {{
-                "Alaric Frost": "Childhood friend and rival",
-                "Kaela Rune": "Mentor and confidant"
-            }},
-            "likesAndDislikes": {{
-                "Likes": ["Exploring the unknown", "Playing the lute", "Collecting rare artifacts"],
-                "Dislikes": ["Confinement", "Dishonesty", "Large crowds"]
-            }}
-        }}
-        Here's the JSON schema you must adhere to:\n<schema>\n{character_schema}\n</schema>
-        <|im_end|>
-        <|im_start|>assistant
-        """
-
         try:
-            response = model(prompt, max_tokens=256)
-            response_text = response["choices"][0]["text"].strip()  # type: ignore
-            updates = json.loads(response_text)
-
-            # Create Character object to validate updates
-            char_updates = Character(name=character_name, **updates)
-
-            # Batch update character description
-            await stories.update_one(
+            # Get current character data
+            story = await stories.find_one(
                 {
                     "story_id": ObjectId(self.story_id),
-                    "characters.name": character_name,
-                },
-                {"$set": {"characters.$": char_updates.model_dump()}},
+                    "characters.name": character_name
+               }
             )
+            if not story:
+                logger.info(f"Character {character_name} not found instory")
+                return
+
+            prompt = f"""
+            <|im_start|>system
+            Update character profile based on recent events.
+            Return only the updated fields, excluding the name field.
+            
+            Character: {character_name}
+            Recent events: {passage_text[:500]}
+            <|im_end|>
+            <|im_start|>assistant
+            """
+
+            logger.info(f"Generating updates for character: {character_name}")
+            response = model(prompt, max_tokens=256)
+            if not isinstance(response, dict) or "choices" not in response:
+                logger.error("Invalid model response")
+                return
+
+            try:
+                updates = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+                
+                # Remove name field if present to avoid duplication
+                updates.pop("name", None)
+                
+                # Create character object with existing name
+                character = Character(name=character_name, **updates)
+                
+                logger.info(f"Updating character {character_name} withnew details")
+                await stories.update_one(
+                    {
+                        "story_id": ObjectId(self.story_id),
+                        "characters.name": character_name
+                    },
+                    {"$set": {
+                        f"characters.$.{k}": v 
+                        for k, v in character.model_dump().items() 
+                       if k != "name"  # Skip name field in updates
+                    }}
+                )
+                logger.info(f"Successfully updated character: {character_name}")
+
+            except Exception as e:
+                logger.error(f"Error parsing character update: {e}")
+
         except Exception as e:
             logger.error(f"Failed to update character description: {e}")
 
@@ -393,48 +432,56 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error updating character relevance: {e}")
 
+    @log_function_call
     async def generate_passage(self, outline_point_id: str) -> GeneratedPassage:
+        """Generate a single passage with parallel character updates"""
         try:
             context = await self.retrieve_relevant_context(outline_point_id)
             prompt = self.prepare_prompt(context)
 
-            async def _generate_passage() -> str:
+            # Generate passage text
+            async def _generate() -> str:
                 response = model(
                     prompt,
                     max_tokens=1024,
                     temperature=0.7,
                     top_p=0.9,
-                    stream=False,
                 )
-                passage_text = response["choices"][0]["text"] if response.get("choices") else ""  # type: ignore
-                return passage_text
+                if not isinstance(response, dict) or "choices" not in response:
+                    return ""
+                return response["choices"][0]["text"].strip()  # type: ignore
 
-            passage_text = await retry_generation(_generate_passage)
+            passage_text = await retry_generation(_generate)
             if not passage_text:
-                raise ValueError(
-                    "Failed to generate a valid passage after multiple attempts"
-                )
+                raise ValueError("Failed to generate valid passage")
 
             # Generate summary with validation
-            async def _generate_summary() -> str:
-                summary_prompt = f"""
-                <|im_start|>system
-                Summarize in one complete sentence:
-                {passage_text[:500]}
-                <|im_end|>
-                <|im_start|>assistant
-                """
-                summary_response = model(
-                    summary_prompt,
-                    max_tokens=128,
-                    temperature=0.5,
-                    stream=False,
-                )
-                return summary_response["choices"][0]["text"] if summary_response.get("choices") else ""  # type: ignore
+            # async def _generate_summary() -> str:
+            #     summary_prompt = f"""
+            #     <|im_start|>system
+            #     Summarize in one complete sentence:
+            #     {passage_text[:500]}
+            #     <|im_end|>
+            #     <|im_start|>assistant
+            #     """
+            #     summary_response = model(
+            #         summary_prompt,
+            #         max_tokens=128,
+            #         temperature=0.5,
+            #         stream=False,
+            #     )
+            #     return summary_response["choices"][0]["text"] if summary_response.get("choices") else ""  # type: ignore
 
-            summary = await retry_generation(_generate_summary)
-            if not summary:
-                summary = "Summary generation failed."
+            # summary = await retry_generation(_generate_summary)
+
+            summary_task = self._generate_summary(passage_text)
+            entities_task = self._extract_entities(passage_text)
+            summary, entities = await asyncio.gather(summary_task, entities_task)
+
+            # if not summary:
+            #     summary = await retry_generation(_generate_summary)
+            # if not entities:
+            #     entities = await retry_generation(self._extract_entities(passage_text))
 
             # Create and store passage
             passage = GeneratedPassage(
@@ -442,87 +489,54 @@ class DraftGenerator:
                 story_id=self.story_id,
                 outline_point_id=outline_point_id,
                 content=passage_text,
-                summary=summary,
-                mentioned_entities=await self._extract_entities(passage_text),
+                summary=summary or "Summary generation failed.",
+                mentioned_entities=entities or [],
             )
 
-            await self._store_passage(passage)
+            # Run all updates in parallel
+            update_tasks = [
+                self._store_passage(passage),
+                self._process_new_entities(passage, context),
+                self._update_character_relevance(entities),
+            ]
+            await asyncio.gather(*update_tasks)
+
             return passage
 
         except Exception as e:
             logger.error(f"Error generating passage: {e}")
             raise
 
+    @log_function_call
     async def _extract_entities(self, passage_text: str) -> List[str]:
-        """Extract and validate character names and entities from passage text"""
-        # First extraction
-        prompt = f"""
-        <|im_start|>system
-        You are an expert at identifying character names and important entities in story text.
-        Analyze this passage and list all character names and significant entities (like magical artifacts, important locations, etc).
-        Return only the names/entities as a comma-separated list.
-        
-        Example output format:
-        John Smith, Sarah Jones, The Crystal Cave, Ancient Sword of Light
-        
-        Passage to analyze:
-        {passage_text}
-        <|im_end|>
-        <|im_start|>assistant
-        """
-
+        """Extract entities using spaCy NER"""
         try:
-            response = model(prompt, max_tokens=256, temperature=0.3)
-            if not isinstance(response, dict) or "choices" not in response:
-                logger.error("Invalid response format from entity extraction model")
-                return []
-
-            entities_text = response["choices"][0]["text"].strip()  # type: ignore
-            potential_entities = [
-                entity.strip()
-                for entity in entities_text.split(",")
-                if entity.strip() and len(entity.strip()) > 1
-            ]
-
-            # Validate each entity
-            validation_prompt = f"""
-            <|im_start|>system
-            Verify if these entities actually appear in the passage. Return only valid entities as a comma-separated list.
+            # Process text with spaCy
+            doc = self.nlp(passage_text)
             
-            Passage:
-            {passage_text}
+            # Extract named entities
+            entities: Set[str] = set()
             
-            Potential entities to verify:
-            {', '.join(potential_entities)}
+            # Entity types we're interested in
+            relevant_types = {
+                'PERSON',      # For characters
+                'GPE',         # For locations
+                'LOC',         # For locations
+                'FAC',         # For facilities/buildings
+                'ORG',         # For organizations
+                'PRODUCT',     # For objects/artifacts
+                'WORK_OF_ART'  # For artifacts/books
+            }
             
-            For each entity, verify:
-            1. It is explicitly mentioned in the passage
-            2. It is a significant character, location, or object
-            3. It is not a common noun or general reference
+            for ent in doc.ents:
+                if ent.label_ in relevant_types:
+                    # Clean and normalize entity text
+                    clean_text = ent.text.strip()
+                    if clean_text and len(clean_text) > 1:  # Avoid single characters
+                        entities.add(clean_text)
             
-            Return only the verified entities, comma-separated.
-            <|im_end|>
-            <|im_start|>assistant
-            """
-
-            validation_response = model(
-                validation_prompt, max_tokens=256, temperature=0.2
-            )
-            if (
-                not isinstance(validation_response, dict)
-                or "choices" not in validation_response
-            ):
-                return potential_entities  # Fallback to unvalidated entities
-
-            validated_text = validation_response["choices"][0]["text"].strip()  # type: ignore
-            validated_entities = [
-                entity.strip()
-                for entity in validated_text.split(",")
-                if entity.strip() and len(entity.strip()) > 1
-            ]
-
-            logger.info(f"Validated entities: {validated_entities}")
-            return validated_entities
+            # Convert to list and sort for consistency
+            return sorted(list(entities))
 
         except Exception as e:
             logger.error(f"Error extracting entities: {e}")
@@ -756,40 +770,6 @@ class DraftGenerator:
         # Return the passage with the highest score
         return max(scored_passages, key=lambda x: x[1])[0]
 
-    def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
-        """Extract important keywords from text"""
-        if isinstance(text, dict):
-            text = " ".join(str(v) for v in text.values())
-
-        # Simple keyword extraction (can be improved)
-        words = text.lower().split()
-        stopwords = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-        }
-        return [w for w in words if w not in stopwords and len(w) > 3]
-
-    def _calculate_readability(self, text: str) -> float:
-        """Calculate a simple readability score"""
-        sentences = text.split(".")
-        words = text.split()
-
-        if not sentences or not words:
-            return 0.0
-
-        avg_sentence_length = len(words) / len(sentences)
-        # Prefer sentences between 10-20 words
-        return 1.0 - abs(15 - avg_sentence_length) / 15
-
     async def _generate_summary(self, text: str) -> Optional[str]:
         """Generate a summary for a passage"""
         prompt = f"""
@@ -812,151 +792,184 @@ class DraftGenerator:
     async def _process_new_entities(
         self, passage: GeneratedPassage, context: PassageContext
     ):
-        """Process and add new entities found in the passage"""
+        """Process entities, updating existing ones and creating new ones"""
         try:
-            # Get existing character names
+            # Get existing characters
             story = await stories.find_one({"story_id": ObjectId(self.story_id)})
             if not story:
                 return
 
             existing_chars = {char["name"] for char in story.get("characters", [])}
-
-            # Find new entities
+            
+            # Split entities into existing and new
+            existing_entities = set(passage.mentioned_entities) &existing_chars
             new_entities = set(passage.mentioned_entities) - existing_chars
-            if not new_entities:
-                return
-            logger.info(f"New entities: {new_entities}")
-            # Generate character profiles for new entities
-            new_characters = []
-            for entity in new_entities:
-                # Validate entity's role in the passage
-                role_prompt = f"""
-                <|im_start|>system
-                You are a story analyzer determining entity types.
-                Analyze this entity and classify it as exactly one of these types: character, location, or object.
-                
-                Entity: {entity}
-                Passage: {passage.content}
-                
-                Rules:
-                1. Only respond with one word: "character", "location", or "object"
-                2. No punctuation or additional text
-                3. No explanations
-                
-                Classification:
-                <|im_end|>
-                <|im_start|>assistant
-                """
 
-                # Create logit bias to restrict output
-                allowed_tokens = {
-                    "character": 1.0,
-                    "location": 1.0,
-                    "object": 1.0,
-                }
-                discouraged_tokens = {
-                    "://": -100.0,
-                    "http": -100.0,
-                    "https": -100.0,
-                    ".": -100.0,
-                    ",": -100.0,
-                    ":": -100.0,
-                    "/": -100.0,
-                }
+            # Update existing characters in parallel
+            update_tasks = [
+                self._update_character_description(entity, passage.content)
+                for entity in existing_entities
+            ]
+            
+            # Process new entities only if they exist
+            if new_entities:
+                # Classify and prioritize new entities
+                entity_types = await self._batch_classify_entities(new_entities, passage.content)
+                priority_entities = self._prioritize_entities(entity_types)
 
-                # Encode tokens
-                enc = tiktoken.get_encoding("cl100k_base")
-                logit_bias = {}
-
-                # Add bias for allowed tokens
-                for word, bias in allowed_tokens.items():
-                    tokens = enc.encode(word)
-                    for token in tokens:
-                        logit_bias[str(token)] = bias
-
-                # Add bias against unwanted tokens
-                for word, bias in discouraged_tokens.items():
-                    tokens = enc.encode(word)
-                    for token in tokens:
-                        logit_bias[str(token)] = bias
-
-                role_response = model(
-                    role_prompt,
-                    max_tokens=1,
-                    temperature=0.1,
-                    logit_bias=logit_bias,
-                    stop=["\n", ".", ",", ":", "/"],  # Stop on any punctuation
-                )
-
-                if (
-                    not isinstance(role_response, dict)
-                    or "choices" not in role_response
-                ):
-                    continue
-
-                entity_type = role_response["choices"][0]["text"].strip().lower()  # type: ignore
-                logger.info(f"Entity type for {entity}: {entity_type}")
-
-                if entity_type in ["character", "location", "object"]:
-                    char_data = await self._generate_new_character(
-                        entity, entity_type, passage.content, context
+                if priority_entities:
+                    # Generate profiles for new characters
+                    new_characters = await self._batch_generate_characters(
+                        priority_entities, passage.content, context
                     )
-                    if char_data:
-                        new_characters.append(char_data)
-            logger.info(f"New characters: {new_characters}")
-            if new_characters:
-                # Add new characters to the story
-                await stories.update_one(
-                    {"story_id": ObjectId(self.story_id)},
-                    {
-                        "$push": {"characters": {"$each": new_characters}},
-                        "$set": {"updated_at": datetime.utcnow()},
-                    },
-                )
-                logger.info(f"Added {len(new_characters)} new characters to the story")
+
+                    if new_characters:
+                        # Add new characters to database
+                        await stories.update_one(
+                            {"story_id": ObjectId(self.story_id)},
+                            {
+                                "$push": {"characters": {"$each": new_characters}},
+                                "$set": {"updated_at": datetime.utcnow()},
+                            },
+                        )
+                        logger.info(f"Added {len(new_characters)}new characters")
+
+            # Wait for all updates to complete
+            if update_tasks:
+                await asyncio.gather(*update_tasks)
+                logger.info(f"Updated {len(update_tasks)} existingcharacters")
 
         except Exception as e:
-            logger.error(f"Error processing new entities: {e}")
+            logger.error(f"Error processing entities: {e}")
 
-    async def _generate_new_character(
-        self,
-        entity_name: str,
-        entity_type: str,
-        passage_content: str,
-        context: PassageContext,
-    ) -> Optional[Dict]:
-        """Generate a new character entry based on passage context"""
-        prompt = f"""
+    async def _batch_classify_entities(
+        self, entities: set[str], passage_content: str
+    ) -> Dict[str, str]:
+        """Classify multiple entities in a single LLM call"""
+        entities_list = list(entities)
+        batch_prompt = f"""
         <|im_start|>system
-        Generate a detailed description for a new {entity_type} discovered in the story.
-        Use the story context and passage to ensure consistency.
+        You are an expert story analyzer. Classify each entity as either "character", "location", or "object".
+        Return a valid JSON object with entity names as keys and types as values.
         
-        Story Genre: {context.genre}
-        Story Premise: {context.premise}
-        Setting: {context.setting}
-        Current Passage: {passage_content}
-        Entity Name: {entity_name}
-        Entity Type: {entity_type}
+        Entities to classify:
+        {json.dumps(entities_list)}
         
-        Generate a character profile in JSON format following this schema:
-        {character_schema}
+        Passage context:
+        {passage_content[:1000]}
+        
+        Response format:
+        {{
+            "Entity Name": "character",
+            "Another Entity": "location"
+        }}
+        
+        Only respond with the JSON object, no additional text.
         <|im_end|>
         <|im_start|>assistant
         """
 
         try:
-            response = model(prompt, max_tokens=1024)
+            response = model(
+                batch_prompt, max_tokens=256, temperature=0.1, stop=["\n", "```"]
+            )
             if not isinstance(response, dict) or "choices" not in response:
-                return None
+                return {}
 
-            char_data = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+            response_text = response["choices"][0]["text"].strip()  # type: ignore
 
-            # Validate with Character model
-            character = Character(**char_data)
-            return character.model_dump()
+            # Clean the response text to ensure valid JSON
+            response_text = response_text.replace("'", '"')
+            response_text = re.sub(r'(?<!["\\])"(?![:,}])', '\\"', response_text)
+
+            try:
+                classifications = json.loads(response_text)
+                # Validate the response format
+                if not isinstance(classifications, dict):
+                    return {}
+                return {
+                    str(k): str(v)
+                    for k, v in classifications.items()
+                    if v in ["character", "location", "object"]
+                }
+            except json.JSONDecodeError as e:
+                logger.error(f"Error parsing JSON response: {e}")
+                return {}
+
         except Exception as e:
-            logger.error(f"Error generating new character {entity_name}: {e}")
-            return None
+            logger.error(f"Error classifying entities: {e}")
+            return {}
+
+    def _prioritize_entities(self, entity_types: Dict[str, str]) -> Dict[str, str]:
+        """Filter and prioritize entities based on type"""
+        # Priority weights
+        priorities = {"character": 3, "location": 2, "object": 1}
+
+        # Sort entities by priority
+        prioritized = sorted(
+            entity_types.items(), key=lambda x: priorities.get(x[1], 0), reverse=True
+        )
+
+        # Take top 5 entities or all if less
+        top_entities = dict(prioritized[:5])
+
+        # Always include characters
+        characters = {
+            name: type_ for name, type_ in entity_types.items() if type_ == "character"
+        }
+
+        return {**characters, **top_entities}
+
+    async def _batch_generate_characters(
+        self,
+        priority_entities: Dict[str, str],
+        passage_content: str,
+        context: PassageContext,
+    ) -> List[Dict]:
+        """Generate character profiles in batch"""
+        batch_prompt = f"""
+        <|im_start|>system
+        Generate character profiles for multiple entities in JSON format.
+        
+        Story Context:
+        Genre: {context.genre}
+        Premise: {context.premise}
+        Setting: {context.setting}
+        
+        Entities to profile:
+        {json.dumps(priority_entities)}
+        
+        Recent passage:
+        {passage_content[:1000]}
+        
+        Return a list of character profiles following this schema:
+        \n<schema>
+        {character_schema}
+        </schema>\n
+        <|im_end|>
+        <|im_start|>assistant
+        """
+
+        try:
+            response = model(batch_prompt, max_tokens=2048, temperature=0.7)
+            if not isinstance(response, dict) or "choices" not in response:
+                return []
+
+            profiles = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+
+            # Validate profiles
+            validated_profiles = []
+            for profile in profiles:
+                try:
+                    character = Character(**profile)
+                    validated_profiles.append(character.model_dump())
+                except Exception as e:
+                    logger.error(f"Error validating profile: {e}")
+
+            return validated_profiles
+        except Exception as e:
+            logger.error(f"Error generating character profiles: {e}")
+            return []
 
     async def _get_outline_characters(self, outline_point: Dict) -> List[Dict]:
         """Get character details for characters mentioned in the outline point"""
@@ -991,3 +1004,37 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error getting outline characters: {e}")
             return []
+
+    def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
+        """Extract important keywords from text"""
+        if isinstance(text, dict):
+            text = " ".join(str(v) for v in text.values())
+
+        # Simple keyword extraction (can be improved)
+        words = text.lower().split()
+        stopwords = {
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+        }
+        return [w for w in words if w not in stopwords and len(w) > 3]
+
+    def _calculate_readability(self, text: str) -> float:
+        """Calculate a simple readability score"""
+        sentences = text.split(".")
+        words = text.split()
+
+        if not sentences or not words:
+            return 0.0
+
+        avg_sentence_length = len(words) / len(sentences)
+        # Prefer sentences between 10-20 words
+        return 1.0 - abs(15 - avg_sentence_length) / 15

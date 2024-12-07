@@ -36,7 +36,7 @@ def initialize_model():
         llm = Llama(
             model_path=model_path,
             n_ctx=8096,
-            verbose=True,
+            verbose=False,
         )
         logger.info("LLM initialized successfully")
         return llm
