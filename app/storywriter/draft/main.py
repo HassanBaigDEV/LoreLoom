@@ -1,5 +1,6 @@
 import logging
 import json
+from pydoc import classname
 from typing import List, Dict, Optional, Tuple, Union
 from bson import ObjectId
 import tiktoken
@@ -11,6 +12,8 @@ import spacy
 from typing import Set
 from functools import wraps
 import time
+from pydantic import BaseModel, Field
+from typing import Literal
 
 from ..plan.db.vector import store_story_part, find_similar_parts
 from ..llm import model
@@ -37,6 +40,7 @@ tokenizer = tiktoken.get_encoding("cl100k_base")
 # Initialize passages collection
 passage_collection = db.passages
 
+
 # Add this decorator for function logging
 def log_function_call(func):
     @wraps(func)
@@ -51,7 +55,9 @@ def log_function_call(func):
         except Exception as e:
             logger.error(f"Failed {func.__name__}: {str(e)}")
             raise
+
     return wrapper
+
 
 # Add this for LLM call logging
 def log_llm_call(prompt: str, **kwargs) -> Dict:
@@ -61,10 +67,11 @@ def log_llm_call(prompt: str, **kwargs) -> Dict:
         response = model(prompt, **kwargs)
         elapsed = time.time() - start_time
         logger.info(f"Completed LLM call in {elapsed:.2f}s")
-        return response
+        return response  # type: ignore
     except Exception as e:
         logger.error(f"Failed LLM call: {str(e)}")
         raise
+
 
 class DraftGenerator:
     def __init__(self, story_id: str, max_tokens: int = 4096):
@@ -327,13 +334,10 @@ class DraftGenerator:
         try:
             # Get current character data
             story = await stories.find_one(
-                {
-                    "story_id": ObjectId(self.story_id),
-                    "characters.name": character_name
-               }
+                {"story_id": ObjectId(self.story_id), "characters.name": character_name}
             )
             if not story:
-                logger.info(f"Character {character_name} not found instory")
+                logger.info(f"Character {character_name} not found in story")
                 return
 
             prompt = f"""
@@ -355,24 +359,26 @@ class DraftGenerator:
 
             try:
                 updates = json.loads(response["choices"][0]["text"].strip())  # type: ignore
-                
+
                 # Remove name field if present to avoid duplication
                 updates.pop("name", None)
-                
+
                 # Create character object with existing name
                 character = Character(name=character_name, **updates)
-                
-                logger.info(f"Updating character {character_name} withnew details")
+
+                logger.info(f"Updating character {character_name} with new details")
                 await stories.update_one(
                     {
                         "story_id": ObjectId(self.story_id),
-                        "characters.name": character_name
+                        "characters.name": character_name,
                     },
-                    {"$set": {
-                        f"characters.$.{k}": v 
-                        for k, v in character.model_dump().items() 
-                       if k != "name"  # Skip name field in updates
-                    }}
+                    {
+                        "$set": {
+                            f"characters.$.{k}": v
+                            for k, v in character.model_dump().items()
+                            if k != "name"  # Skip name field in updates
+                        }
+                    },
                 )
                 logger.info(f"Successfully updated character: {character_name}")
 
@@ -513,28 +519,28 @@ class DraftGenerator:
         try:
             # Process text with spaCy
             doc = self.nlp(passage_text)
-            
+
             # Extract named entities
             entities: Set[str] = set()
-            
+
             # Entity types we're interested in
             relevant_types = {
-                'PERSON',      # For characters
-                'GPE',         # For locations
-                'LOC',         # For locations
-                'FAC',         # For facilities/buildings
-                'ORG',         # For organizations
-                'PRODUCT',     # For objects/artifacts
-                'WORK_OF_ART'  # For artifacts/books
+                "PERSON",  # For characters
+                "GPE",  # For locations
+                "LOC",  # For locations
+                "FAC",  # For facilities/buildings
+                "ORG",  # For organizations
+                "PRODUCT",  # For objects/artifacts
+                "WORK_OF_ART",  # For artifacts/books
             }
-            
+
             for ent in doc.ents:
                 if ent.label_ in relevant_types:
                     # Clean and normalize entity text
                     clean_text = ent.text.strip()
                     if clean_text and len(clean_text) > 1:  # Avoid single characters
                         entities.add(clean_text)
-            
+
             # Convert to list and sort for consistency
             return sorted(list(entities))
 
@@ -800,9 +806,9 @@ class DraftGenerator:
                 return
 
             existing_chars = {char["name"] for char in story.get("characters", [])}
-            
+
             # Split entities into existing and new
-            existing_entities = set(passage.mentioned_entities) &existing_chars
+            existing_entities = set(passage.mentioned_entities) & existing_chars
             new_entities = set(passage.mentioned_entities) - existing_chars
 
             # Update existing characters in parallel
@@ -810,11 +816,13 @@ class DraftGenerator:
                 self._update_character_description(entity, passage.content)
                 for entity in existing_entities
             ]
-            
+
             # Process new entities only if they exist
             if new_entities:
                 # Classify and prioritize new entities
-                entity_types = await self._batch_classify_entities(new_entities, passage.content)
+                entity_types = await self._batch_classify_entities(
+                    new_entities, passage.content
+                )
                 priority_entities = self._prioritize_entities(entity_types)
 
                 if priority_entities:
@@ -824,20 +832,36 @@ class DraftGenerator:
                     )
 
                     if new_characters:
-                        # Add new characters to database
-                        await stories.update_one(
-                            {"story_id": ObjectId(self.story_id)},
-                            {
-                                "$push": {"characters": {"$each": new_characters}},
-                                "$set": {"updated_at": datetime.utcnow()},
-                            },
-                        )
-                        logger.info(f"Added {len(new_characters)}new characters")
+                        # Add required role field and validate
+                        validated_characters = []
+                        for char in new_characters:
+                            if "role" not in char:
+                                char["role"] = "Supporting Character"
+                            try:
+                                validated_char = Character(**char)
+                                validated_characters.append(validated_char.model_dump())
+                            except Exception as e:
+                                logger.error(f"Character validation error: {e}")
+                                continue
+
+                        if validated_characters:
+                            await stories.update_one(
+                                {"story_id": ObjectId(self.story_id)},
+                                {
+                                    "$push": {
+                                        "characters": {"$each": validated_characters}
+                                    },
+                                    "$set": {"updated_at": datetime.utcnow()},
+                                },
+                            )
+                            logger.info(
+                                f"Added {len(validated_characters)} new characters"
+                            )
 
             # Wait for all updates to complete
             if update_tasks:
                 await asyncio.gather(*update_tasks)
-                logger.info(f"Updated {len(update_tasks)} existingcharacters")
+                logger.info(f"Updated {len(update_tasks)} existing characters")
 
         except Exception as e:
             logger.error(f"Error processing entities: {e}")
@@ -846,51 +870,59 @@ class DraftGenerator:
         self, entities: set[str], passage_content: str
     ) -> Dict[str, str]:
         """Classify multiple entities in a single LLM call"""
+
+        # Define schema for entity classification
+        class CharacterClassificationSchema(BaseModel):
+            name: str
+            classification: Literal["character", "location", "object"] = Field(
+                default="character",
+                description="Type of entity (character, entity, or location)",
+            )
+
+        schema = CharacterClassificationSchema.model_json_schema()
+
         entities_list = list(entities)
         batch_prompt = f"""
         <|im_start|>system
-        You are an expert story analyzer. Classify each entity as either "character", "location", or "object".
-        Return a valid JSON object with entity names as keys and types as values.
-        
+        You are an expert story analyzer. Classify each entity as either "character", "location", or "object" based on the passage context.
+        Return a valid JSON object following the given schema exactly.
+        <|im_end|>
+        <|im_start|>user
         Entities to classify:
         {json.dumps(entities_list)}
         
         Passage context:
         {passage_content[:1000]}
         
-        Response format:
-        {{
-            "Entity Name": "character",
-            "Another Entity": "location"
-        }}
+        Here's the JSON schema you must adhere to:\n<schema>\n{schema}\n</schema>
         
-        Only respond with the JSON object, no additional text.
+        Example response:
+        [{{"name":"TheArchivist", "classification":"character"}}, {{"name":"AtlantisLibrary", "classification":"location"}}]
         <|im_end|>
         <|im_start|>assistant
         """
 
         try:
             response = model(
-                batch_prompt, max_tokens=256, temperature=0.1, stop=["\n", "```"]
+                batch_prompt,
+                max_tokens=256,
             )
             if not isinstance(response, dict) or "choices" not in response:
                 return {}
 
             response_text = response["choices"][0]["text"].strip()  # type: ignore
-
-            # Clean the response text to ensure valid JSON
-            response_text = response_text.replace("'", '"')
-            response_text = re.sub(r'(?<!["\\])"(?![:,}])', '\\"', response_text)
+            logger.info(f"Entity classification response: {response_text}")
 
             try:
                 classifications = json.loads(response_text)
-                # Validate the response format
-                if not isinstance(classifications, dict):
-                    return {}
+                logger.info(f"Classifications: {classifications}")
+                # Convert list of dicts to dict format
                 return {
-                    str(k): str(v)
-                    for k, v in classifications.items()
-                    if v in ["character", "location", "object"]
+                    item["name"]: item["classification"]
+                    for item in classifications
+                    if isinstance(item, dict) 
+                    and "name" in item 
+                    and "classification" in item
                 }
             except json.JSONDecodeError as e:
                 logger.error(f"Error parsing JSON response: {e}")
