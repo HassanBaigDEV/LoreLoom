@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     EMAIL_FROM: str
     EMAIL_VERIFICATION_URL: str
     PASSWORD_RESET_URL: str
+    STRIPE_SECRET_KEY: str
+    STRIPE_PUBLISHABLE_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
+    STRIPE_BASIC_PRICE_ID: str
+    STRIPE_PREMIUM_PRICE_ID: str
+    FRONTEND_URL: str
     # allow extra fields
     model_config = SettingsConfigDict(env_file=".env", extra="allow")
 

@@ -1,8 +1,10 @@
-# FastAPI MongoDB Project
+# LoreLoom API
 
-This project is a REST API built using FastAPI and MongoDB.
+A FastAPI-based backend for the LoreLoom story generation platform.
 
-## Setup
+## Setup Instructions
+
+### 1. Environment Setup
 
 1. Create a virtual environment:
    ```bash

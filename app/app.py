@@ -4,6 +4,7 @@ from app.utils.dependencies import get_current_user
 from app.routes.auth import auth_router
 from app.routes.user import user_router
 from app.routes.story import story_router
+from app.routes.subscription import subscription_router
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(user_router, prefix="/user", tags=["User"])
 app.include_router(story_router, prefix="/author", tags=["Author"])
+app.include_router(subscription_router, prefix="/subscription", tags=["Subscription"])
 
 
 @app.get("/protected-route")
