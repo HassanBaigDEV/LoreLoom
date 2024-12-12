@@ -12,7 +12,7 @@ export default function DashboardOverview() {
     router.push("/generator");
   };
   const handleSubRedirect = () => {
-    router.push("/subscribe");
+    router.push("/subscription");
   };
 
   return (

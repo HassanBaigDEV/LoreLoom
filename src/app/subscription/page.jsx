@@ -63,8 +63,8 @@ export default function SubscriptionPage() {
     <div className="min-h-screen bg-gray-50">
       <Header />
       <Container maxWidth="lg" className="py-16">
-        <div className="text-center mb-12">
-          <Typography variant="h2" className="text-4xl font-bold mb-4">
+        <div className="mb-12 text-center">
+          <Typography variant="h2" className="mb-4 text-4xl font-bold text-gray-700 mt-7">
             Choose Your Plan
           </Typography>
           <Typography variant="subtitle1" className="text-gray-600">

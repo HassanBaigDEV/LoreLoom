@@ -25,7 +25,7 @@ const BillingSection = () => {
             <p className="text-lg font-bold text-gray-700">StoryWeaver Lite</p>
             <p className="text-sm text-gray-600">You are on the free plan</p>
             <a
-              href="/upgrade"
+              href="/subscription"
               className="inline-block mt-2 font-semibold text-blue-500"
             >
               Upgrade Plan +

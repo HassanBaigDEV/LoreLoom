@@ -134,20 +134,20 @@ export default function PricingTable() {
           `}
         >
           {isBasic && (
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-semibold shadow-lg whitespace-nowrap">
+            <div className="absolute top-0 transform -translate-x-1/2 -translate-y-1/2 left-1/2">
+              <div className="mt-11 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-1.5 rounded-full text-sm font-semibold shadow-lg whitespace-nowrap">
                 Most Popular 🔥
               </div>
             </div>
           )}
           
-          <div className="p-6 flex flex-col h-full">
+          <div className="flex flex-col h-full p-6">
             <div>
-              <Typography variant="h5" className="font-bold text-gray-800 mb-2">
+              <Typography variant="h5" className="mb-2 font-bold text-gray-800">
                 {plan.name}
               </Typography>
               
-              <Typography variant="body2" className="text-gray-600 mb-4">
+              <Typography variant="body2" className="mb-4 text-gray-600">
                 {plan.description}
               </Typography>
 
@@ -155,7 +155,7 @@ export default function PricingTable() {
                 <Typography variant="h3" component="span" className="font-bold text-gray-900">
                   {plan.price === 0 ? 'Free' : `$${plan.price}`}
                 </Typography>
-                <Typography variant="subtitle1" component="span" className="text-gray-500 ml-2">
+                <Typography variant="subtitle1" component="span" className="ml-2 text-gray-500">
                   /{plan.billing}
                 </Typography>
               </div>
@@ -202,18 +202,9 @@ export default function PricingTable() {
   };
 
   return (
-    <div className="w-full bg-gray-50 py-16 px-4">
+    <div className="w-full px-4 py-16 bg-gray-50">
       <Container maxWidth="lg">
-        <div className="text-center mb-12">
-          <Typography variant="h2" className="text-4xl font-bold mb-4">
-            Choose Your Plan
-          </Typography>
-          <Typography variant="subtitle1" className="text-gray-600 max-w-2xl mx-auto">
-            Select the plan that best fits your storytelling needs
-          </Typography>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-0 gap-y-8 max-w-6xl mx-auto">
+        <div className="grid max-w-6xl grid-cols-1 mx-auto md:grid-cols-3 gap-x-0 gap-y-8">
           {renderPlanCard('FREE')}
           {renderPlanCard('BASIC')}
           {renderPlanCard('PREMIUM')}

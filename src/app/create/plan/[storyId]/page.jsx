@@ -120,8 +120,8 @@ export default function PlanStory({ params }) {
     }
   };
 
-  const handleProceed = () => {
-    router.push("/write"); // or wherever you want to go next
+  const handleProceedP = () => {
+    router.push(`/draft/passage/${storyId}`); // or wherever you want to go next
   };
 
   return (
@@ -132,7 +132,7 @@ export default function PlanStory({ params }) {
       className="min-h-screen bg-gray-50"
     >
       <Toaster position="top-right" />
-      <PlanHeader />
+      <PlanHeader stage="planning"/>
       <Container maxWidth="md" className="pt-20 pb-12">
         <ProgressIndicator progress={progress} />
 
@@ -201,7 +201,7 @@ export default function PlanStory({ params }) {
                 variant="contained"
                 color="primary"
                 size="large"
-                onClick={handleProceed}
+                onClick={handleProceedP}
                 className="px-12 py-3 bg-green-500 hover:bg-green-600"
               >
                 Proceed to Writing
