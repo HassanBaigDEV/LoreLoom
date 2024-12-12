@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 from bson import ObjectId
+from fastapi.encoders import jsonable_encoder
 import logging
+from pydantic import BaseModel
 from datetime import datetime
 
 from app.storywriter.draft.main import DraftGenerator
@@ -17,6 +19,25 @@ router = APIRouter()
 # Initialize passages collection
 passages = db.passages
 
+class Passage(BaseModel):
+    passage_id: str
+    story_id: str
+    outline_point_id: str
+    content: str
+    summary: str
+    mentioned_entities: List[str]
+    created_at: datetime  # This ensures the date is parsed correctly
+
+    # Custom class config for Pydantic to handle ObjectId
+    class Config:
+        json_encoders = {
+            ObjectId: str  # Convert ObjectId to string
+        }
+
+def custom_jsonable_encoder(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)  # Convert ObjectId to string
+    return jsonable_encoder(obj)
 
 @router.post("/generate-passage/{story_id}")
 async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
@@ -52,7 +73,7 @@ async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/passages/{story_id}")
+@router.get("/passages/{story_id}", response_model=List[Passage])
 async def get_story_passages(
     story_id: str, user_id: str, limit: int = 10, skip: int = 0
 ):
@@ -64,19 +85,21 @@ async def get_story_passages(
         )
         if not story:
             logger.error(f"Story {story_id} not found or unauthorized")
-            return HTTPException(
-                status_code=404, detail="Story not found or unauthorized"
-            )
+            raise HTTPException(status_code=404, detail="Story not found or unauthorized")
 
         # Get passages with pagination
         cursor = passages.find({"story_id": story_id})
         cursor.sort("created_at", -1).skip(skip).limit(limit)
 
+        # Convert the data into Pydantic models and handle serialization
         passages_list = await cursor.to_list(length=limit)
-        return passages_list
+
+        # Use FastAPI's jsonable_encoder to handle serialization of non-serializable types
+        return [jsonable_encoder(passage, custom_encoder={ObjectId: str}) for passage in passages_list]
+    
     except Exception as e:
         logger.error(f"Error retrieving passages: {e}")
-        return HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/passage/{passage_id}")
