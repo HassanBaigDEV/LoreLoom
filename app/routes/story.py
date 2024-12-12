@@ -129,6 +129,18 @@ async def get_stories():
 
     return stories_with_author
 
+# Endpoint to fetch story planning
+@story_router.get("/stories/{story_id}/planning", response_model=StoryResponse)
+async def get_story_planning(story_id: ObjectIdStr):
+    """
+    Retrieve planning data for a specific story.
+    """
+    story = await stories_collection.find_one({"_id": ObjectId(story_id)})
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    return objectid_to_str(story)
+
 
 # @story_router.post("/stories", response_model=StoryResponse)
 # async def create_story(story: StoryCreate):
