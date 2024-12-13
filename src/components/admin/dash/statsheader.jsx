@@ -1,0 +1,44 @@
+import React from 'react';
+import StatCard from './statcard';
+import {
+  Assignment as AssignmentIcon,
+  Groups as GroupsIcon,
+  Speed as SpeedIcon,
+} from "@mui/icons-material";
+
+export default function StatsHeader() {
+  return (
+    <div className="p-6 bg-purple-500">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-white">Statistics</h1>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Stories"
+          value="18"
+          subtitle="6 InProgress"
+          icon={<AssignmentIcon />}
+        />
+        <StatCard
+          title="Users"
+          value="132"
+          subtitle="9 Active"
+          icon={<GroupsIcon />}
+        />
+        <StatCard
+          title="Collaborations"
+          value="12"
+          subtitle="None"
+          icon={<GroupsIcon />}
+        />
+        <StatCard
+          title="Subscriptions"
+          value="76%"
+          subtitle="0% Completed"
+          icon={<SpeedIcon />}
+        />
+      </div>
+    </div>
+  );
+}
