@@ -63,8 +63,8 @@ export default function Header() {
       items: ['AI Story Generation', 'Story Planning', 'Collaboration', 'Export Options'],
       href: '#features'
     },
-    { label: 'Pricing', icon: <PricingIcon />, href: '#pricing' },
-    { label: 'How it works', icon: <InfoIcon />, href: '/about' },
+    { label: 'Pricing', href: '/subscription' },
+    { label: 'How it works', href: '/about' },
   ];
 
   const drawer = (
@@ -251,7 +251,7 @@ export default function Header() {
                   <>
                     <IconButton onClick={handleUserMenuClick}>
                       <Avatar 
-                        src={user.avatar} 
+                        src={user.photo}
                         alt={user.username}
                         sx={{ width: 32, height: 32 }}
                       >

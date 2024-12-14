@@ -4,6 +4,24 @@ import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/axios';
 import Cookies from 'js-cookie';
 
+const isServer = typeof window === "undefined";
+
+const removeCookie = (name) => {
+  // List of possible cookie configurations
+  const cookieConfigs = [
+    {},  // default
+    { path: '/' },
+    { path: '', domain: '' },
+    { path: '/', domain: window.location.hostname },
+    { path: '/', domain: `.${window.location.hostname}` }
+  ];
+
+  // Try removing cookie with each configuration
+  cookieConfigs.forEach(config => {
+    Cookies.remove(name, config);
+  });
+};
+
 export function useAuth() {
   const [user, setUser] = useAtom(userAtom);
   const router = useRouter();
@@ -12,10 +30,36 @@ export function useAuth() {
     try {
       setUser(null);
       localStorage.removeItem("user");
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-      Cookies.remove("client_accessToken");
-      Cookies.remove("client_refreshToken");
+      
+      // List of all possible token names
+      const tokenKeys = [
+        "accessToken",
+        "refreshToken",
+        "client_accessToken",
+        "client_refreshToken"
+      ];
+
+      if (isServer) {
+        const { cookies } = await import("next/headers");
+        tokenKeys.forEach(key => {
+          cookies().delete(key);
+        });
+      } else {
+        // Remove each token with all possible configurations
+        tokenKeys.forEach(removeCookie);
+      }
+
+      // Clear any other auth-related data
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Optional: Make a logout request to the backend
+      try {
+        // await apiClient.post('/auth/logout');
+      } catch (error) {
+        console.error('Backend logout failed:', error);
+      }
+
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -43,10 +87,7 @@ export function useAuth() {
       // Clear everything on auth error
       setUser(null);
       localStorage.removeItem("user");
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-      Cookies.remove("client_accessToken");
-      Cookies.remove("client_refreshToken");
+      tokenKeys.forEach(removeCookie);
       return null;
     }
   };

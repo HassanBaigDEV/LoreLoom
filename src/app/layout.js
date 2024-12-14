@@ -1,8 +1,9 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-
 import StyledJsxRegistry from "@/lib/registry";
 import Header from '@/components/common/header';
+import Footer from '@/components/common/footer';
+import { Box } from '@mui/material';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -15,8 +16,17 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Header />
-        <StyledJsxRegistry>{children}</StyledJsxRegistry>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          minHeight: '100vh'
+        }}>
+          <Header />
+          <Box sx={{ flex: 1 }}>
+            <StyledJsxRegistry>{children}</StyledJsxRegistry>
+          </Box>
+          <Footer />
+        </Box>
       </body>
     </html>
   );

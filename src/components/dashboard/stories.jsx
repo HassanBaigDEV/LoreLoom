@@ -1,68 +1,96 @@
-// components/Stories.js
-import React, { useEffect } from "react";
-import { useStories } from "@/hooks/useStories";
-import { useAtom } from "jotai";
-import { userAtom } from "@/store/atoms";
-import Image from "next/image";
-import cover from "@/assets/images/boyanddog.webp";
-import StoriesIcon from "@/assets/images/story.svg";
+"use client";
+import React from 'react';
+import { Box, Typography, Grid, Card, CardContent, IconButton } from '@mui/material';
+import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
-export default function Stories() {
-  const [user] = useAtom(userAtom);
-  const { stories, fetchStories } = useStories();
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchStories(user.id);
-    }
-  }, [user]);
-
-  if (!stories?.length) {
-    return (
-      <div className="mt-8 mb-48">
-        <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
-          <StoriesIcon className="h-8 mr-2 w-9" />
-          Stories
-        </div>
-        <div className="flex items-center justify-center w-full h-64">
-          <p className="text-gray-500">No stories found</p>
-        </div>
-      </div>
-    );
+const StoriesSection = () => {
+  // Get user stories from localStorage with error handling
+  let userStories = [];
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || '{"stories": []}');
+    userStories = user.stories || [];
+  } catch (error) {
+    console.error('Error parsing user stories:', error);
   }
 
+  const handleEdit = (storyId) => {
+    console.log('Edit story:', storyId);
+    // Add edit functionality
+  };
+
+  const handleDelete = (storyId) => {
+    console.log('Delete story:', storyId);
+    // Add delete functionality
+  };
+
   return (
-    <main className="flex flex-col min-h-screen">
-      <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
-        <StoriesIcon className="h-8 mr-2 w-9" />
-        Stories
-      </div>
-      <section className="m-8">
-        <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
-          {stories.map((story, index) => (
-            <div key={index} className="relative block w-full">
-              <Image
-                src={cover}
-                className="w-full h-auto mx-auto rounded-3xl brightness-75"
-              />
-              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 left-4 rounded-xl">
-                <p className="text-xs ">{story.genre}</p>
-              </div>
-              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 right-4 rounded-xl">
-                <StoriesIcon className="w-10" />
-              </div>
-              <div className="absolute flex justify-between p-2 text-white bg-opacity-40 rounded-xl bottom-2 left-2 right-2">
-                <button className="px-3 py-1 text-sm text-white bg-green-500 bg-opacity-50 rounded-xl">
-                  <h1 className="font-bold">
-                  {story.title.split(':')[0].replace(/^"|"$/g, '')}
-                  </h1>
-                  <p className="text-xs">Read story by {user.username}</p>
-                </button>
-              </div>
-            </div>
+    <Box sx={{ mt: 4 }}>
+      <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
+        Your Stories
+      </Typography>
+
+      {userStories.length === 0 ? (
+        <Card sx={{ bgcolor: 'rgb(243 244 246)' }}>
+          <CardContent>
+            <Typography align="center" color="text.secondary">
+              You haven't created any stories yet.
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        <Grid container spacing={3}>
+          {userStories.map((story, index) => (
+            <Grid item xs={12} sm={6} md={4} key={index}>
+              <Card 
+                sx={{ 
+                  height: '100%',
+                  transition: 'transform 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 3
+                  }
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    {story.title || 'Untitled Story'}
+                  </Typography>
+                  <Typography 
+                    color="text.secondary" 
+                    sx={{ 
+                      mb: 2,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {story.content || 'No content available'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleEdit(story.id)}
+                      sx={{ color: 'primary.main' }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleDelete(story.id)}
+                      sx={{ color: 'error.main' }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </div>
-      </section>
-    </main>
+        </Grid>
+      )}
+    </Box>
   );
-}
+};
+
+export default StoriesSection;

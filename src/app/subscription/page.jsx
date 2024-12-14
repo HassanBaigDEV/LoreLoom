@@ -53,15 +53,23 @@ export default function SubscriptionPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <Box sx={{ 
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh'
+      }}>
         <CircularProgress />
-      </div>
+      </Box>
     );
   }
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ py: 8 }}>
+      <Box sx={{ 
+        py: { xs: 4, md: 8 },
+        px: { xs: 2, sm: 3, md: 4 }
+      }}>
         <Typography
           variant="h3"
           align="center"
@@ -69,6 +77,7 @@ export default function SubscriptionPage() {
           sx={{
             fontWeight: 600,
             color: "rgb(55 65 81)",
+            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
           }}
         >
           Choose Your Plan
@@ -77,11 +86,14 @@ export default function SubscriptionPage() {
           variant="h6"
           align="center"
           color="text.secondary"
-          sx={{ mb: 6 }}
+          sx={{ 
+            mb: { xs: 4, md: 6 },
+            fontSize: { xs: '1rem', sm: '1.25rem' }
+          }}
         >
           Select the perfect plan for your storytelling journey
         </Typography>
-        <PricingTable/>
+        <PricingTable currentPlan={currentPlan} onUpgrade={handleUpgrade} />
       </Box>
     </Container>
   );

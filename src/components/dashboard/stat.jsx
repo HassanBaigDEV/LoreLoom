@@ -1,10 +1,18 @@
-import React from "react";
+"use client";
+import React from 'react';
 import Image from "next/image";
 import token from "@/assets/images/STBK-token.webp";
-import StoryIcon from "@/assets/images/story.svg";
+import { BookOpen as StoryIcon } from 'lucide-react';
 
-export default function Statistics() {
-  const user = JSON.parse(localStorage.getItem("user"));
+const StatisticsSection = () => {
+  let userStories = [];
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || '{"stories": []}');
+    userStories = user.stories || [];
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+  }
+
   return (
     <div className="col-span-4 overflow-hidden bg-white rounded-lg shadow">
       <div className="px-4 py-5 sm:p-6">
@@ -13,16 +21,27 @@ export default function Statistics() {
         </h3>
         <div className="flex justify-between mt-5">
           <div className="flex items-center text-center">
-            <Image src={token} alt="Token icon" className="w-2/4 pr-2" />
+            <Image 
+              src={token} 
+              alt="Token icon" 
+              width={40}
+              height={40}
+              className="pr-2" 
+            />
             <div>
               <div className="text-4xl font-semibold text-yellow-500">0</div>
               <div className="text-sm text-gray-500">Tokens</div>
             </div>
           </div>
           <div className="flex items-center">
-            <StoryIcon className="w-4/5 mb-4 mr-2" />
+            <StoryIcon 
+              className="w-8 h-8 mb-4 mr-2 text-green-500" 
+              strokeWidth={1.5}
+            />
             <div>
-              <div className="text-4xl font-semibold text-green-500">{user.stories.length}</div>
+              <div className="text-4xl font-semibold text-green-500">
+                {userStories.length}
+              </div>
               <div className="text-sm text-gray-500">Stories</div>
             </div>
           </div>
@@ -42,4 +61,6 @@ export default function Statistics() {
       </div>
     </div>
   );
-}
+};
+
+export default StatisticsSection;

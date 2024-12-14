@@ -1,33 +1,39 @@
-import apiClient from './axios';
+import apiClient from '@/lib/axios';
 
 export const subscriptionService = {
-  async getPlans() {
+  // Get all available subscription plans
+  getPlans: async () => {
     const response = await apiClient.get('/subscription/plans');
     return response.data;
   },
 
-  async getCurrentSubscription() {
+  // Get current user's subscription
+  getCurrentSubscription: async () => {
     const response = await apiClient.get('/subscription/my-subscription');
     return response.data;
   },
 
-  async createCheckoutSession(tier) {
-    const response = await apiClient.post(`/subscription/create-checkout-session/${tier}`);
-    return response.data;
-  },
-
-  async upgrade(tier) {
-    const response = await apiClient.post(`/subscription/upgrade/${tier}`);
-    return response.data;
-  },
-
-  async checkLimits() {
+  // Check subscription limits
+  checkLimits: async () => {
     const response = await apiClient.get('/subscription/check-limits');
     return response.data;
   },
 
-  async verifySession(sessionId) {
-    const response = await apiClient.post('/subscription/verify-session', { sessionId });
+  // Increment story count
+  incrementStoryCount: async () => {
+    const response = await apiClient.post('/subscription/increment-story-count');
+    return response.data;
+  },
+
+  // Create checkout session for subscription upgrade
+  createCheckoutSession: async (tier) => {
+    const response = await apiClient.post(`/subscription/create-checkout-session/${tier}`);
+    return response.data;
+  },
+
+  // Upgrade subscription (for free tier changes)
+  upgradeSubscription: async (tier) => {
+    const response = await apiClient.post(`/subscription/upgrade/${tier}`);
     return response.data;
   }
 }; 

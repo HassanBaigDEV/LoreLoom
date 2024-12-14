@@ -1,38 +1,179 @@
-import React from "react";
+"use client";
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { Box, Container, Grid, Typography, TextField, Button, IconButton } from '@mui/material';
+import InstagramIcon from '@mui/icons-material/Instagram';
+import TwitterIcon from '@mui/icons-material/Twitter';
+import FacebookIcon from '@mui/icons-material/Facebook';
 
 export default function Footer() {
+  const [email, setEmail] = useState('');
+
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    console.log('Subscribe:', email);
+  };
+
   return (
-    <footer className="mt-auto bg-gray-100">
-      <div className="flex items-center justify-between p-4">
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-600">Copyright ©2024 StoryWeaver</span>
-        </div>
-        <div className="flex items-center justify-end">
-          <div className="flex items-center p-2 space-x-4 rounded-full bg-blue-50">
-            <a href="#" className="text-gray-600 hover:underline">
-              Terms of Service
-            </a>
-            <span className="text-gray-300">|</span>
-            <a href="#" className="text-gray-600 hover:underline">
-              Disclaimer
-            </a>
-          </div>
-          <div className="p-2 ml-4 rounded-full bg-blue-50">
-            <a href="#">
-              <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-4 h-4 text-gray-800"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M2.5 18a.5.5 0 0 1-.5-.5V5a.5.5 0 0 1 .5-.5H4a.5.5 0 0 1 .5.5v12.5a.5.5 0 0 1-.5.5H2.5zM5.5 16.5V5h8v11.5H5.5zM15.5 16V7h-2v9h2.5a.5.5 0 0 1 0 1H15.5z" />
-                </svg>
-              </div>
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
+    <Box 
+      component="footer" 
+      sx={{ 
+        backgroundColor: 'rgb(31 41 55)',
+        color: 'white',
+        py: { xs: 6, md: 8 },
+
+      }}
+    >
+      <Container maxWidth="lg">
+        <Grid container spacing={4} alignItems="center">
+          {/* Newsletter Form */}
+          <Grid item xs={12} md={7}>
+            <Typography 
+              variant="h4" 
+              component="h2" 
+              sx={{ 
+                fontSize: { xs: '1.5rem', md: '2rem' },
+                mb: 4,
+                fontWeight: 600,
+                maxWidth: '600px'
+              }}
+            >
+              GET UPDATES ON FUN STUFF YOU PROBABLY WANT TO KNOW ABOUT IN YOUR INBOX.
+            </Typography>
+            
+            <Box 
+              component="form" 
+              onSubmit={handleSubscribe}
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 2,
+                maxWidth: '500px'
+              }}
+            >
+              <TextField
+                fullWidth
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                variant="standard"
+                sx={{
+                  '& .MuiInput-root': {
+                    color: 'white',
+                  },
+                  '& .MuiInput-underline:before': {
+                    borderBottomColor: 'rgba(255, 255, 255, 0.42)',
+                  },
+                  '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
+                    borderBottomColor: 'rgba(255, 255, 255, 0.87)',
+                  },
+                  '& .MuiInput-underline:after': {
+                    borderBottomColor: 'white',
+                  },
+                  '& .MuiInputBase-input::placeholder': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    opacity: 1,
+                  },
+                }}
+              />
+              <Button 
+                type="submit"
+                sx={{ 
+                  minWidth: { xs: '100%', sm: '48px' },
+                  p: 1,
+                  color: 'white',
+                  borderRadius: '4px',
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                  }
+                }}
+              >
+                →
+              </Button>
+            </Box>
+          </Grid>
+
+          {/* Navigation Links */}
+          <Grid item xs={12} md={5}>
+            <Box sx={{ 
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-around',
+              gap: 4
+            }}>
+              <Box>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Menu</Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 1.5,
+                  '& a': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s',
+                    '&:hover': {
+                      color: 'white'
+                    }
+                  }
+                }}>
+                  <Link href="/features">Features</Link>
+                  <Link href="/subscription">Pricing</Link>
+                  <Link href="/about">How it works</Link>
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>Support</Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: 1.5,
+                  '& a': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s',
+                    '&:hover': {
+                      color: 'white'
+                    }
+                  }
+                }}>
+                  <Link href="/help">Help & FAQ</Link>
+                  <Link href="/terms">Terms & Conditions</Link>
+                  <Link href="/privacy">Privacy Policy</Link>
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+        </Grid>
+
+        {/* Social Links */}
+        <Box sx={{ 
+          mt: 6,
+          pt: 3,
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 2,
+          '& .MuiIconButton-root': {
+            color: 'rgba(255, 255, 255, 0.7)',
+            transition: 'color 0.2s',
+            '&:hover': {
+              color: 'white',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)'
+            }
+          }
+        }}>
+          <IconButton href="https://instagram.com" target="_blank">
+            <InstagramIcon />
+          </IconButton>
+          <IconButton href="https://twitter.com" target="_blank">
+            <TwitterIcon />
+          </IconButton>
+          <IconButton href="https://facebook.com" target="_blank">
+            <FacebookIcon />
+          </IconButton>
+        </Box>
+      </Container>
+    </Box>
   );
 }

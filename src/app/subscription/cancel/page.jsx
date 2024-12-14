@@ -1,45 +1,34 @@
 "use client";
-
-import { useRouter } from "next/navigation";
-import { Container, Typography, Button } from "@mui/material";
-import CancelIcon from "@mui/icons-material/Cancel";
-import Header from "@/components/common/header";
-import Footer from "@/components/common/footer";
+import React from 'react';
+import { Box, Container, Typography, Button } from '@mui/material';
+import { useRouter } from 'next/navigation';
 
 export default function SubscriptionCancelPage() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Container maxWidth="md" className="py-16">
-        <div className="text-center bg-white rounded-lg shadow-lg p-8">
-          <CancelIcon className="text-red-500 text-6xl mb-4" />
-          <Typography variant="h4" className="mb-4">
-            Subscription Cancelled
-          </Typography>
-          <Typography variant="body1" className="text-gray-600 mb-8">
-            Your subscription process has been cancelled. No charges have been
-            made to your account.
-          </Typography>
-          <div className="space-x-4">
-            <Button
-              variant="contained"
-              onClick={() => router.push("/subscription")}
-              className="bg-green-500 hover:bg-green-600"
-            >
-              View Plans
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => router.push("/dashboard")}
-              className="border-green-500 text-green-500 hover:border-green-600"
-            >
-              Back to Dashboard
-            </Button>
-          </div>
-        </div>
-      </Container>
-      <Footer />
-    </div>
+    <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography variant="h4" gutterBottom>
+          Subscription Cancelled
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
+          Your subscription process was cancelled. 
+          You can try again whenever you're ready.
+        </Typography>
+        <Button 
+          variant="contained" 
+          onClick={() => router.push('/subscription')}
+          sx={{ 
+            bgcolor: 'rgb(31 41 55)',
+            '&:hover': {
+              bgcolor: 'rgb(55 65 81)',
+            }
+          }}
+        >
+          Return to Plans
+        </Button>
+      </Box>
+    </Container>
   );
 }

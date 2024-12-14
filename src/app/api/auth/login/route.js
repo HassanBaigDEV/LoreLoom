@@ -43,7 +43,7 @@ export async function POST(request) {
 
     // Create httpOnly cookies for security
     const secureAccessTokenCookie = serialize("accessToken", accessToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: MAX_AGE,
@@ -51,7 +51,7 @@ export async function POST(request) {
     });
 
     const secureRefreshTokenCookie = serialize("refreshToken", refreshToken, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       maxAge: MAX_AGE,

@@ -9,8 +9,7 @@ import {
   CircularProgress,
   Button,
 } from "@mui/material";
-import Header from "@/components/common/header";
-import Footer from "@/components/common/footer";
+
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -78,7 +77,6 @@ export default function CheckoutPage() {
           <Typography>Initializing checkout...</Typography>
         </Paper>
       </Container>
-      <Footer />
     </div>
   );
 }

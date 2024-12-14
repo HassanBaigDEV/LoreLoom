@@ -1,14 +1,13 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import DashboardOverview from "@/components/dashboard/overview";
-import Statistics from "@/components/dashboard/stat";
+import StatisticsSection from "@/components/dashboard/stat";
 import Feedback from "@/components/dashboard/feedback";
 import Notifications from "@/components/dashboard/notification";
-import Stories from "@/components/dashboard/stories";
+import StoriesSection from "@/components/dashboard/stories";
 import HelpButton from "@/components/common/help";
 import Footer from "@/components/common/footer";
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const LoadingSpinner = () => (
@@ -27,16 +26,15 @@ function DashboardContent() {
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="grid grid-cols-6 gap-6 mt-32">
             <DashboardOverview />
-            <Statistics />
+            <StatisticsSection />
             <Feedback />
             <Notifications />
           </div>
           <hr className="mt-20 mb-10 border-t border-gray-300" />
-          <Stories />
+          <StoriesSection />
         </div>
       </main>
       <HelpButton />
-      <Footer />
     </div>
   );
 }

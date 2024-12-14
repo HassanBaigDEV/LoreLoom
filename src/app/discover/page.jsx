@@ -1,17 +1,20 @@
 // app/page.js
+"use client";
 import React from "react";
-import Header from "@/components/common/header";
 import MainContent from "@/components/discover/main";
-import Footer from "@/components/common/footer";
 import HelpButton from "@/components/common/help";
+import { Box } from '@mui/material';
 
 function Page() {
   return (
-    <div className="bg-gray-100 App">
+    <Box sx={{ 
+      backgroundColor: 'rgb(243 244 246)',
+      minHeight: '100%',
+      position: 'relative'
+    }}>
       <MainContent />
-      <Footer />
       <HelpButton />
-    </div>
+    </Box>
   );
 }
 

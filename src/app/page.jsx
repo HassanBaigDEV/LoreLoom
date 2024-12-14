@@ -1,280 +1,443 @@
-import Footer from "@/components/home/footer";
-import apiClient from "@/lib/axios";
+"use client";
+import React from "react";
+import {
+  Box,
+  Container,
+  Typography,
+  Button,
+  Grid,
+  Card,
+  CardContent,
+  useTheme,
+  useMediaQuery,
+  Divider,
+} from "@mui/material";
+import Image from "next/image";
 import Link from "next/link";
+import AutoStoriesIcon from "@mui/icons-material/AutoStories";
+import SpeedIcon from "@mui/icons-material/Speed";
+import CloudDoneIcon from "@mui/icons-material/CloudDone";
+import BrushIcon from "@mui/icons-material/Brush";
+import GroupsIcon from "@mui/icons-material/Groups";
+import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import HeroImage from "@/assets/images/seilala-cover.webp";
+import DashboardImage from "@/assets/images/seilala-cover.webp";
 
-export default async function page() {
-  try {
-    // const response = await apiClient.get("/protected-route");
-    // console.log("Protected route response", response);
-  } catch (error) {
-    // console.log("Protected route error", error);
-  }
+const themeColors = {
+  primary: "rgb(34 197 94)", // Green theme color
+  primaryHover: "rgb(22 163 74)",
+  dark: "rgb(31 41 55)",
+};
+
+export default function Page() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const features = [
+    {
+      icon: <SpeedIcon sx={{ fontSize: 48, color: "rgb(31 41 55)" }} />,
+      title: "Lightning Fast",
+      description:
+        "Generate unique stories within 60 seconds using our advanced AI technology.",
+    },
+    {
+      icon: <AutoStoriesIcon sx={{ fontSize: 48, color: "rgb(31 41 55)" }} />,
+      title: "Rich Content",
+      description:
+        "Create engaging narratives with dynamic characters and compelling plots.",
+    },
+    {
+      icon: <CloudDoneIcon sx={{ fontSize: 48, color: "rgb(31 41 55)" }} />,
+      title: "Easy Export",
+      description:
+        "Download your stories in multiple formats or share them instantly.",
+    },
+  ];
+
+  const benefits = [
+    {
+      icon: <BrushIcon sx={{ fontSize: 30 }} />,
+      title: "Creative Freedom",
+      desc: "Unleash your creativity with AI assistance",
+    },
+    {
+      icon: <GroupsIcon sx={{ fontSize: 30 }} />,
+      title: "Community Support",
+      desc: "Join a thriving community of storytellers",
+    },
+    {
+      icon: <TrendingUpIcon sx={{ fontSize: 30 }} />,
+      title: "Continuous Growth",
+      desc: "Regular updates and new features",
+    },
+  ];
 
   return (
-    <>
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <header className="flex items-center justify-between bg-white border-b border-gray-300 rounded-b-lg p-7">
-          <div className="flex-1 pl-32">
-            <h1 className="text-2xl font-bold text-gray-700">StoryWeaver</h1>
-          </div>
-          <nav className="flex items-center pr-32 space-x-4">
-            <a href="#" className="text-sm text-gray-700 hover:underline">
-              Feature
-            </a>
-            <a href="#" className="text-sm text-gray-700 hover:underline">
-              Pricing
-            </a>
-            <a href="/about" className="text-sm text-gray-700 hover:underline">
-              How it works
-            </a>
-            <div className="flex items-center space-x-2">
-              <div className="w-0.5 h-6 bg-gray-300"></div>
-              <Link
-                href="/login"
-                className="text-sm hover:underline bg-gray-800 text-white py-3 px-5 rounded font-['Arial', sans-serif]"
+    <Box>
+      {/* Hero Section */}
+      <Box
+        sx={{
+          position: "relative",
+          height: { xs: "70vh", md: "80vh" },
+          overflow: "hidden",
+        }}
+      >
+        <Image
+          src={HeroImage}
+          alt="Hero"
+          fill
+          style={{
+            objectFit: "cover",
+            filter: "brightness(0.7)",
+          }}
+          priority
+          quality={100}
+        />
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            textAlign: "center",
+            width: "100%",
+            px: 2,
+          }}
+        >
+          <Typography
+            variant="h1"
+            sx={{
+              color: "white",
+              fontSize: { xs: "2.5rem", sm: "4rem", md: "5rem" },
+              fontWeight: 700,
+              mb: 4,
+              textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+            }}
+          >
+            A New Era of Storytelling
+          </Typography>
+          <Typography
+            variant="h5"
+            sx={{
+              color: "white",
+              mb: 4,
+              opacity: 0.9,
+              maxWidth: "800px",
+              mx: "auto",
+              textShadow: "1px 1px 2px rgba(0,0,0,0.3)",
+            }}
+          >
+            Transform your ideas into captivating stories with AI-powered
+            creativity
+          </Typography>
+          <Button
+            component={Link}
+            href="/register"
+            variant="contained"
+            size="large"
+            sx={{
+              bgcolor: "rgb(31 41 55)",
+              px: 4,
+              py: 2,
+              fontSize: "1.1rem",
+              "&:hover": {
+                bgcolor: "rgb(55 65 81)",
+              },
+            }}
+          >
+            Get Started For Free
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Features Section */}
+      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "white" }}>
+        <Container maxWidth="lg">
+          <Typography
+            variant="h2"
+            align="center"
+            sx={{
+              fontSize: { xs: "2rem", md: "3rem" },
+              fontWeight: 700,
+              mb: 2,
+            }}
+          >
+            Welcome to StoryWeaver
+          </Typography>
+          <Typography
+            variant="h5"
+            align="center"
+            color="text.secondary"
+            sx={{ mb: 8, maxWidth: "800px", mx: "auto" }}
+          >
+            Our AI-powered story generator can take that spark and turn it into
+            an incredible tale in just one minute.
+          </Typography>
+
+          <Grid container spacing={4}>
+            {features.map((feature, index) => (
+              <Grid item xs={12} md={4} key={index}>
+                <Card
+                  elevation={0}
+                  sx={{
+                    height: "100%",
+                    bgcolor: "transparent",
+                    transition: "transform 0.3s ease-in-out",
+                    "&:hover": {
+                      transform: "translateY(-8px)",
+                    },
+                  }}
+                >
+                  <CardContent sx={{ textAlign: "center", p: 4 }}>
+                    {feature.icon}
+                    <Typography
+                      variant="h5"
+                      component="h3"
+                      gutterBottom
+                      fontWeight={600}
+                    >
+                      {feature.title}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {feature.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* How It Works Section */}
+      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "rgb(243 244 246)" }}>
+        <Container maxWidth="lg">
+          <Typography
+            variant="h2"
+            align="center"
+            sx={{
+              fontSize: { xs: "2rem", md: "3rem" },
+              fontWeight: 700,
+              mb: 2,
+              color: themeColors.primary,
+            }}
+          >
+            How It Works
+          </Typography>
+          <Typography
+            align="center"
+            color="text.secondary"
+            sx={{ mb: 8, maxWidth: "800px", mx: "auto" }}
+          >
+            Create amazing stories in three simple steps
+          </Typography>
+
+          <Grid container spacing={4} alignItems="center">
+            {[
+              {
+                number: "01",
+                title: "Choose Your Genre",
+                description:
+                  "Select from various genres or mix them for unique combinations.",
+              },
+              {
+                number: "02",
+                title: "Describe Your Idea",
+                description:
+                  "Share your story concept or let our AI suggest creative directions.",
+              },
+              {
+                number: "03",
+                title: "Generate & Customize",
+                description:
+                  "Get your story in seconds and refine it to perfection.",
+              },
+            ].map((step, index) => (
+              <Grid item xs={12} md={4} key={index}>
+                <Box
+                  sx={{
+                    textAlign: "center",
+                    p: 3,
+                    position: "relative",
+                    "&::after": {
+                      content: '""',
+                      position: "absolute",
+                      top: "50%",
+                      right: { xs: "auto", md: "-50%" },
+                      width: { xs: 0, md: "100%" },
+                      height: "2px",
+                      background: `linear-gradient(to right, ${themeColors.primary}, transparent)`,
+                      display: index === 2 ? "none" : "block",
+                    },
+                  }}
+                >
+                  <Typography
+                    variant="h1"
+                    sx={{
+                      fontSize: "4rem",
+                      fontWeight: 700,
+                      color: themeColors.primary,
+                      opacity: 0.2,
+                      mb: 2,
+                    }}
+                  >
+                    {step.number}
+                  </Typography>
+                  <Typography
+                    variant="h5"
+                    gutterBottom
+                    fontWeight={600}
+                    sx={{
+                      color: themeColors.primary,
+                      mb: 2,
+                    }}
+                  >
+                    {step.title}
+                  </Typography>
+                  <Typography color="text.secondary">
+                    {step.description}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* Benefits Section */}
+      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: "white" }}>
+        <Container maxWidth="lg">
+          <Grid container spacing={6} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontSize: { xs: "2rem", md: "2.5rem" },
+                  fontWeight: 700,
+                  mb: 4,
+                }}
               >
-                GET STARTED FOR FREE
-              </Link>
-            </div>
-          </nav>
-        </header>
-        <div className="relative w-auto">
-          <img
-            src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66679bbe15a67ea0900d17ec_seilala-cover.jpg"
-            alt="Login"
-            className="object-cover w-full h-full brightness-75"
-          />
-          <div className="absolute p-3 mx-auto text-center text-white bg-opacity-40 rounded-xl bottom-4 left-4 right-4">
-            <h1 className="font-bold text-7xl">"A New Era of Storytelling"</h1>
-            <button className="px-4 py-2 mt-4 text-white bg-green-500 bg-opacity-50 rounded-2xl">
-              "The Curly Crown"
-              <br />
-              Read story by Kevin
-            </button>
-          </div>
-        </div>
-        <div className="text-center text-gray-700">
-          <h1 className="mt-20 text-6xl font-bold">
-            Welcome to <br /> StoryWeaver
-          </h1>
-          <p className="font-bold mt-5 text-gray-500 text font-['Arial', sans-serif] text-lg">
-            Our AI-powered story generator, that <br /> can take that spark and
-            turn it into an incredible tale in just one <br /> minute.
-          </p>
-          <img
-            src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66632dac06b098da52cc0dda_Dashboard%20v2.png"
-            className="relative w-3/6 h-auto mx-auto"
-          />
-          <div className="grid w-3/5 grid-cols-2 gap-4 pl-20 pr-20 mx-auto mt-8">
-            <div className="relative w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
-              <h1 className="text-2xl font-bold leading-tight text-amber-500">
-                Generate stories within 60 seconds
-              </h1>
-              <p className="pt-5 text-xl text-gray-600">
-                Our AI story generator is lightning-fast, allowing you to create
-                unique and engaging stories in seconds. Whether you're looking
-                to craft a captivating tale to share with friends or want to
-                develop your storytelling skills, our intuitive tools make it
-                easy to create stories that are as compelling as they are
-                entertaining.
-              </p>
-              <img
-                src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/63fbf17f7685319053374539_lightning.svg"
-                className="absolute w-1/6 h-auto bottom-5 right-6"
-              />
-            </div>
-            <div className="w-5/6 h-auto max-w-xl p-6 mx-auto bg-white shadow-lg min-h-10 rounded-3xl">
-              <h1 className="text-2xl font-bold leading-tight text-blue-500">
-                Discover
-              </h1>
-              <p className="pt-5 text-xl text-gray-600">
-                Looking for inspiration or just want to see what others are
-                creating? Our platform allows you to browse and read stories
-                from other users, giving you access to a wealth of incredible
-                tales and creative ideas.
-              </p>
-              <div className="relative flex justify-center w-full h-auto mx-auto mt-5">
-                <img
-                  src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66672715d393512715152fe5_girl%20in%20spaceship-p-800.jpg"
-                  className="absolute z-20 w-3/6 h-auto rounded-3xl left-2/4"
+                Why Choose StoryWeaver?
+              </Typography>
+              <Grid container spacing={3}>
+                {benefits.map((item, index) => (
+                  <Grid item xs={12} key={index}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 2,
+                        alignItems: "flex-start",
+                        transition: "transform 0.3s ease",
+                        "&:hover": {
+                          transform: "translateX(10px)",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          p: 1,
+                          bgcolor: "rgb(31 41 55)",
+                          borderRadius: 1,
+                          color: "white",
+                        }}
+                      >
+                        {item.icon}
+                      </Box>
+                      <Box>
+                        <Typography variant="h6" gutterBottom fontWeight={600}>
+                          {item.title}
+                        </Typography>
+                        <Typography color="text.secondary">
+                          {item.desc}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box
+                sx={{
+                  position: "relative",
+                  height: { xs: "300px", md: "400px" },
+                  borderRadius: 4,
+                  overflow: "hidden",
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+                }}
+              >
+                <Image
+                  src={DashboardImage}
+                  alt="Dashboard Preview"
+                  fill
+                  style={{
+                    objectFit: "cover",
+                    borderRadius: "16px",
+                  }}
                 />
-                <img
-                  src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66672c7b43edf2b2bb5c99b4_girl-hiding-in-bushes.jpg"
-                  className="absolute z-30 w-3/6 h-auto rounded-3xl left-1/4"
-                />
-                <img
-                  src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66672c7bb952a3f649cf77bd_mother-and-son-flying-p-500.jpg"
-                  className="absolute left-0 z-10 w-3/6 h-auto rounded-3xl"
-                />
-              </div>
-            </div>
-          </div>
-          <img
-            src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/654073c5bae0ba48124c494e_Audio-wave%20v2%20copy.png"
-            className="relative w-full h-auto mx-auto"
-          />
-        </div>
-        <div className="text-center text-gray-700">
-          <p className="font-bold mt-5 text-gray-500 text font-['Arial', sans-serif] text-lg">
-            Pricing
-          </p>
-          <h1 className="mt-5 text-5xl font-bold text-green-500 opacity-75">
-            Affordable Pricing for Endless <br /> Storytelling Possibilities
-          </h1>
-        </div>
-        <section className="flex items-center justify-center min-h-screen">
-          <div className="flex flex-row space-x-4 pt-s4">
-            {/* Basic Card */}
-            <div className="p-8 pr-16 text-center bg-white shadow-xl w-96 rounded-3xl">
-              <h1 className="text-2xl font-semibold text-gray-700">Basic</h1>
-              <p className="pt-2 tracking-wide">
-                <span className="text-gray-400 align-top">$ </span>
-                <span className="text-3xl font-semibold">10</span>
-                <span className="font-medium text-gray-400">/ user</span>
-              </p>
-              <hr className="mt-4 border-1" />
-              <div className="pt-8">
-                <p className="font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    Get started with{" "}
-                    <span className="text-gray-700">messaging</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    Flexible{" "}
-                    <span className="text-gray-700">team meetings</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    <span className="text-gray-700">5 TB</span> cloud storage
-                  </span>
-                </p>
-                <a href="#" className="">
-                  <p className="w-full py-4 mt-8 border rounded-xl">
-                    {" "}
-                    <span className="font-medium">Choose Plan</span>
-                    <span className="pl-2 text-sm align-middle material-icons">
-                      east
-                    </span>
-                  </p>
-                </a>
-              </div>
-            </div>
+              </Box>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
 
-            {/* Startup Card */}
-            <div className="relative p-8 text-center text-white transform scale-125 bg-green-500 border-4 border-white shadow-xl w-80 rounded-3xl">
-              <h1 className="text-2xl font-semibold text-white">Startup</h1>
-              <p className="pt-2 tracking-wide">
-                <span className="text-gray-400 align-top">$ </span>
-                <span className="text-3xl font-semibold">24</span>
-                <span className="font-medium text-gray-400">/ user</span>
-              </p>
-              <hr className="mt-4 border-gray-600 border-1" />
-              <div className="pt-8">
-                <p className="font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    All features in <span className="text-white">Basic</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    Flexible <span className="text-white">call scheduling</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    <span className="text-white">15 TB</span> cloud storage
-                  </span>
-                </p>
-                <a href="#" className="">
-                  <p className="w-full py-4 mt-8 text-white bg-gray-800 rounded-xl">
-                    <span className="font-medium">Choose Plan</span>
-                    <span className="pl-2 text-sm align-middle material-icons">
-                      east
-                    </span>
-                  </p>
-                </a>
-              </div>
-              <div className="absolute top-4 right-4">
-                <p className="px-4 py-1 text-xs font-semibold uppercase bg-gray-800 rounded-full">
-                  Popular
-                </p>
-              </div>
-            </div>
+      {/* CTA Section */}
+      <Box
+        sx={{
+          py: { xs: 8, md: 12 },
+          bgcolor: "rgb(31 41 55)",
+          color: "white",
+        }}
+      >
+        <Container maxWidth="md">
+          <Typography
+            variant="h3"
+            align="center"
+            sx={{
+              fontSize: { xs: "2rem", md: "2.75rem" },
+              fontWeight: 700,
+              mb: 3,
+            }}
+          >
+            Ready to Start Your Story?
+          </Typography>
+          <Typography
+            align="center"
+            sx={{ mb: 4, fontSize: "1.1rem", opacity: 0.9 }}
+          >
+            Join thousands of storytellers who are already creating amazing
+            content with StoryWeaver.
+          </Typography>
+          <Box sx={{ textAlign: "center" }}>
+            <Button
+              component={Link}
+              href="/register"
+              variant="contained"
+              size="large"
+              sx={{
+                bgcolor: "white",
+                color: "rgb(31 41 55)",
+                px: 4,
+                py: 2,
+                fontSize: "1.1rem",
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.9)",
+                },
+              }}
+            >
+              Get Started For Free
+            </Button>
+          </Box>
+        </Container>
+      </Box>
 
-            {/* Enterprise Card */}
-            <div className="p-8 pl-16 text-center bg-white shadow-xl w-96 rounded-3xl">
-              <h1 className="text-2xl font-semibold text-gray-700">
-                Enterprise
-              </h1>
-              <p className="pt-2 tracking-wide">
-                <span className="text-gray-400 align-top">$ </span>
-                <span className="text-3xl font-semibold">35</span>
-                <span className="font-medium text-gray-400">/ user</span>
-              </p>
-              <hr className="mt-4 border-1" />
-              <div className="pt-8">
-                <p className="font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    All features in{" "}
-                    <span className="text-gray-700">Startup</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    Growth <span className="text-gray-700">oriented</span>
-                  </span>
-                </p>
-                <p className="pt-5 font-semibold text-left text-gray-400">
-                  <span className="align-middle material-icons">done</span>
-                  <span className="pl-2">
-                    <span className="text-gray-700">Unlimited</span> cloud
-                    storage
-                  </span>
-                </p>
-                <a href="#" className="">
-                  <p className="w-full py-4 mt-8 border rounded-xl">
-                    <span className="font-medium">Choose Plan</span>
-                    <span className="pl-2 text-sm align-middle material-icons">
-                      east
-                    </span>
-                  </p>
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
-        <div className="relative block w-4/6 mx-auto">
-          <img
-            src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/666736bb985227e500c29d58_a%20boy%20and%20his%20dog.jpg"
-            className="mx-auto rounded-3xl brightness-75"
-          />
-          <div className="absolute flex justify-between p-3 text-white bg-opacity-40 rounded-xl bottom-4 left-4 right-4">
-            <button className="px-4 py-2 text-white bg-green-500 bg-opacity-50 rounded-2xl">
-              <h1 className="font-bold">"The Nature Around"</h1>
-              <p>Read story by Ben</p>
-            </button>
-            <button className="px-4 py-2 text-white bg-green-500 bg-opacity-50 rounded-2xl">
-              <img
-                src="https://cdn.prod.website-files.com/63f436fc275e8120c6583448/66679d6c8dddd035fdf65454_white%20arrow-link.svg"
-                className="w-3"
-              />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <Footer />
-    </>
+      {/* Footer Separator */}
+      <Divider
+        sx={{
+          borderColor: "rgba(0, 0, 0, 0.1)",
+          borderWidth: 1,
+        }}
+      />
+    </Box>
   );
 }

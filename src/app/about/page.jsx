@@ -1,15 +1,18 @@
+"use client";
 import React from "react";
-import Header from "@/components/common/header";
 import HeroSection from "@/components/about/heroSection";
 import StepsSection from "@/components/about/stepSection";
-import Footer from "@/components/about/footer";
+import { Box } from '@mui/material';
 
 export default function Page() {
   return (
-    <div className="flex flex-col min-h-screen bg-blue-50">
+    <Box sx={{ 
+      backgroundColor: 'rgb(239 246 255)',
+      minHeight: '100%',
+      py: { xs: 4, md: 6 }
+    }}>
       <HeroSection />
       <StepsSection />
-      <Footer />
-    </div>
+    </Box>
   );
 }
