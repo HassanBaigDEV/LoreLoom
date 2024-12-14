@@ -7,15 +7,28 @@ import {
   Typography,
   Alert,
   MenuItem,
+  Stack,
+  InputAdornment,
+  Tooltip,
+  Zoom,
 } from '@mui/material';
+import {
+  BugReport,
+  Lightbulb,
+  Help,
+  Support,
+  Comment,
+  Link as LinkIcon,
+  Send as SendIcon,
+} from '@mui/icons-material';
 import { feedbackService } from '@/lib/feedbackService';
 
 const feedbackTypes = [
-  { value: 'general', label: 'General Feedback' },
-  { value: 'bug', label: 'Bug Report' },
-  { value: 'feature', label: 'Feature Request' },
-  { value: 'support', label: 'Support Request' },
-  { value: 'other', label: 'Other' },
+  { value: 'general', label: 'General Feedback', icon: Comment, description: 'Share your general thoughts about the platform' },
+  { value: 'bug', label: 'Bug Report', icon: BugReport, description: 'Report technical issues or bugs' },
+  { value: 'feature', label: 'Feature Request', icon: Lightbulb, description: 'Suggest new features or improvements' },
+  { value: 'support', label: 'Support Request', icon: Support, description: 'Get help with using the platform' },
+  { value: 'other', label: 'Other', icon: Help, description: 'Other types of feedback' },
 ];
 
 export default function FeedbackForm({ onSubmitSuccess }) {
@@ -23,7 +36,7 @@ export default function FeedbackForm({ onSubmitSuccess }) {
     title: '',
     description: '',
     type: '',
-    screenshot_url: '', // Optional
+    screenshot_url: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,25 +71,51 @@ export default function FeedbackForm({ onSubmitSuccess }) {
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 3, maxWidth: 600, mx: 'auto' }}>
-      <Typography variant="h5" component="h2" gutterBottom>
-        Submit Feedback
+    <Paper 
+      elevation={0}
+      sx={{ 
+        p: { xs: 2, sm: 3 },
+        borderRadius: 2,
+        bgcolor: 'white',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Typography 
+        variant="h6" 
+        component="h2" 
+        gutterBottom
+        sx={{ 
+          fontWeight: 600,
+          color: 'text.primary',
+          mb: 3
+        }}
+      >
+        Submit New Feedback
       </Typography>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ mb: 3, borderRadius: 1 }}
+          onClose={() => setError('')}
+        >
           {error}
         </Alert>
       )}
 
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Feedback submitted successfully!
+        <Alert 
+          severity="success" 
+          sx={{ mb: 3, borderRadius: 1 }}
+          onClose={() => setSuccess(false)}
+        >
+          Thank you for your feedback! We'll review it shortly.
         </Alert>
       )}
 
       <form onSubmit={handleSubmit}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Stack spacing={3}>
           <TextField
             select
             label="Feedback Type"
@@ -84,12 +123,30 @@ export default function FeedbackForm({ onSubmitSuccess }) {
             value={formData.type}
             onChange={handleChange}
             required
+            SelectProps={{
+              MenuProps: {
+                PaperProps: {
+                  sx: { maxHeight: 300 }
+                }
+              }
+            }}
           >
-            {feedbackTypes.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
+            {feedbackTypes.map((option) => {
+              const Icon = option.icon;
+              return (
+                <MenuItem key={option.value} value={option.value}>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Icon fontSize="small" />
+                    <Box>
+                      <Typography variant="body1">{option.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.description}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </MenuItem>
+              );
+            })}
           </TextField>
 
           <TextField
@@ -98,6 +155,10 @@ export default function FeedbackForm({ onSubmitSuccess }) {
             value={formData.title}
             onChange={handleChange}
             required
+            placeholder="Brief summary of your feedback"
+            InputProps={{
+              sx: { borderRadius: 1 }
+            }}
           />
 
           <TextField
@@ -108,6 +169,10 @@ export default function FeedbackForm({ onSubmitSuccess }) {
             multiline
             rows={4}
             required
+            placeholder="Provide detailed information about your feedback..."
+            InputProps={{
+              sx: { borderRadius: 1 }
+            }}
           />
 
           <TextField
@@ -116,22 +181,44 @@ export default function FeedbackForm({ onSubmitSuccess }) {
             value={formData.screenshot_url}
             onChange={handleChange}
             placeholder="https://..."
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <LinkIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              sx: { borderRadius: 1 }
+            }}
           />
 
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading}
-            sx={{
-              bgcolor: 'rgb(34 197 94)',
-              '&:hover': {
-                bgcolor: 'rgb(22 163 74)',
-              },
-            }}
-          >
-            {loading ? 'Submitting...' : 'Submit Feedback'}
-          </Button>
-        </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Tooltip 
+              title={!formData.type || !formData.title || !formData.description ? 
+                "Please fill in all required fields" : ""}
+              TransitionComponent={Zoom}
+            >
+              <span>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={loading || !formData.type || !formData.title || !formData.description}
+                  sx={{
+                    px: 4,
+                    py: 1,
+                    borderRadius: 2,
+                    bgcolor: 'primary.main',
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    },
+                  }}
+                  endIcon={<SendIcon />}
+                >
+                  {loading ? 'Submitting...' : 'Submit Feedback'}
+                </Button>
+              </span>
+            </Tooltip>
+          </Box>
+        </Stack>
       </form>
     </Paper>
   );

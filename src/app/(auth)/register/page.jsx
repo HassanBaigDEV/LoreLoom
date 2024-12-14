@@ -4,7 +4,6 @@ import React from "react";
 import HeroImage from "@/components/register/heroSection";
 import Logo from "@/components/common/logo";
 import SignupForm from "@/components/register/signupform";
-import HelpButton from "@/components/common/help";
 
 export default function Page() {
   return (
@@ -14,7 +13,6 @@ export default function Page() {
         {/* <Logo /> */}
         <SignupForm />
       </div>
-      {/* <HelpButton /> */}
     </div>
   );
 }

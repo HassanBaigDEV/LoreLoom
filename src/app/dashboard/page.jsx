@@ -5,16 +5,18 @@ import StatisticsSection from "@/components/dashboard/stat";
 import Feedback from "@/components/dashboard/feedback";
 import Notifications from "@/components/dashboard/notification";
 import StoriesSection from "@/components/dashboard/stories";
-import HelpButton from "@/components/common/help";
+
 import Footer from "@/components/common/footer";
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 const LoadingSpinner = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-opacity-75 bg-gray-50">
     <div className="relative">
       <div className="w-16 h-16 border-t-4 border-b-4 border-orange-500 rounded-full animate-spin"></div>
-      <div className="mt-4 font-medium text-center text-gray-600">Loading...</div>
+      <div className="mt-4 font-medium text-center text-gray-600">
+        Loading...
+      </div>
     </div>
   </div>
 );
@@ -34,7 +36,6 @@ function DashboardContent() {
           <StoriesSection />
         </div>
       </main>
-      <HelpButton />
     </div>
   );
 }
