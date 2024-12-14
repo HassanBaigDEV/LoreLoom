@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { subscriptionService } from '@/lib/subscriptionService';
-import Header from '@/components/common/header';
-import Footer from '@/components/common/footer';
-import PricingTable from '@/components/subscription/PricingTable';
-import { Typography, Container, CircularProgress } from '@mui/material';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { subscriptionService } from "@/lib/subscriptionService";
+import PricingTable from "@/components/subscription/PricingTable";
+import { Typography, Container, CircularProgress, Box } from "@mui/material";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function SubscriptionPage() {
   const [currentPlan, setCurrentPlan] = useState(null);
@@ -21,7 +19,7 @@ export default function SubscriptionPage() {
         const subscription = await subscriptionService.getCurrentSubscription();
         setCurrentPlan(subscription.tier);
       } catch (error) {
-        console.error('Error fetching subscription:', error);
+        console.error("Error fetching subscription:", error);
       } finally {
         setLoading(false);
       }
@@ -36,16 +34,18 @@ export default function SubscriptionPage() {
 
   const handleUpgrade = async (tier) => {
     if (!isAuthenticated) {
-      router.push('/login?redirect=/subscription');
+      router.push("/login?redirect=/subscription");
       return;
     }
 
     try {
       setLoading(true);
-      const { checkout_url } = await subscriptionService.createCheckoutSession(tier);
+      const { checkout_url } = await subscriptionService.createCheckoutSession(
+        tier
+      );
       window.location.href = checkout_url;
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      console.error("Error creating checkout session:", error);
     } finally {
       setLoading(false);
     }
@@ -60,20 +60,29 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      <Container maxWidth="lg" className="py-16">
-        <div className="mb-12 text-center">
-          <Typography variant="h2" className="mb-4 text-4xl font-bold text-gray-700 mt-7">
-            Choose Your Plan
-          </Typography>
-          <Typography variant="subtitle1" className="text-gray-600">
-            Select the perfect plan for your storytelling journey
-          </Typography>
-        </div>
-        <PricingTable currentPlan={currentPlan} onUpgrade={handleUpgrade} />
-      </Container>
-      <Footer />
-    </div>
+    <Container maxWidth="xl">
+      <Box sx={{ py: 8 }}>
+        <Typography
+          variant="h3"
+          align="center"
+          gutterBottom
+          sx={{
+            fontWeight: 600,
+            color: "rgb(55 65 81)",
+          }}
+        >
+          Choose Your Plan
+        </Typography>
+        <Typography
+          variant="h6"
+          align="center"
+          color="text.secondary"
+          sx={{ mb: 6 }}
+        >
+          Select the perfect plan for your storytelling journey
+        </Typography>
+        <PricingTable/>
+      </Box>
+    </Container>
   );
-} 
+}

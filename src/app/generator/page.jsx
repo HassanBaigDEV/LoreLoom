@@ -7,7 +7,6 @@ export default function generation() {
   return (
     <>
       <div>
-        <Header />
         <CreateStory />
       </div>
       <Footer />

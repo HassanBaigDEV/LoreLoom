@@ -8,7 +8,6 @@ import HelpButton from "@/components/common/help";
 function Page() {
   return (
     <div className="bg-gray-100 App">
-      <Header />
       <MainContent />
       <Footer />
       <HelpButton />

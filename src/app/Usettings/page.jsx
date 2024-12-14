@@ -9,7 +9,6 @@ const Page = () => {
   return (
     <>
       <div className="bg-gray-100 App">
-        <Header />
         <main className="pt-32">
           <AccountSettings />
           <BillingSection />

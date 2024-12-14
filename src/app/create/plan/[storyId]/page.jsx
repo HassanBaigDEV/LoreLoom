@@ -11,10 +11,10 @@ import {
   Divider,
   CircularProgress,
   IconButton,
-  Button
+  Button,
 } from "@mui/material";
 import storyApiClient from "@/lib/storyApi";
-import PlanHeader from "@/components/plan/Header";
+import PlanHeader from "@/components/common/header";
 import StoryElement from "@/components/plan/StoryElement";
 import ProgressIndicator from "@/components/plan/ProgressIndicator";
 import { Toaster, toast } from "react-hot-toast";
@@ -45,10 +45,10 @@ export default function PlanStory({ params }) {
         const response = await storyApiClient.get(
           `/plan/story-elements/${storyId}`,
           {
-            params: { 
-              story_id:storyId,
-              user_id: user.id
-             },
+            params: {
+              story_id: storyId,
+              user_id: user.id,
+            },
           }
         );
 
@@ -132,7 +132,7 @@ export default function PlanStory({ params }) {
       className="min-h-screen bg-gray-50"
     >
       <Toaster position="top-right" />
-      <PlanHeader stage="planning"/>
+      <PlanHeader stage="planning" />
       <Container maxWidth="md" className="pt-20 pb-12">
         <ProgressIndicator progress={progress} />
 

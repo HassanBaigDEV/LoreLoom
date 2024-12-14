@@ -12,7 +12,7 @@ import {
   Drawer,
 } from "@mui/material";
 import storyApiClient from "@/lib/storyApi";
-import PlanHeader from "@/components/plan/Header";
+import PlanHeader from "@/components/common/header";
 import StoryElement from "@/components/plan/StoryElement";
 import PassageElement from "@/components/passage/passageElement";
 import ProgressIndicator from "@/components/plan/ProgressIndicator";

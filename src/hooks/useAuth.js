@@ -2,6 +2,7 @@ import { useAtom } from 'jotai';
 import { userAtom } from '@/store/atoms';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/axios';
+import Cookies from 'js-cookie';
 
 export function useAuth() {
   const [user, setUser] = useAtom(userAtom);
@@ -9,18 +10,12 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      // Clear user data
       setUser(null);
-      // clear local storage
       localStorage.removeItem("user");
-      // clear cookies
       Cookies.remove("accessToken");
       Cookies.remove("refreshToken");
-
-      // Call logout endpoint if you have one
-      // await apiClient.post('/api/auth/logout');
-
-      // Redirect to login
+      Cookies.remove("client_accessToken");
+      Cookies.remove("client_refreshToken");
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -29,13 +24,29 @@ export function useAuth() {
 
   const checkAuth = async () => {
     try {
+      // Check if we already have user data
+      if (user) return user;
+
+      // Check if we have tokens
+      const accessToken = Cookies.get('client_accessToken');
+      if (!accessToken) {
+        throw new Error('No access token');
+      }
+
       const response = await apiClient.get('user/me');
-      setUser(response.data);
-      // save to local storage
-      localStorage.setItem("user", JSON.stringify(response.data));
-      return response.data;
+      const userData = response.data;
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      return userData;
     } catch (error) {
+      console.error('Auth check error:', error);
+      // Clear everything on auth error
       setUser(null);
+      localStorage.removeItem("user");
+      Cookies.remove("accessToken");
+      Cookies.remove("refreshToken");
+      Cookies.remove("client_accessToken");
+      Cookies.remove("client_refreshToken");
       return null;
     }
   };

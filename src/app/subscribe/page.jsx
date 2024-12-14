@@ -43,7 +43,6 @@ export default function SubscriptionPage() {
 
   return (
     <>
-      <Header />
       <main className="p-8 bg-white">
         <h1 className="mt-32 mb-4 text-3xl font-bold text-gray-800">
           Choose a plan
