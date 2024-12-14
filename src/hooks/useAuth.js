@@ -1,23 +1,23 @@
-import { useAtom } from 'jotai';
-import { userAtom } from '@/store/atoms';
-import { useRouter } from 'next/navigation';
-import apiClient from '@/lib/axios';
-import Cookies from 'js-cookie';
+import { useAtom } from "jotai";
+import { userAtom } from "@/store/atoms";
+import { useRouter } from "next/navigation";
+import apiClient from "@/lib/axios";
+import Cookies from "js-cookie";
 
 const isServer = typeof window === "undefined";
 
 const removeCookie = (name) => {
   // List of possible cookie configurations
   const cookieConfigs = [
-    {},  // default
-    { path: '/' },
-    { path: '', domain: '' },
-    { path: '/', domain: window.location.hostname },
-    { path: '/', domain: `.${window.location.hostname}` }
+    {}, // default
+    { path: "/" },
+    { path: "", domain: "" },
+    { path: "/", domain: window.location.hostname },
+    { path: "/", domain: `.${window.location.hostname}` },
   ];
 
   // Try removing cookie with each configuration
-  cookieConfigs.forEach(config => {
+  cookieConfigs.forEach((config) => {
     Cookies.remove(name, config);
   });
 };
@@ -30,18 +30,18 @@ export function useAuth() {
     try {
       setUser(null);
       localStorage.removeItem("user");
-      
+
       // List of all possible token names
       const tokenKeys = [
         "accessToken",
         "refreshToken",
         "client_accessToken",
-        "client_refreshToken"
+        "client_refreshToken",
       ];
 
       if (isServer) {
         const { cookies } = await import("next/headers");
-        tokenKeys.forEach(key => {
+        tokenKeys.forEach((key) => {
           cookies().delete(key);
         });
       } else {
@@ -57,12 +57,12 @@ export function useAuth() {
       try {
         // await apiClient.post('/auth/logout');
       } catch (error) {
-        console.error('Backend logout failed:', error);
+        console.error("Backend logout failed:", error);
       }
 
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
     }
   };
 
@@ -72,18 +72,18 @@ export function useAuth() {
       if (user) return user;
 
       // Check if we have tokens
-      const accessToken = Cookies.get('client_accessToken');
+      const accessToken = Cookies.get("client_accessToken");
       if (!accessToken) {
-        throw new Error('No access token');
+        throw new Error("No access token");
       }
 
-      const response = await apiClient.get('user/me');
+      const response = await apiClient.get("user/me");
       const userData = response.data;
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       return userData;
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error("Auth check error:", error);
       // Clear everything on auth error
       setUser(null);
       localStorage.removeItem("user");
@@ -99,4 +99,4 @@ export function useAuth() {
     checkAuth,
     isAuthenticated: !!user,
   };
-} 
+}

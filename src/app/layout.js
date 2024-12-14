@@ -1,9 +1,9 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import StyledJsxRegistry from "@/lib/registry";
-import Header from '@/components/common/header';
-import Footer from '@/components/common/footer';
-import { Box } from '@mui/material';
+import Header from "@/components/common/header";
+import Footer from "@/components/common/footer";
+import { Box } from "@mui/material";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -13,20 +13,16 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const isAdminRoute = children?.props?.childProp?.segment?.startsWith('admin');
+
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          minHeight: '100vh'
-        }}>
-          <Header />
-          <Box sx={{ flex: 1 }}>
-            <StyledJsxRegistry>{children}</StyledJsxRegistry>
-          </Box>
-          <Footer />
+        {!isAdminRoute && <Header />}
+        <Box sx={{ flex: 1 }}>
+          <StyledJsxRegistry>{children}</StyledJsxRegistry>
         </Box>
+        {!isAdminRoute && <Footer />}
       </body>
     </html>
   );

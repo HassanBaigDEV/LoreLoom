@@ -27,3 +27,5 @@ export const storyProgressAtom = atom(0);
 export const storyLoadingAtom = atom(false);
 export const storyErrorAtom = atom("");
 export const currentStoryIdAtom = atomWithStorage('currentStoryId', null);
+
+export const adminAtom = atom(null);

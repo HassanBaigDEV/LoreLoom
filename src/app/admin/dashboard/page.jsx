@@ -1,21 +1,88 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Dashboard as DashboardIcon,
-  Pages as PagesIcon,
-  ViewQuilt as LayoutsIcon,
+  People as PeopleIcon,
+  Feedback as FeedbackIcon,
+  Book as BookIcon,
 } from "@mui/icons-material";
-import Sidebar from "@/components/admin/dash/sidebar";
-import Header from "@/components/admin/dash/header";
-import StatsHeader from "@/components/admin/dash/statsheader";
-import StoriesTable from "@/components/admin/dash/storiesTable";
-import PerformanceCard from "@/components/admin/dash/performanceCard";
-import UsersPage from "@/components/admin/dash/user";
-import CollaborationsCard from "@/components/admin/dash/collaborationsCard";
+import Sidebar from "@/components/admin/dashboard/sidebar";
+import Header from "@/components/admin/dashboard/header";
+import StatsHeader from "@/components/admin/dashboard/statsheader";
+import StoriesTable from "@/components/admin/dashboard/storiesTable";
+import UsersPage from "@/components/admin/dashboard/user";
+import FeedbackList from "@/components/admin/dashboard/FeedbackList";
+import { adminService } from "@/lib/adminService";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
+import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
+import Cookies from "js-cookie";
+
+const LoadingSpinner = () => (
+  <div className="fixed inset-0 flex items-center justify-center bg-opacity-75 bg-gray-50">
+    <div className="relative">
+      <div className="w-16 h-16 border-t-4 border-b-4 border-orange-500 rounded-full animate-spin"></div>
+      <div className="mt-4 font-medium text-center text-gray-600">Loading...</div>
+    </div>
+  </div>
+);
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [currentView, setCurrentView] = useState("dashboard");
+  const [dashboardStats, setDashboardStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { admin, checkAuth } = useAdminAuth();
+  const router = useRouter();
+
+  const initializeDashboard = useCallback(async () => {
+    try {
+      const adminToken = Cookies.get("client_admin_accessToken");
+      if (!adminToken) {
+        router.push("/admin/login");
+        return;
+      }
+
+      setLoading(true);
+      const adminData = await checkAuth();
+      if (!adminData) {
+        router.push("/admin/login");
+        return;
+      }
+
+      const [stats, usersData, feedbackData, storiesData] = await Promise.all([
+        adminService.getDashboardStats(),
+        adminService.getAllUsers(),
+        adminService.getAllFeedback(),
+        adminService.getAllStories(),
+      ]);
+
+      console.log("Dashboard Stats:", stats);
+      console.log("Users Data:", usersData);
+      console.log("Feedback Data:", feedbackData);
+      console.log("Stories Data:", storiesData);
+
+      setDashboardStats(stats);
+      setUsers(usersData);
+      setFeedback(feedbackData);
+      setStories(storiesData);
+    } catch (error) {
+      console.log("Error initializing dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [checkAuth, router]);
+
+  useEffect(() => {
+    if (!admin) {
+      initializeDashboard();
+    } else {
+      setLoading(false);
+    }
+  }, [admin, initializeDashboard]);
 
   const handleMenuItemClick = (view) => {
     setCurrentView(view.toLowerCase());
@@ -25,129 +92,109 @@ export default function Dashboard() {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const storys = [
-    {
-      StoryTitle: "In the Shadows of Forgotten Realms",
-      Hours: 34,
-      Genre: "SciFi",
-      Authors: 1,
-      Progress: 15,
-    },
-    {
-      StoryTitle: "The Whispers of Forgotten Shadows",
-      Hours: 47,
-      Genre: "Mystery",
-      Authors: 1,
-      Progress: 35,
-    },
-    {
-      StoryTitle: "The Unraveling Whispers of a Forgotten Labyrinth",
-      Hours: 120,
-      Genre: "Horror",
-      Authors: 1,
-      Progress: 75,
-    },
-    {
-      StoryTitle: "niggaman",
-      Hours: 89,
-      Genre: "Inspirational",
-      Authors: 1,
-      Progress: 63,
-    },
-    {
-      StoryTitle: "niggatron",
-      Hours: 108,
-      Genre: "SciFi",
-      Authors: 1,
-      Progress: 100,
-    },
-    {
-      StoryTitle: "A Tale of Lost Souls",
-      Hours: 120,
-      Genre: "Mystery",
-      Authors: 2,
-      Progress: 75,
-    },
-  ];
+  const handleUpdateUserRole = async (userId, newRole) => {
+    try {
+      await adminService.updateUserRole(userId, newRole);
+      const updatedUsers = await adminService.getAllUsers();
+      setUsers(updatedUsers);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+    }
+  };
 
-  const collaborations = [
-    {
-      auth: "Anita",
-      coAuth: "Parmar",
-      role: "authors",
-      lastActivity: "3 May, 2023",
-    },
-    {
-      auth: "Jitu",
-      coAuth: "Chauhan",
-      role: "Authors",
-      lastActivity: "Today",
-    },
-    {
-      auth: "Sandeep Chauhan",
-      coAuth: "Chauhan",
-      role: "Authors",
-      lastActivity: "Yesterday",
-    },
-  ];
+  const handleUpdateFeedback = async (feedbackId, updateData) => {
+    try {
+      await adminService.updateFeedback(feedbackId, updateData);
+      const updatedFeedback = await adminService.getAllFeedback();
+      setFeedback(updatedFeedback);
+    } catch (error) {
+      console.error("Error updating feedback:", error);
+    }
+  };
 
-  const performanceStats = [
-    { label: "In-Passage-Gen", value: "76%", color: "bg-green-500" },
-    { label: "In-Planning", value: "32%", color: "bg-blue-500" },
-    { label: "Behind", value: "13%", color: "bg-red-500" },
-  ];
+  const handleDeleteFeedback = async (feedbackId) => {
+    try {
+      await adminService.deleteFeedback(feedbackId);
+      const updatedFeedback = await adminService.getAllFeedback();
+      setFeedback(updatedFeedback);
+    } catch (error) {
+      console.error("Error deleting feedback:", error);
+    }
+  };
 
-  // Render content based on the current view
   const renderContent = () => {
-    switch (currentView) {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          Loading...
+        </div>
+      );
+    }
+
+    switch (currentView.toLowerCase()) {
       case "dashboard":
         return (
           <>
             <div className="p-6 bg-purple-500">
-              <StatsHeader />
+              <StatsHeader stats={dashboardStats} />
             </div>
             <div className="grid grid-cols-12 gap-6 p-6">
-              <div className="col-span-12 xl:col-span-8">
-                <StoriesTable storys={storys} />
-              </div>
-              <div className="col-span-12 space-y-6 xl:col-span-4">
-                <PerformanceCard performanceStats={performanceStats} />
-                <CollaborationsCard collaborations={collaborations} />
+              <div className="col-span-12">
+                <StoriesTable stories={stories} />
               </div>
             </div>
           </>
         );
       case "users":
-        return <UsersPage />;
+        return <UsersPage users={users} onUpdateRole={handleUpdateUserRole} />;
       case "stories":
         return (
-          <div className="col-span-12 p-6 xl:col-span-8">
-            <StoriesTable storys={storys} />
+          <div className="p-6">
+            <StoriesTable stories={stories} />
           </div>
         );
-      case "feedbacks":
-        return null;
+      case "feedback":
+        return (
+          <div className="p-6">
+            <FeedbackList
+              feedback={feedback}
+              onUpdateFeedback={handleUpdateFeedback}
+              onDeleteFeedback={handleDeleteFeedback}
+            />
+          </div>
+        );
       default:
-        return null;
+        return (
+          <div className="flex items-center justify-center h-full">
+            Select a view from the sidebar
+          </div>
+        );
     }
   };
 
+  if (!admin || admin.role !== "admin") {
+    return null;
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <Sidebar
-        sidebarOpen={sidebarOpen}
-        currentView={currentView}
-        onMenuItemClick={handleMenuItemClick}
-      />
+    <AdminProtectedRoute>
+      <div className="flex h-screen bg-gray-50">
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          currentView={currentView}
+          onMenuItemClick={handleMenuItemClick}
+        />
 
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <Header
+            sidebarOpen={sidebarOpen}
+            onToggleSidebar={toggleSidebar}
+            user={admin}
+          />
 
-        {/* Dynamic Content */}
-        <div className="flex-1 overflow-auto">{renderContent()}</div>
+          <div className="flex-1 overflow-auto">{renderContent()}</div>
+        </div>
       </div>
-    </div>
+    </AdminProtectedRoute>
   );
 }
