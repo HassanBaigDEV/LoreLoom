@@ -261,3 +261,4 @@ async def change_password(request: ChangePasswordRequest, token: str):
         return {"message": "Password successfully changed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
