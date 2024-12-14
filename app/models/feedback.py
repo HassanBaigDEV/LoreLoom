@@ -16,6 +16,7 @@ class FeedbackType(str, Enum):
     FEATURE = "feature"
     GENERAL = "general"
     SUPPORT = "support"
+    OTHER = "other"
 
 class FeedbackCreate(BaseModel):
     title: str
@@ -37,4 +38,4 @@ class FeedbackUpdate(BaseModel):
 
 class FeedbackResponseCreate(BaseModel):
     response: str
-    status: FeedbackStatus
+    status: FeedbackStatus = FeedbackStatus.PENDING

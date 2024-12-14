@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from datetime import datetime
 from bson import ObjectId
 from typing import List
 
+from app.utils.dependencies import get_current_user, get_current_admin
 from app.config.database import db
 from app.utils.dependencies import get_current_user
 from app.models.feedback import (
@@ -90,34 +91,41 @@ async def get_unread_feedback_count():
 )
 async def respond_to_feedback(
     feedback_id: str,
-    response_data: FeedbackResponseCreate,
-    admin: dict = Depends(verify_admin),
+    response_data: FeedbackResponseCreate = Body(...),
+    payload: dict = Depends(get_current_admin),
 ):
-    feedback = await feedback_collection.find_one({"_id": ObjectId(feedback_id)})
-    if not feedback:
-        raise HTTPException(status_code=404, detail="Feedback not found")
+    try:
+        feedback = await feedback_collection.find_one({"_id": ObjectId(feedback_id)})
+        if not feedback:
+            raise HTTPException(status_code=404, detail="Feedback not found")
 
-    update_dict = {
-        "admin_response": response_data.response,
-        "status": response_data.status,
-        "updated_at": datetime.now(),
-    }
+        # Validate status
+        if response_data.status not in FeedbackStatus.__members__.values():
+            raise HTTPException(status_code=400, detail="Invalid status")
 
-    await feedback_collection.update_one(
-        {"_id": ObjectId(feedback_id)}, {"$set": update_dict}
-    )
+        update_dict = {
+            "admin_response": response_data.response,
+            "status": response_data.status,
+            "updated_at": datetime.now(),
+        }
 
-    updated_feedback = await feedback_collection.find_one(
-        {"_id": ObjectId(feedback_id)}
-    )
-    if not updated_feedback:
-        raise HTTPException(status_code=404, detail="Feedback not found")
+        await feedback_collection.update_one(
+            {"_id": ObjectId(feedback_id)}, {"$set": update_dict}
+        )
 
-    return {
-        **dict(updated_feedback),
-        "id": str(updated_feedback["_id"]),
-        "user_id": str(updated_feedback["user_id"]),
-    }
+        updated_feedback = await feedback_collection.find_one(
+            {"_id": ObjectId(feedback_id)}
+        )
+        if not updated_feedback:
+            raise HTTPException(status_code=404, detail="Feedback not found")
+
+        return {
+            **dict(updated_feedback),
+            "id": str(updated_feedback["_id"]),
+            "user_id": str(updated_feedback["user_id"]),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @feedback_router.put("/feedback/{feedback_id}/mark-read")
