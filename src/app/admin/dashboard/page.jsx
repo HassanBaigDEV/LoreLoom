@@ -186,11 +186,11 @@ export default function Dashboard() {
         />
 
         <div className="flex flex-col flex-1 overflow-hidden">
-          <Header
+          {/* <Header
             sidebarOpen={sidebarOpen}
             onToggleSidebar={toggleSidebar}
             user={admin}
-          />
+          /> */}
 
           <div className="flex-1 overflow-auto">{renderContent()}</div>
         </div>

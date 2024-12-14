@@ -13,8 +13,9 @@ import {
   FormControl,
   InputLabel,
   Box,
-  Button,
   Menu,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import { 
   MoreVert as MoreVertIcon,
@@ -22,6 +23,30 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'pending':
+      return { color: 'warning', label: 'Pending' };
+    case 'resolved':
+      return { color: 'success', label: 'Resolved' };
+    case 'in_progress':
+      return { color: 'info', label: 'In Progress' };
+    default:
+      return { color: 'default', label: status };
+  }
+};
+
+const getFeedbackTypeLabel = (type) => {
+  const types = {
+    bug: 'Bug Report',
+    feature: 'Feature Request',
+    support: 'Support Request',
+    general: 'General Feedback',
+    other: 'Other',
+  };
+  return types[type?.toLowerCase()] || type;
+};
 
 export default function FeedbackList({ feedback = [], onUpdateFeedback, onDeleteFeedback }) {
   console.log("Feedback data:", feedback);
@@ -67,9 +92,9 @@ export default function FeedbackList({ feedback = [], onUpdateFeedback, onDelete
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <MenuItem value="all">All</MenuItem>
-            <MenuItem value="unread">Unread</MenuItem>
-            <MenuItem value="read">Read</MenuItem>
-            <MenuItem value="responded">Responded</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="in_progress">In Progress</MenuItem>
+            <MenuItem value="resolved">Resolved</MenuItem>
           </Select>
         </FormControl>
       </Box>
@@ -78,37 +103,49 @@ export default function FeedbackList({ feedback = [], onUpdateFeedback, onDelete
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Subject</TableCell>
-              <TableCell>User</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell>Status</TableCell>
               <TableCell>Created At</TableCell>
+              <TableCell>Response</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredFeedback.map((item) => (
               <TableRow key={item.id} hover>
-                <TableCell>{item.subject}</TableCell>
-                <TableCell>{item.user_email}</TableCell>
                 <TableCell>
-                  <Box
-                    sx={{
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 1,
-                      display: 'inline-block',
-                      bgcolor: 
-                        item.status === 'unread' ? 'error.light' :
-                        item.status === 'read' ? 'warning.light' :
-                        'success.light',
-                      color: 'white',
-                    }}
-                  >
-                    {item.status}
-                  </Box>
+                  <Tooltip title={item.description} arrow>
+                    <span>{item.title}</span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell>{getFeedbackTypeLabel(item.type)}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={getStatusColor(item.status).label}
+                    color={getStatusColor(item.status).color}
+                    size="small"
+                  />
                 </TableCell>
                 <TableCell>
                   {new Date(item.created_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  {item.admin_response ? (
+                    <Tooltip title={item.admin_response} arrow>
+                      <Chip
+                        label="Responded"
+                        color="success"
+                        size="small"
+                      />
+                    </Tooltip>
+                  ) : (
+                    <Chip
+                      label="No Response"
+                      color="default"
+                      size="small"
+                    />
+                  )}
                 </TableCell>
                 <TableCell>
                   <IconButton onClick={(e) => handleMenuClick(e, item)}>
