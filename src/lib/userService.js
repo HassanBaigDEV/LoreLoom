@@ -65,4 +65,9 @@ export const userService = {
     const response = await apiClient.get(`/user/users/${username}`);
     return response.data;
   },
+
+  changePassword: async (passwordData) => {
+    const response = await apiClient.post('/auth/change-password', passwordData);
+    return response.data;
+  },
 };
