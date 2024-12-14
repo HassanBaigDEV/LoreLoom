@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -7,188 +7,351 @@ import {
   Container,
   Typography,
   Paper,
-  Divider,
-  Button,
   Drawer,
+  IconButton,
+  Fab,
+  Pagination,
+  Stack,
+  Collapse,
+  Divider,
+  Tooltip,
+  CircularProgress,
+  Button,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
+import {
+  ChevronRight as ChevronRightIcon,
+  ChevronLeft as ChevronLeftIcon,
+  Edit as EditIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  MenuBook as MenuBookIcon,
+  Add as AddIcon,
+} from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
-import PlanHeader from "@/components/common/header";
-import StoryElement from "@/components/plan/StoryElement";
-import PassageElement from "@/components/passage/passageElement";
-import ProgressIndicator from "@/components/plan/ProgressIndicator";
-import { Toaster } from "react-hot-toast";
+import PassageEditor from "@/components/passage/PassageEditor";
+import StoryElementsPanel from "@/components/passage/StoryElementsPanel";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { Toaster, toast } from "react-hot-toast";
 
-export default function StoryPassage({ params }) {
+const ITEMS_PER_PAGE = 10;
+
+const LoadingOverlay = () => (
+  <Box
+    sx={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      bgcolor: 'rgba(255, 255, 255, 0.8)',
+      zIndex: 1000,
+    }}
+  >
+    <CircularProgress sx={{ color: 'rgb(34 197 94)' }} />
+  </Box>
+);
+
+export default function PassagePage({ params }) {
   const router = useRouter();
   const { storyId } = params;
-  const [progress, setProgress] = useState(0);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [loading, setLoading] = useState(true);
   const [passages, setPassages] = useState([]);
-  const [storyData, setStoryData] = useState({
-    title: "",
-    premise: "",
-    setting: "",
-    characters: [],
-    outline: [],
-  });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedElement, setSelectedElement] = useState(null);
+  const [storyElements, setStoryElements] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [expandedPassage, setExpandedPassage] = useState(null);
 
-  // Fetch story and passage data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const user = JSON.parse(localStorage.getItem("user"));
-        if (!user?.id) throw new Error("User not found");
+  const fetchPassages = useCallback(async () => {
+    setLoading(true);
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
 
-        const storyElementsResponse = await storyApiClient.get(
-          `/plan/story-elements/${storyId}`,
-          { params: { story_id: storyId, user_id: user.id } }
-        );
+      const [passagesResponse, countResponse] = await Promise.all([
+        storyApiClient.get(`/draft/passages/${storyId}`, {
+          params: {
+            user_id: user.id,
+            limit: ITEMS_PER_PAGE,
+            skip: (page - 1) * ITEMS_PER_PAGE,
+          },
+        }),
+        storyApiClient.get(`/draft/passages/${storyId}/count`, {
+          params: { user_id: user.id },
+        }),
+      ]);
 
-        setStoryData(storyElementsResponse.data);
-        calculateProgress(storyElementsResponse.data);
+      setPassages(passagesResponse.data);
+      setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));
+    } catch (error) {
+      console.error("Error fetching passages:", error);
+      toast.error("Failed to load passages");
+    } finally {
+      setLoading(false);
+    }
+  }, [storyId, page]);
 
-        const passagesResponse = await storyApiClient.get(
-          `/draft/passages/${storyId}`,
-          { params: { user_id: user.id, limit: 10, skip: 0 } }
-        );
-        console.log(passagesResponse);
-        setPassages(passagesResponse.data);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
+  const fetchStoryElements = useCallback(async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
 
-    fetchData();
+      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
+        params: { user_id: user.id },
+      });
+      setStoryElements(response.data);
+    } catch (error) {
+      console.error("Error fetching story elements:", error);
+    }
   }, [storyId]);
 
-  const calculateProgress = (data) => {
-    const elements = ["title", "premise", "setting", "characters", "outline"];
-    const completed = elements.filter((elem) =>
-      Array.isArray(data[elem]) ? data[elem].length > 0 : Boolean(data[elem])
-    ).length;
-    setProgress((completed / elements.length) * 100);
+  useEffect(() => {
+    fetchPassages();
+    fetchStoryElements();
+  }, [fetchPassages, fetchStoryElements]);
+
+  const handlePageChange = (event, value) => {
+    setPage(value);
   };
 
-  const handleProceed = () => {
-    setSelectedElement("passage");
-    setSidebarOpen(false);
-  };
+  const handleCreatePassage = async () => {
+    setLoading(true);
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
 
-  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
+      // Get the first outline point if none selected
+      const outlinePoint = storyElements?.outline?.[0]?.id;
+      if (!outlinePoint) {
+        toast.error("Please create an outline first");
+        return;
+      }
 
-  const handleElementSelect = (element) => {
-    setSelectedElement(element);
-    if (element === "passage") {
-      setSidebarOpen(false); // Close sidebar when Passage is selected
+      const response = await storyApiClient.post(`/draft/generate-passage/${storyId}`, null, {
+        params: {
+          user_id: user.id,
+          outline_point_id: outlinePoint,
+        },
+      });
+
+      toast.success("New passage created!");
+      fetchPassages(); // Refresh the list
+    } catch (error) {
+      console.error("Error creating passage:", error);
+      toast.error("Failed to create passage");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="min-h-screen bg-gray-50"
-    >
-      <Toaster position="top-right" />
-
-      <PlanHeader toggleSidebar={toggleSidebar} stage="writing" />
-
-      <Container maxWidth="md" className="pt-20 pb-12">
-        <ProgressIndicator progress={progress} phase="writing" />
-
-        <Paper elevation={3} className="p-8 mt-8">
-          <Typography variant="h5" className="mb-8 text-center text-gray-800">
-            {storyData.title}
-          </Typography>
-
-          <AnimatePresence mode="wait">
-            <motion.div className="space-y-8">
-              {selectedElement && selectedElement !== "passage" && (
-                <StoryElement
-                  title={
-                    selectedElement.charAt(0).toUpperCase() +
-                    selectedElement.slice(1)
-                  }
-                  description={`Define your story's ${selectedElement}`}
-                  content={storyData[selectedElement]}
-                  storyId={storyId}
-                  isCharacters={selectedElement === "characters"}
-                  isOutline={selectedElement === "outline"}
-                />
-              )}
-
-              {selectedElement === "passage" && (
-                <PassageElement
-                  title="Passages"
-                  content={passages}
-                  storyId={storyId}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Hide this button if 'passage' is selected */}
-          {progress === 100 && selectedElement !== "passage" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-12 text-center"
-            >
+    <>
+      <Box sx={{ 
+        display: 'flex', 
+        minHeight: '100vh', 
+        bgcolor: 'grey.50',
+        flexDirection: { xs: 'column', lg: 'row' }, // Stack vertically on mobile
+      }}>
+        <Toaster position="top-right" />
+        
+        {/* Main Content */}
+        <Box 
+          sx={{ 
+            flexGrow: 1, 
+            p: { xs: 2, sm: 3 }, // Reduced padding on mobile
+            pt: { xs: 8, sm: 10, md: 12 }, // Adjusted top padding for header
+            pr: { xs: 2, sm: 3, lg: '360px' }, // Right padding only on desktop
+            width: '100%', // Full width on mobile
+          }}
+        >
+          <Container 
+            maxWidth="lg"
+            sx={{
+              mx: 'auto',
+              width: '100%',
+            }}
+          >
+            {/* Header */}
+            <Box sx={{ 
+              mb: { xs: 2, sm: 4 }, 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on mobile
+              gap: { xs: 2, sm: 0 },
+              justifyContent: 'space-between', 
+              alignItems: { xs: 'stretch', sm: 'center' },
+            }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' },
+                  background: 'linear-gradient(45deg, #22c55e, #16a34a)',
+                  backgroundClip: 'text',
+                  WebkitBackgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
+                Write Your Story
+              </Typography>
               <Button
                 variant="contained"
-                color="primary"
-                size="large"
-                onClick={handleProceed}
-                className="px-12 py-3 bg-green-500 hover:bg-green-600"
+                startIcon={<AddIcon />}
+                onClick={handleCreatePassage}
+                disabled={loading}
+                fullWidth={false}
+                sx={{
+                  bgcolor: 'rgb(34 197 94)',
+                  '&:hover': { bgcolor: 'rgb(22 163 74)' },
+                  width: { xs: '100%', sm: 'auto' }, // Full width on mobile
+                }}
               >
-                Proceed to Writing
+                New Passage
               </Button>
-            </motion.div>
-          )}
-        </Paper>
-      </Container>
+            </Box>
 
-      <Drawer
-        anchor="right"
-        open={sidebarOpen}
-        onClose={toggleSidebar}
-        sx={{
-          width: 250,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: 250,
-            boxSizing: "border-box",
-          },
-        }}
-      >
-        <Box p={2} className="space-y-4">
-          <Typography variant="h6">Planning Elements</Typography>
-          <Divider />
-          <Box>
-            {[
-              "title",
-              "premise",
-              "setting",
-              "characters",
-              "outline",
-              "passage",
-            ].map((element) => (
-              <Button
-                key={element}
-                variant="outlined"
-                fullWidth
-                onClick={() => handleElementSelect(element)}
-                className="mb-2 text-green-500 border border-green-500 hover:border-green-500 hover:text-green-500"
-                disabled={element === "passage" && progress !== 100}
-              >
-                {element.charAt(0).toUpperCase() + element.slice(1)}
-              </Button>
-            ))}
-          </Box>
+            {/* Passages List */}
+            <AnimatePresence mode="wait">
+              {loading ? (
+                <LoadingOverlay />
+              ) : (
+                <Stack spacing={2}>
+                  {passages.map((passage, index) => (
+                    <motion.div
+                      key={passage.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Paper
+                        elevation={expandedPassage === passage.id ? 3 : 1}
+                        sx={{
+                          p: { xs: 2, sm: 3 }, // Reduced padding on mobile
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            boxShadow: 3,
+                            transform: 'translateY(-2px)',
+                          },
+                        }}
+                      >
+                        {/* Passage content here */}
+                        <PassageEditor passage={passage} onUpdate={fetchPassages} />
+                      </Paper>
+                    </motion.div>
+                  ))}
+                </Stack>
+              )}
+            </AnimatePresence>
+
+            {/* Pagination */}
+            <Box sx={{ 
+              mt: 4, 
+              display: 'flex', 
+              justifyContent: 'center',
+              '& .MuiPagination-ul': {
+                flexWrap: 'nowrap', // Prevent pagination buttons from wrapping
+              }
+            }}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={handlePageChange}
+                color="primary"
+                size={isMobile ? "small" : "large"}
+                siblingCount={isMobile ? 0 : 1}
+                boundaryCount={isMobile ? 1 : 2}
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    color: 'rgb(34 197 94)',
+                  },
+                  '& .Mui-selected': {
+                    bgcolor: 'rgb(34 197 94) !important',
+                    color: 'white !important',
+                  },
+                }}
+              />
+            </Box>
+          </Container>
         </Box>
-      </Drawer>
-    </motion.div>
+
+        {/* Story Elements Panel */}
+        <Drawer
+          variant="permanent"
+          anchor="right"
+          sx={{
+            width: 340,
+            flexShrink: 0,
+            position: 'fixed',
+            height: '100%',
+            '& .MuiDrawer-paper': {
+              width: 340,
+              boxSizing: 'border-box',
+              bgcolor: 'rgb(17 24 39)',
+              color: 'white',
+              borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
+              height: '100%',
+              pt: { xs: '64px', sm: '70px' },
+              zIndex: 1,
+            },
+            display: { xs: 'none', lg: 'block' },
+          }}
+        >
+          <StoryElementsPanel
+            storyElements={storyElements}
+            onUpdate={fetchStoryElements}
+          />
+        </Drawer>
+
+        {/* Mobile Story Elements Toggle */}
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            display: { xs: 'block', lg: 'none' },
+            zIndex: 2,
+          }}
+        >
+          <Fab
+            color="primary"
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            sx={{
+              bgcolor: 'rgb(34 197 94)',
+              '&:hover': { bgcolor: 'rgb(22 163 74)' },
+            }}
+          >
+            <MenuBookIcon />
+          </Fab>
+        </Box>
+
+        {/* Mobile Story Elements Drawer */}
+        <Drawer
+          anchor="right"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          sx={{
+            display: { xs: 'block', lg: 'none' },
+            '& .MuiDrawer-paper': {
+              width: { xs: '100%', sm: 340 }, // Full width on mobile phones
+              bgcolor: 'rgb(17 24 39)',
+              color: 'white',
+              pt: { xs: '64px', sm: '70px' },
+            },
+          }}
+        >
+          <StoryElementsPanel
+            storyElements={storyElements}
+            onUpdate={fetchStoryElements}
+          />
+        </Drawer>
+      </Box>
+    </>
   );
 }
