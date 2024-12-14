@@ -19,6 +19,7 @@ router = APIRouter()
 # Initialize passages collection
 passages = db.passages
 
+
 class Passage(BaseModel):
     passage_id: str
     story_id: str
@@ -30,14 +31,14 @@ class Passage(BaseModel):
 
     # Custom class config for Pydantic to handle ObjectId
     class Config:
-        json_encoders = {
-            ObjectId: str  # Convert ObjectId to string
-        }
+        json_encoders = {ObjectId: str}  # Convert ObjectId to string
+
 
 def custom_jsonable_encoder(obj):
     if isinstance(obj, ObjectId):
         return str(obj)  # Convert ObjectId to string
     return jsonable_encoder(obj)
+
 
 @router.post("/generate-passage/{story_id}")
 async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
@@ -73,6 +74,28 @@ async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
         return HTTPException(status_code=500, detail=str(e))
 
 
+# get passage count
+@router.get("/passages/{story_id}/count")
+async def get_passage_count(story_id: str, user_id: str):
+    """Get the total number of passages for a story"""
+    try:
+        # Validate story ownership
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            logger.error(f"Story {story_id} not found or unauthorized")
+            return HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
+        # Get the total number of passages for the story
+        count = await passages.count_documents({"story_id": story_id})
+        return {"count": count}
+    except Exception as e:
+        logger.error(f"Error retrieving passage count: {e}")
+        return HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/passages/{story_id}", response_model=List[Passage])
 async def get_story_passages(
     story_id: str, user_id: str, limit: int = 10, skip: int = 0
@@ -85,7 +108,9 @@ async def get_story_passages(
         )
         if not story:
             logger.error(f"Story {story_id} not found or unauthorized")
-            raise HTTPException(status_code=404, detail="Story not found or unauthorized")
+            raise HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
 
         # Get passages with pagination
         cursor = passages.find({"story_id": story_id})
@@ -95,8 +120,11 @@ async def get_story_passages(
         passages_list = await cursor.to_list(length=limit)
 
         # Use FastAPI's jsonable_encoder to handle serialization of non-serializable types
-        return [jsonable_encoder(passage, custom_encoder={ObjectId: str}) for passage in passages_list]
-    
+        return [
+            jsonable_encoder(passage, custom_encoder={ObjectId: str})
+            for passage in passages_list
+        ]
+
     except Exception as e:
         logger.error(f"Error retrieving passages: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -240,10 +268,7 @@ async def test_llm():
 
 @router.post("/generate-passages/{story_id}")
 async def generate_passages(
-    story_id: str,
-    outline_point_id: str,
-    user_id: str,
-    num_variations: int = 3
+    story_id: str, outline_point_id: str, user_id: str, num_variations: int = 3
 ):
     """Generate multiple passage variations for a specific outline point"""
     try:
@@ -253,7 +278,9 @@ async def generate_passages(
         )
         if not story:
             logger.error(f"Story {story_id} not found or unauthorized")
-            return HTTPException(status_code=404, detail="Story not found or unauthorized")
+            return HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
 
         # Initialize draft generator
         draft_gen = DraftGenerator(story_id)
@@ -263,7 +290,7 @@ async def generate_passages(
 
         return {
             "passages": [p.model_dump() for p in passages],
-            "message": "Multiple passages generated successfully"
+            "message": "Multiple passages generated successfully",
         }
     except ValueError as ve:
         logger.error(f"ValueError: {ve}")

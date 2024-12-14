@@ -810,6 +810,8 @@ class DraftGenerator:
             # Split entities into existing and new
             existing_entities = set(passage.mentioned_entities) & existing_chars
             new_entities = set(passage.mentioned_entities) - existing_chars
+            logger.info(f"Existing entities: {existing_entities}")
+            logger.info(f"New entities: {new_entities}")
 
             # Update existing characters in parallel
             update_tasks = [
@@ -845,6 +847,7 @@ class DraftGenerator:
                                 continue
 
                         if validated_characters:
+                            # if any character with the same name already exist, update them, append the rest
                             await stories.update_one(
                                 {"story_id": ObjectId(self.story_id)},
                                 {
