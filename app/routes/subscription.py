@@ -27,16 +27,29 @@ async def get_my_subscription(current_user: dict = Depends(get_current_user)):
     
     if not subscription:
         # Create free subscription for new users
-        subscription = {
+        subscription_data = {
             "user_id": str(current_user["sub"]),
             "tier": SubscriptionTier.FREE,
             "status": SubscriptionStatus.ACTIVE,
             "start_date": datetime.now(),
-            "story_count": 0
+            "story_count": 0,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
         }
-        await subscriptions_collection.insert_one(subscription)
+        await subscriptions_collection.insert_one(subscription_data)
+        return subscription_data
     
-    return subscription
+    # Convert ObjectId to string and format the response
+    subscription_response = {
+        **subscription,
+        "_id": str(subscription["_id"]) if "_id" in subscription else None,
+        "start_date": subscription["start_date"].isoformat() if "start_date" in subscription else None,
+        "end_date": subscription["end_date"].isoformat() if "end_date" in subscription else None,
+        "created_at": subscription["created_at"].isoformat() if "created_at" in subscription else None,
+        "updated_at": subscription["updated_at"].isoformat() if "updated_at" in subscription else None
+    }
+    
+    return subscription_response
 
 @subscription_router.post("/upgrade/{tier}")
 async def upgrade_subscription(
@@ -185,35 +198,55 @@ async def stripe_webhook(request: Request):
         except SignatureVerificationError as e:
             raise HTTPException(status_code=400, detail=f"Invalid signature: {str(e)}")
         
-        # Handle the event
+        print(f"Received event type: {event.type}")  # Debug log
+        
+        # Handle different event types
         if event.type == "checkout.session.completed":
             session = event.data.object
-            # Update user's subscription
+            print(f"Processing checkout session: {session.id}")  # Debug log
             await handle_successful_subscription(session)
-        
+        elif event.type == "customer.subscription.created":
+            subscription = event.data.object
+            print(f"New subscription created: {subscription.id}")  # Debug log
+            # You might want to handle this event as well
+        elif event.type == "invoice.paid":
+            invoice = event.data.object
+            print(f"Invoice paid: {invoice.id}")  # Debug log
+            # Handle successful payment
+            
         return {"status": "success"}
     
     except HTTPException as e:
+        print(f"HTTP Exception in webhook: {str(e)}")  # Debug log
         raise e
     except Exception as e:
+        print(f"Unexpected error in webhook: {str(e)}")  # Debug log
         raise HTTPException(status_code=500, detail=str(e))
 
 async def handle_successful_subscription(session):
     """Handle successful subscription payment"""
     try:
+        print(f"Starting to handle subscription for session: {session.id}")  # Debug log
+        
         customer_id = session.customer
         subscription_id = session.subscription
+        
+        print(f"Customer ID: {customer_id}, Subscription ID: {subscription_id}")  # Debug log
         
         # Get subscription details from Stripe
         subscription = stripe.Subscription.retrieve(subscription_id)
         price_id = subscription.items.data[0].price.id
         
+        print(f"Retrieved price ID: {price_id}")  # Debug log
+        
         # Determine tier from price ID
-        tier = next(
-            (tier for tier, plan in SUBSCRIPTION_PLANS.items() 
-             if plan.get("stripe_price_id") == price_id),
-            None
-        )
+        tier = None
+        if price_id == settings.STRIPE_BASIC_PRICE_ID:
+            tier = SubscriptionTier.BASIC
+        elif price_id == settings.STRIPE_PREMIUM_PRICE_ID:
+            tier = SubscriptionTier.PREMIUM
+            
+        print(f"Determined tier: {tier}")  # Debug log
         
         if not tier:
             raise HTTPException(status_code=400, detail="Invalid subscription tier")
@@ -221,21 +254,52 @@ async def handle_successful_subscription(session):
         # Update user's subscription in database
         user = await db["users"].find_one({"stripe_customer_id": customer_id})
         if not user:
+            print(f"No user found for customer ID: {customer_id}")  # Debug log
             raise HTTPException(status_code=404, detail="User not found")
-            
-        await subscriptions_collection.update_one(
+        
+        print(f"Found user: {user['_id']}")  # Debug log
+        
+        # Create subscription document
+        subscription_data = {
+            "user_id": str(user["_id"]),
+            "tier": tier,
+            "status": SubscriptionStatus.ACTIVE,
+            "stripe_subscription_id": subscription_id,
+            "stripe_customer_id": customer_id,
+            "start_date": datetime.now(),
+            "end_date": datetime.fromtimestamp(subscription.current_period_end),
+            "story_count": 0,
+            "price_id": price_id,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
+        
+        print(f"Prepared subscription data: {subscription_data}")  # Debug log
+        
+        # Use upsert to either update existing subscription or create new one
+        result = await subscriptions_collection.update_one(
             {"user_id": str(user["_id"])},
-            {
-                "$set": {
-                    "tier": tier,
-                    "status": SubscriptionStatus.ACTIVE,
-                    "stripe_subscription_id": subscription_id,
-                    "start_date": datetime.now(),
-                    "end_date": datetime.fromtimestamp(subscription.current_period_end),
-                    "story_count": 0
-                }
-            },
+            {"$set": subscription_data},
             upsert=True
         )
+        
+        print(f"Subscription upsert result - modified: {result.modified_count}, upserted_id: {result.upserted_id}")  # Debug log
+        
+        # Also update user document with subscription info
+        await db["users"].update_one(
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "subscription_tier": tier,
+                    "subscription_status": SubscriptionStatus.ACTIVE,
+                    "stripe_subscription_id": subscription_id
+                }
+            }
+        )
+        
+        print("Successfully updated user and subscription")  # Debug log
+        return subscription_data
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error handling subscription: {str(e)}") 
+        print(f"Error in handle_successful_subscription: {str(e)}")  # Debug log
+        raise HTTPException(status_code=500, detail=f"Error handling subscription: {str(e)}")

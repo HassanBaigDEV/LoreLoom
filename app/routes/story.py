@@ -100,7 +100,7 @@ async def get_stories(author: Optional[str] = None, genre: Optional[str] = None)
     return [objectid_to_str(story) for story in stories]
 
 @story_router.get("/pStories", response_model=List[StoryResponse])
-async def get_stories():
+async def get_pstories():
     """
     Retrieve a list of public stories with author's name.
     """

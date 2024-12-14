@@ -57,6 +57,9 @@ async def register(user: CreateUser, request: Request):
     # user.role = "user"
     new_user = user.model_dump()
     new_user["_id"] = ObjectId()
+    new_user["created_at"] = datetime.now()
+    new_user["updated_at"] = datetime.now()
+
     await users_collection.insert_one(new_user)
 
     access_token = create_access_token(data={"sub": new_user["_id"]})
@@ -223,3 +226,38 @@ async def logout(token: str = Depends(oauth2_scheme)):
     )
 
     return {"message": "Successfully logged out"}
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+@auth_router.post("/change-password")
+async def change_password(request: ChangePasswordRequest, token: str):
+    try:
+        # Decode token directly
+        decoded_token = decode_token(token)
+        if not decoded_token:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user_id = decoded_token.get("sub")
+
+        # Get user from database
+        user = await users_collection.find_one({"_id": user_id})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Verify current password
+        if not verify_password(request.current_password, user["password"]):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        # Hash and update new password
+        hashed_password = hash_password(request.new_password)
+        await users_collection.update_one(
+            {"_id": user_id},
+            {"$set": {"password": hashed_password, "updated_at": datetime.now()}},
+        )
+
+        return {"message": "Password successfully changed"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
