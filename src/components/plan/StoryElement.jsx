@@ -118,7 +118,7 @@ export default function StoryElement({
       setIsEditing(false);
       toast.success(`${title} updated successfully!`);
     } catch (error) {
-      console.log(`Error updating ${title}:`, error);
+      console.error(`Error updating ${title}:`, error);
       toast.error(`Failed to update ${title.toLowerCase()}`);
     }
   };
@@ -187,10 +187,10 @@ export default function StoryElement({
 
         const response = await storyApiClient.post(
           `/plan/add-character/${storyId}`,
-          {
-            params,
-            data: { new_character: newCharacter },
-          }
+          
+          { new_character: newCharacter },
+          {params:params}
+          
         );
 
         setStoryData((prev) => ({
@@ -211,12 +211,10 @@ export default function StoryElement({
         const response = await storyApiClient.post(
           `/plan/add-outline-point/${storyId}`,
           {
-            params,
-            data: {
-              new_point: newPoint,
-              position: content?.length || 0,
-            },
-          }
+            new_point: newPoint,
+            position: content?.length || 0,
+          },
+          { params: { user_id: user.id } }
         );
 
         setStoryData((prev) => ({
@@ -310,6 +308,39 @@ export default function StoryElement({
     }
   };
 
+  const handleCharacterRegenerate = async (characterName) => {
+    try {
+      setLoadingId(`character-${characterName}`); // Track loading state per character
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
+
+      const response = await storyApiClient.post(
+        `/plan/regenerate-character/${storyId}`,
+        {
+          character_name: characterName
+        },
+        {
+          params: { user_id: user.id }
+        }
+      );
+
+      // Update only the regenerated character in the content
+      setStoryData((prev) => ({
+        ...prev,
+        characters: prev.characters.map(char => 
+          char.name === characterName ? response.data.character : char
+        )
+      }));
+
+      toast.success(`Character ${characterName} regenerated successfully!`);
+    } catch (error) {
+      console.error(`Error regenerating character ${characterName}:`, error);
+      toast.error(`Failed to regenerate character ${characterName}`);
+    } finally {
+      setLoadingId("");
+    }
+  };
+
   const renderCharacterContent = () => {
     if (isEditing) {
       return (
@@ -335,6 +366,18 @@ export default function StoryElement({
                   {character.name}
                 </Typography>
                 <div className="flex space-x-1">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleCharacterRegenerate(character.name)}
+                    className="text-gray-600"
+                    disabled={loadingId === `character-${character.name}`}
+                  >
+                    {loadingId === `character-${character.name}` ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <RefreshIcon fontSize="small" />
+                    )}
+                  </IconButton>
                   <IconButton
                     size="small"
                     onClick={() => handleEdit(character)}
@@ -456,6 +499,39 @@ export default function StoryElement({
   const renderOutlineContent = () => {
     if (!Array.isArray(content)) return null;
 
+    const handlePointRegenerate = async (pointNumber) => {
+      try {
+        setLoadingId(`outline-${pointNumber}`); // Track loading state per point
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user?.id) throw new Error("User not found");
+
+        const response = await storyApiClient.post(
+          `/plan/regenerate-outline-point/${storyId}`,
+          {
+            point_number: pointNumber
+          },
+          {
+            params: { user_id: user.id }
+          }
+        );
+
+        // Update only the regenerated point in the content
+        setStoryData((prev) => ({
+          ...prev,
+          outline: prev.outline.map(point => 
+            point.number === pointNumber ? response.data.outline_point : point
+          )
+        }));
+
+        toast.success(`Point ${pointNumber} regenerated successfully!`);
+      } catch (error) {
+        console.error(`Error regenerating point ${pointNumber}:`, error);
+        toast.error(`Failed to regenerate point ${pointNumber}`);
+      } finally {
+        setLoadingId("");
+      }
+    };
+
     return (
       <div className="space-y-4">
         {content.map((point, index) => (
@@ -468,6 +544,18 @@ export default function StoryElement({
                 {point.number}. {point.title}
               </Typography>
               <div className="flex space-x-1">
+                <IconButton
+                  size="small"
+                  onClick={() => handlePointRegenerate(point.number)}
+                  className="text-gray-600"
+                  disabled={loadingId === `outline-${point.number}`}
+                >
+                  {loadingId === `outline-${point.number}` ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <RefreshIcon fontSize="small" />
+                  )}
+                </IconButton>
                 <IconButton
                   size="small"
                   onClick={() => handleEdit(point)}
@@ -516,7 +604,7 @@ export default function StoryElement({
                 </Typography>
               </div>
             </div>
-
+            
             <div className="mt-2">
               <Typography variant="subtitle2" className="text-gray-700">
                 Characters Involved
@@ -579,6 +667,34 @@ export default function StoryElement({
       Regenerate {title}
     </Button>
   );
+
+  const renderTextContent = (contentToRender) => {
+    if (!contentToRender) return '';
+    
+    // If it's a string, return it directly
+    if (typeof contentToRender === 'string') return contentToRender;
+    
+    // If it's an object with a description property, return that
+    if (contentToRender?.description) return contentToRender.description;
+    
+    // If it's an object with a type property (like in your data), handle it appropriately
+    if (contentToRender?.type) {
+      // Return the most relevant text field based on the object structure
+      return contentToRender.description || contentToRender.title || JSON.stringify(contentToRender);
+    }
+    
+    // If it's an array, join the elements
+    if (Array.isArray(contentToRender)) {
+      return contentToRender.join(', ');
+    }
+    
+    // If all else fails, convert to string
+    try {
+      return JSON.stringify(contentToRender);
+    } catch (e) {
+      return '';
+    }
+  };
 
   const renderContent = () => {
     if (loading && loadingId === title.toLowerCase()) {
@@ -701,6 +817,7 @@ export default function StoryElement({
       <div className="relative p-4 rounded-lg bg-gray-50">
         {isTyping ? (
           <TypewriterText
+            // text={renderTextContent(content)}
             text={
               typeof content === "string"
                 ? content
@@ -711,6 +828,7 @@ export default function StoryElement({
         ) : (
           <>
             <Typography variant="body1" className="whitespace-pre-line">
+              {/* {renderTextContent(content)} */}
               {typeof content === "string"
                 ? content
                 : JSON.stringify(content, null, 2)}
@@ -723,7 +841,10 @@ export default function StoryElement({
               >
                 <RefreshIcon />
               </IconButton>
-              <IconButton onClick={() => handleEdit(content)} size="small">
+              <IconButton 
+                onClick={() => handleEdit(content)} 
+                size="small"
+              >
                 <EditIcon />
               </IconButton>
             </div>
