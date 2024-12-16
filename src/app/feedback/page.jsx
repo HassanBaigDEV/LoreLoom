@@ -39,7 +39,7 @@ export default function FeedbackPage() {
   }, []);
 
   return (
-    <ProtectedRoute>
+    <>
       <Box 
         sx={{ 
           minHeight: '100vh',
@@ -130,6 +130,6 @@ export default function FeedbackPage() {
           </Box>
         </Container>
       </Box>
-    </ProtectedRoute>
+    </>
   );
 } 

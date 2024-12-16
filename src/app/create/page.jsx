@@ -196,7 +196,7 @@ export default function CreatePage() {
   };
 
   return (
-    <ProtectedRoute>
+    <>
       <Box
         sx={{
           minHeight: "100vh",
@@ -357,6 +357,6 @@ export default function CreatePage() {
           </motion.div>
         </Container>
       </Box>
-    </ProtectedRoute>
+    </>
   );
 }

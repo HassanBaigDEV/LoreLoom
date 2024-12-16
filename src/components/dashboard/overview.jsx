@@ -1,13 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import gen from "@/assets/images/gen.webp";
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 export default function DashboardOverview() {
   const router = useRouter();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const [user, setUser, isLoading] = useLocalStorage('user');
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!user) {
+    return null;
+  }
+
   const handleSyGenRedirect = () => {
     router.push("/create");
   };

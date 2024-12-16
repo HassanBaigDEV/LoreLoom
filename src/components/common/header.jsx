@@ -72,6 +72,7 @@ function Header() {
         bgcolor: 'rgb(17 24 39)',
         borderBottom: trigger ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
         transition: 'all 0.3s ease-in-out',
+        mb: 2,
       }}
     >
       <Container maxWidth="xl">

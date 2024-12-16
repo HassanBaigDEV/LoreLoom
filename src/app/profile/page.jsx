@@ -179,7 +179,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <ProtectedRoute>
+    <>
       <Box
         sx={{
           minHeight: "100vh",
@@ -556,6 +556,6 @@ export default function ProfilePage() {
           </motion.div>
         </Container>
       </Box>
-    </ProtectedRoute>
+    </>
   );
 }
