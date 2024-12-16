@@ -216,6 +216,7 @@ export default function CreatePage() {
                 variant="h3"
                 component="h1"
                 gutterBottom
+                className="mt-16 text-center text-gray-700"
                 sx={{
                   fontWeight: 700,
                   fontSize: { xs: "2rem", sm: "3rem" },
@@ -228,6 +229,7 @@ export default function CreatePage() {
                 Create Your Story
               </Typography>
               <Typography
+                className="text-center text-gray-700"
                 variant="subtitle1"
                 sx={{ maxWidth: "600px", mx: "auto", color: "grey.300" }}
               >

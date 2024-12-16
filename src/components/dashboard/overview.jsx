@@ -9,7 +9,7 @@ export default function DashboardOverview() {
   const router = useRouter();
   const user = JSON.parse(localStorage.getItem("user"));
   const handleSyGenRedirect = () => {
-    router.push("/generator");
+    router.push("/create");
   };
   const handleSubRedirect = () => {
     router.push("/subscription");
@@ -43,11 +43,11 @@ export default function DashboardOverview() {
           />
           <div className="absolute text-white bottom-4 left-4">
             <p className="text-sm">Upgrade Unlimited Stories & more</p>
-            <p className="font-bold">Only $14/month</p>
+            <p className="font-bold">Only $19/month</p>
           </div>
           <button
             onClick={handleSubRedirect}
-            className="absolute inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-green-500 bg-opacity-50 border border-transparent rounded-md shadow-sm bottom-4 right-4 hover:bg-blue-900 hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="absolute inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-900 bg-opacity-50 border border-transparent rounded-md shadow-sm bottom-3 right-2 hover:bg-blue-900 hover:bg-opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Upgrade
           </button>

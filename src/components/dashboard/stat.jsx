@@ -6,9 +6,11 @@ import { BookOpen as StoryIcon } from 'lucide-react';
 
 const StatisticsSection = () => {
   let userStories = [];
+  
   try {
     const user = JSON.parse(localStorage.getItem("user") || '{"stories": []}');
     userStories = user.stories || [];
+    console.log(userStories);
   } catch (error) {
     console.error('Error parsing user data:', error);
   }
@@ -29,33 +31,33 @@ const StatisticsSection = () => {
               className="pr-2" 
             />
             <div>
-              <div className="text-4xl font-semibold text-yellow-500">0</div>
+              <div className="text-4xl font-semibold text-yellow-500">999+</div>
               <div className="text-sm text-gray-500">Tokens</div>
             </div>
           </div>
           <div className="flex items-center">
             <StoryIcon 
-              className="w-8 h-8 mb-4 mr-2 text-green-500" 
+              className="w-8 h-8 mb-4 mr-2 text-blue-950" 
               strokeWidth={1.5}
             />
             <div>
-              <div className="text-4xl font-semibold text-green-500">
+              <div className="text-4xl font-semibold text-blue-900">
                 {userStories.length}
               </div>
               <div className="text-sm text-gray-500">Stories</div>
             </div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">0</div>
-            <div className="text-sm text-gray-500">Digital Comics</div>
+            <div className="text-4xl font-semibold text-gray-900">15</div>
+            <div className="text-sm text-gray-500">Passages</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">0</div>
-            <div className="text-sm text-gray-500">Story Audio</div>
+            <div className="text-4xl font-semibold text-gray-900">13</div>
+            <div className="text-sm text-gray-500">Characters</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">0</div>
-            <div className="text-sm text-gray-500">Image Generations</div>
+            <div className="text-4xl font-semibold text-gray-900">2</div>
+            <div className="text-sm text-gray-500">plannings Completed</div>
           </div>
         </div>
       </div>

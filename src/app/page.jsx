@@ -78,7 +78,7 @@ export default function Page() {
       <Box
         sx={{
           position: "relative",
-          height: { xs: "70vh", md: "80vh" },
+          height: { xs: "80vh", md: "90vh" },
           overflow: "hidden",
         }}
       >
@@ -104,6 +104,7 @@ export default function Page() {
             px: 2,
           }}
         >
+        <div className="mt-56">
           <Typography
             variant="h1"
             sx={{
@@ -147,6 +148,7 @@ export default function Page() {
           >
             Get Started For Free
           </Button>
+          </div>
         </Box>
       </Box>
 

@@ -119,7 +119,7 @@ export default function PlanStory({ params }) {
         <Container maxWidth="md" className="pt-20 pb-12">
           <ProgressIndicator progress={progress} />
 
-          <Paper elevation={3} className="p-8 mt-8 relative">
+          <Paper elevation={3} className="relative p-8 mt-8">
             {(loading || saving) && <LoadingOverlay />}
 
             <Typography variant="h4" className="mb-8 text-center text-gray-800">
