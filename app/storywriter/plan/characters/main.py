@@ -98,3 +98,63 @@ def process_characters_json(characters_json: str) -> List[Dict]:
     except json.JSONDecodeError as e:
         logging.error(f"Error decoding JSON: {e}")
         return []
+
+
+async def regenerate_single_character(
+    story_id: str, 
+    premise: str, 
+    setting: str,
+    character_name: str
+) -> Dict:
+    # Get story for genre
+    story = await stories.find_one({"story_id": ObjectId(story_id)})
+    if not story:
+        raise ValueError("Story not found")
+    
+    genre = story.get("genre", "")
+    
+    chatML_template = f"""
+    <|im_start|>system
+    You are tasked with regenerating a single character for a {genre} story while maintaining their original name. The output should be a single character description in JSON format that fits well within the context of the provided premise and setting.
+    
+    Example of a correctly formatted response:
+    ```json
+    {{
+        "name": "{character_name}",
+        "type": "character",
+        "role": "Protagonist",
+        "physicalAppearance": "A lithe woman with sun-kissed skin, braided auburn hair, and piercing green eyes. She has a crescent-shaped scar on her left cheek.",
+        "behavioralPatterns": "Fiercely independent but deeply loyal to her close friends. She often acts impulsively but has a knack for thinking on her feet.",
+        "genderAndSexualOrientation": "Female, bisexual",
+        "relationships": {{
+            "Alaric Frost": "Childhood friend and rival",
+            "Ancient Temple": "Sacred place she guards",
+            "Magic Staff": "Her trusted weapon and tool"
+        }},
+        "likesAndDislikes": {{
+            "Likes": ["Exploring the unknown", "Playing the lute", "Collecting rare artifacts"],
+            "Dislikes": ["Confinement", "Dishonesty", "Large crowds"]
+        }}
+    }}
+    ```
+    <|im_end|>
+    <|im_start|>user
+    Based on the premise: {premise} and the setting: {setting}, regenerate the character named "{character_name}" with new traits and characteristics while maintaining their name. Use this JSON schema:\n<schema>\n{character_schema}\n</schema>.
+    <|im_end|>
+    <|im_start|>assistant
+    """
+
+    response = model(chatML_template, max_tokens=2000)
+    character_str = response["choices"][0]["text"].strip()  # type: ignore
+    logging.debug(f"Regenerated Character: {character_str}")
+
+    try:
+        character_dict = json.loads(character_str)
+        character = Character(**character_dict)
+        return character.model_dump()
+    except json.JSONDecodeError as e:
+        logging.error(f"Error decoding JSON: {e}")
+        raise ValueError("Failed to generate valid character JSON")
+    except Exception as e:
+        logging.error(f"Error validating character: {e}")
+        raise ValueError("Failed to validate generated character")
