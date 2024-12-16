@@ -2,21 +2,25 @@
 import Image from "next/image";
 import React, { useState } from "react";
 import token from "@/assets/images/feedback-icon.webp";
+import { useRouter } from "next/navigation";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export default function Feedback() {
   const [showOverlay, setShowOverlay] = useState(false);
+  const router = useRouter();
 
   const handleLearnMoreClick = (e) => {
     e.preventDefault();
-    setShowOverlay(true);
+    // setShowOverlay(true);
+    router.push("/feedback");
   };
 
   const closeOverlay = () => {
-    setShowOverlay(false);
+    // setShowOverlay(false);
   };
 
   return (
-    <>
+    <ProtectedRoute>
       <div className="col-span-2 overflow-hidden bg-white rounded-lg shadow">
         <div className="flex items-center justify-between px-4 py-5 sm:p-6">
           <div>
@@ -84,6 +88,6 @@ export default function Feedback() {
           </div>
         </div>
       )}
-    </>
+    </ProtectedRoute>
   );
 }

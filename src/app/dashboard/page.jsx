@@ -30,7 +30,7 @@ function DashboardContent() {
             <DashboardOverview />
             <StatisticsSection />
             <Feedback />
-            <Notifications />
+            {/* <Notifications /> */}
           </div>
           <hr className="mt-20 mb-10 border-t border-gray-300" />
           <StoriesSection />
@@ -42,8 +42,8 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <>
+    <ProtectedRoute>
       <DashboardContent />
-    </>
+    </ProtectedRoute>
   );
 }
