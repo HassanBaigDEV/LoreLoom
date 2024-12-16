@@ -13,13 +13,16 @@ users_collection = db["users"]
 # FastAPI Router
 story_router = APIRouter()
 
+
 # Custom ObjectId type for validation
 def validate_object_id(v: str) -> str:
     if not ObjectId.is_valid(v):
         raise ValueError(f"Invalid ObjectId: {v}")
     return str(v)
 
+
 ObjectIdStr = Annotated[str, AfterValidator(validate_object_id)]
+
 
 # Subschemas
 class OutlineSegment(BaseModel):
@@ -45,6 +48,7 @@ class Character(BaseModel):
 # Main schemas
 class StoryBase(BaseModel):
     author: ObjectIdStr
+    story_id: ObjectIdStr
     title: str
     premise: Optional[str]
     setting: Optional[str]
@@ -52,7 +56,7 @@ class StoryBase(BaseModel):
     characters: Optional[List[Character]] = []
     genre: str
     privacy: str
-    author_name: Optional [str] = ""
+    author_name: Optional[str] = ""
 
     class Config:
         allow_population_by_field_name = True
@@ -64,11 +68,13 @@ class StoryBase(BaseModel):
 
 class StoryCreate(StoryBase):
     """Schema for story creation."""
+
     pass
 
 
 class StoryResponse(StoryBase):
     """Schema for story response."""
+
     id: ObjectIdStr = Field(alias="_id")
     created_at: datetime
     updated_at: Optional[datetime]
@@ -97,7 +103,26 @@ async def get_stories(author: Optional[str] = None, genre: Optional[str] = None)
         query["genre"] = genre
 
     stories = await stories_collection.find(query).to_list(length=100)
-    return [objectid_to_str(story) for story in stories]
+
+    return [
+        {
+            "_id": str(story["_id"]),
+            "id": str(story["_id"]),
+            "story_id": str(story["story_id"]),
+            "author": str(story["author"]),
+            "title": story.get("title"),
+            "genre": story.get("genre"),
+            "privacy": story.get("privacy"),
+            "premise": story.get("premise"),
+            "setting": story.get("setting"),
+            "characters": story.get("characters"),
+            "outline": story.get("outline"),
+            "created_at": story.get("created_at"),
+            "updated_at": story.get("updated_at"),
+        }
+        for story in stories
+    ]
+
 
 @story_router.get("/pStories", response_model=List[StoryResponse])
 async def get_pstories():
@@ -113,21 +138,22 @@ async def get_pstories():
     stories_with_author = []
     for story in stories:
         author_id = str(story.get("author"))
-            
+
         if author_id:
             # Fetch the author's first and last name from the users collection
             author = await users_collection.find_one({"_id": author_id})
             if author:
                 story["author_name"] = author.get("username", "Unknown Author")
             else:
-                story["author_name"] = "Unknown Author"  
+                story["author_name"] = "Unknown Author"
         else:
-            story["author_name"] = "Unknown Author" 
-        
+            story["author_name"] = "Unknown Author"
+
         # Convert ObjectId to string and append the modified story to the result list
         stories_with_author.append(objectid_to_str(story))
 
     return stories_with_author
+
 
 # Endpoint to fetch story planning
 @story_router.get("/stories/{story_id}/planning", response_model=StoryResponse)
