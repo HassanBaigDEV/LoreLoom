@@ -174,4 +174,8 @@ pyrightconfig.json
 
 _models/
 
+# Add these lines
+.env.colab
+ngrok.json
+
 

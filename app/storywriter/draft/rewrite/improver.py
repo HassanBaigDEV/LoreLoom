@@ -1,6 +1,6 @@
 from typing import Dict, List
 from app.storywriter.draft.schema import GeneratedPassage, PassageContext
-from app.storywriter.llm import model
+from app.storywriter.llm_colab import model
 import logging
 from app.utils.text_validation import get_logit_bias
 

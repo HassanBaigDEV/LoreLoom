@@ -1,6 +1,6 @@
 # Generate the story premise
 import logging
-from ...llm import model
+from ...llm_colab import model
 import uuid
 from app.config.mongo import db, stories
 from datetime import datetime
@@ -15,9 +15,9 @@ async def generate_title(story_id: str) -> str:
         story = await stories.find_one({"story_id": ObjectId(story_id)})
         if not story:
             raise ValueError("Story not found")
-        
+
         genre = story.get("genre", "")
-        
+
         title_template = f"""<|im_start|>system
         You are tasked with generating creative and unique story titles. Your goal is to come up with an original and engaging title of just 1 line that fits the {genre} genre. The title must be a complete phrase that makes sense.<|im_end|>
         <|im_start|>user
@@ -49,9 +49,9 @@ async def generate_premise(story_id: str, title: str) -> str:
         story = await stories.find_one({"story_id": ObjectId(story_id)})
         if not story:
             raise ValueError("Story not found")
-        
+
         genre = story.get("genre", "")
-        
+
         chatML_template = f"""<|im_start|>system
         You are tasked with generating creative and unique story premises for the {genre} genre. Your goal is to come up with an original and engaging premise that ends with a complete sentence.<|im_end|>
         <|im_start|>user

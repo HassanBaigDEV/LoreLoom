@@ -6,7 +6,7 @@ from typing import List, Dict
 from datetime import datetime
 from bson import ObjectId
 
-from ...llm import model
+from ...llm_colab import model
 from .schema import *
 from app.config.mongo import stories
 
@@ -288,7 +288,7 @@ async def create_numbered_outline(
                 response = model(event_prompt, max_tokens=1024)
                 response_text = response["choices"][0]["text"]  # type:ignore
                 print(f"Generated event {i}: {response_text}")
-                
+
                 try:
                     event_data = json.loads(response_text)
                     outline.append(event_data)

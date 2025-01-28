@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from ..plan.db.vector import store_story_part, find_similar_parts
-from ..llm import model
+from ..llm_colab import model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema

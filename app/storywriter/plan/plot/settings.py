@@ -1,6 +1,6 @@
 import logging
 import uuid
-from ...llm import model
+from ...llm_colab import model
 from app.config.mongo import db, stories
 from datetime import datetime
 from bson import ObjectId
@@ -13,9 +13,9 @@ async def generate_setting(story_id: str, title: str, premise: str) -> str:
         story = await stories.find_one({"story_id": ObjectId(story_id)})
         if not story:
             raise ValueError("Story not found")
-        
+
         genre = story.get("genre", "")
-        
+
         chatML_template = f"""
         <|im_start|>system
         You are tasked with generating a detailed setting for a {genre} story based on a given premise. Include the location, time period, and atmosphere that would be appropriate for this genre. Ensure the description ends with a complete sentence.<|im_end|>

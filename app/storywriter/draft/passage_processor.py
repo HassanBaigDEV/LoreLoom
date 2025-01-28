@@ -8,7 +8,7 @@ from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from app.utils.text_validation import is_complete_sentence
 from ..plan.db.vector import store_story_part
-from ..llm import model
+from ..llm_colab import model
 from .revision_manager import RevisionManager
 
 logger = logging.getLogger(__name__)

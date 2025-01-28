@@ -1,7 +1,7 @@
 import logging
 import json
 from typing import Dict, List
-from ..llm import model
+from ..llm_colab import model
 from pydantic import BaseModel, Field
 from typing import Literal
 
