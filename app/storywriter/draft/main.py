@@ -30,8 +30,10 @@ from app.utils.text_validation import (
     get_logit_bias,
 )
 from .rewrite.main import PassageRewriter
+from .passage_processor import PassageProcessor
+from .entity_processor import EntityProcessor
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize tokenizer for token counting
@@ -629,95 +631,90 @@ class DraftGenerator:
     ) -> List[GeneratedPassage]:
         """Generate multiple variations of a passage efficiently"""
         try:
+            logger.debug(
+                f"Starting passage generation for outline point {outline_point_id}"
+            )
             context = await self.retrieve_relevant_context(outline_point_id)
+            logger.debug("Retrieved context for prompt generation")
+
             base_prompt = self.prepare_prompt(context)
+            logger.debug("Prepared base prompt")
 
             # Batch generate multiple variations in a single prompt
             batch_prompt = f"""
             <|im_start|>system
-            Generate {num_variations} unique story passages based on the context.
-            Each passage should be a complete scene that advances the story.
-            Use [PASSAGE_END] to separate passages.
-            Do not include any variation numbers or labels.
-            
-            Context and Requirements:
+            You are an expert story writer. Generate multiple variations of a passage based on the given context.
+            Context:
             {base_prompt}
-            
-            Begin generating passages:
+            Return a list of passages, each on a new line,ending with [PASSAGE_END].
             <|im_end|>
             <|im_start|>assistant
             """
 
             # Get logit bias
             logit_bias = get_logit_bias()
+            logger.debug("Retrieved logit bias settings")
 
-            response = model(
-                batch_prompt,
-                max_tokens=1024 * num_variations,
-                logit_bias=logit_bias,
-                temperature=0.7,
-                frequency_penalty=0.3,  # Reduce repetition
-                presence_penalty=0.3,  # Encourage diversity
-            )
-            if not isinstance(response, dict) or "choices" not in response:
-                raise ValueError("Invalid response from LLM")
+            async def _generate() -> str:
+                logger.debug("Calling model to generate passages")
+                response = model(
+                    batch_prompt,
+                    max_tokens=1024 * num_variations,
+                    logit_bias=logit_bias,
+                    temperature=0.7,
+                    frequency_penalty=0.3,  # Reduce repetition
+                    presence_penalty=0.3,  # Encourage diversity
+                )
+                if not isinstance(response, dict) or "choices" not in response:
+                    logger.error("Model response was invalid")
+                    return ""
+                return response["choices"][0]["text"].strip()  # type: ignore
 
-            # Split variations and process them
-            raw_passages = response["choices"][0]["text"].split("[PASSAGE_END]")  # type: ignore
-            passages = []
+            # Add retry logic for generation like in generate_passage
+            raw_text = await retry_generation(_generate)
+            if not raw_text:
+                logger.error("Failed to generate valid passages after retries")
+                raise ValueError("Failed to generate valid passages")
 
-            # Process passages in parallel
-            async def process_passage(passage_text: str) -> Optional[GeneratedPassage]:
-                if not passage_text.strip():
-                    return None
+            logger.debug("Successfully generated raw passages")
+            raw_passages = raw_text.split("[PASSAGE_END]")
+            logger.debug(f"Split into {len(raw_passages)} raw passages")
 
-                try:
-                    # Generate summary and extract entities in parallel
-                    summary_task = self._generate_summary(passage_text)
-                    entities_task = self._extract_entities(passage_text)
-
-                    summary, entities = await asyncio.gather(
-                        summary_task, entities_task
-                    )
-
-                    return GeneratedPassage(
-                        passage_id=str(ObjectId()),
-                        story_id=self.story_id,
-                        outline_point_id=outline_point_id,
-                        content=passage_text.strip(),
-                        summary=summary or "Summary generation failed.",
-                        mentioned_entities=entities,
-                    )
-                except Exception as e:
-                    logger.error(f"Error processing passage: {e}")
-                    return None
-
-            # Process all passages concurrently
+            # Process passages using PassageProcessor
+            logger.debug("Starting parallel passage processing")
             passage_tasks = [
-                process_passage(text)
+                PassageProcessor.process_passage(
+                    text,
+                    self.story_id,
+                    outline_point_id,
+                    self._generate_summary,
+                    self._extract_entities,
+                )
                 for text in raw_passages[:num_variations]
                 if text.strip()
             ]
+
             processed_passages = await asyncio.gather(*passage_tasks)
             passages = [p for p in processed_passages if p is not None]
+            logger.debug(f"Successfully processed {len(passages)} valid passages")
 
             if not passages:
+                logger.error("No valid passages after processing")
                 raise ValueError("Failed to generate any valid passages")
 
-            # Quick evaluation without LLM calls
+            logger.debug("Starting passage evaluation")
             best_passage = await self._quick_evaluate_passages(passages, context)
+            logger.debug(f"Selected best passage with ID {best_passage.passage_id}")
 
-            # Store passages
-            store_tasks = []
-            for passage in passages:
-                passage_dict = passage.model_dump()
-                passage_dict["is_best"] = passage.passage_id == best_passage.passage_id
-                store_tasks.append(passage_collection.insert_one(passage_dict))
-
-            await asyncio.gather(*store_tasks)
+            # Store passages using PassageProcessor
+            logger.debug("Storing passages in database")
+            await PassageProcessor.store_passages(passages, best_passage)
 
             # Process new entities for best passage only
+            logger.debug("Processing entities for best passage")
             await self._process_new_entities(best_passage, context)
+            await self._update_character_relevance(best_passage.mentioned_entities)
+            logger.debug("Finished updating character relevance")
 
             return passages
 
@@ -923,8 +920,8 @@ class DraftGenerator:
                 return {
                     item["name"]: item["classification"]
                     for item in classifications
-                    if isinstance(item, dict) 
-                    and "name" in item 
+                    if isinstance(item, dict)
+                    and "name" in item
                     and "classification" in item
                 }
             except json.JSONDecodeError as e:

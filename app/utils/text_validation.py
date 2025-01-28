@@ -19,26 +19,27 @@ def is_complete_sentence(text: str) -> bool:
     return any(text.endswith(end) for end in sentence_endings)
 
 
-async def retry_generation(
-    generate_func: Callable, max_retries: int = 3, *args, **kwargs
-) -> Optional[str]:
-    """
-    Retry generation until a valid sentence is produced or max retries is reached.
-    """
-    for attempt in range(max_retries):
+async def retry_generation(generate_func, max_attempts: int = 3) -> str:
+    """Retry text generation with validation"""
+    for attempt in range(max_attempts):
         try:
-            result = await generate_func(*args, **kwargs)
-            if isinstance(result, str) and is_complete_sentence(result):
-                return result
-            logger.warning(
-                f"Generated text did not end properly on attempt {attempt + 1}"
-            )
+            text = await generate_func()
+            if not text:
+                logger.warning(f"Empty text generated on attempt {attempt + 1}")
+                continue
+
+            # Split into sentences and keep complete ones
+            sentences = text.split(".")
+            if len(sentences) > 1:
+                complete_text = ".".join(sentences[:-1]) + "."
+                return complete_text
+
+            return text
+
         except Exception as e:
             logger.error(f"Generation error on attempt {attempt + 1}: {e}")
-            if attempt == max_retries - 1:
-                raise
 
-    return None
+    return ""  # Return empty string if all attempts fail
 
 
 def get_logit_bias() -> Dict[str, float]:

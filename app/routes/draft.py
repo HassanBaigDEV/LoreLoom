@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict
+from typing import List, Dict, Optional
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 import logging
@@ -9,6 +9,7 @@ from datetime import datetime
 from app.storywriter.draft.main import DraftGenerator
 from app.storywriter.draft.schema import GeneratedPassage
 from app.config.mongo import stories, db
+from app.storywriter.draft.passage_processor import PassageProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -298,3 +299,77 @@ async def generate_passages(
     except Exception as e:
         logger.error(f"Error generating passages: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
+
+# Add these new models
+class PassageUpdateRequest(BaseModel):
+    content: str
+    user_id: Optional[str] = None
+
+
+class RevisionResponse(BaseModel):
+    revision_id: str
+    passage_id: str
+    content: str
+    previous_content: str
+    timestamp: datetime
+    changes: Dict[str, str]
+    affected_elements: List[str]
+    user_id: Optional[str]
+
+
+# Add these new endpoints
+@router.put("/passage/{passage_id}")
+async def update_passage(passage_id: str, update: PassageUpdateRequest):
+    """Update a passage with new content and create revision"""
+    try:
+        # Get original passage
+        passage = await passages.find_one({"passage_id": passage_id})
+        if not passage:
+            raise HTTPException(status_code=404, detail="Passage not found")
+
+        # Create passage processor
+        processor = PassageProcessor()
+
+        # Update passage
+        updated_passage = await processor.update_passage(
+            GeneratedPassage(**passage), update.content, update.user_id
+        )
+
+        if not updated_passage:
+            raise HTTPException(status_code=500, detail="Failed to update passage")
+
+        return jsonable_encoder(updated_passage)
+
+    except Exception as e:
+        logger.error(f"Error updating passage: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/passage/{passage_id}/history")
+async def get_passage_history(passage_id: str):
+    """Get revision history for a passage"""
+    try:
+        processor = PassageProcessor()
+        history = await processor.get_passage_history(passage_id)
+        return jsonable_encoder(history)
+    except Exception as e:
+        logger.error(f"Error getting passage history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/passage/{passage_id}/revert/{revision_id}")
+async def revert_passage(passage_id: str, revision_id: str):
+    """Revert a passage to a specific revision"""
+    try:
+        processor = PassageProcessor()
+        revision_manager = processor.revision_manager
+
+        reverted = await revision_manager.revert_to_revision(revision_id)
+        if not reverted:
+            raise HTTPException(status_code=404, detail="Revision not found")
+
+        return jsonable_encoder(reverted)
+    except Exception as e:
+        logger.error(f"Error reverting passage: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
