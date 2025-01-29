@@ -20,8 +20,12 @@ def initialize_model():
         llm = Llama(
             model_path=model_path,
             n_ctx=8096,
-            n_gpu_layers=-1,  # Use all GPU layers
-            verbose=False,
+            n_gpu_layers=-1,
+            n_threads=8,  # Optimize for Colab's CPU cores
+            offload_kqv=True,  # Force offload key components to GPU
+            verbose=True,  # Enable verbose logging
+            n_batch=512,  # Larger batch size for GPU efficiency
+            main_gpu=0,  # Explicitly use first GPU
         )
         logger.info("LLM initialized successfully with GPU support")
         return llm

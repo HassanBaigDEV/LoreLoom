@@ -8,6 +8,11 @@ import uuid
 from llama_index.core.schema import TextNode
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer, models
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # sentence transformers
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -23,13 +28,15 @@ logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5", device="cpu")
+embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5", device="cuda")
 
-db_name = "StoryWeaver"
-host = "localhost"
-password = "root"
-port = "5432"
-user = "postgres"
+# Get database configuration from environment variables
+db_name = os.getenv("PG_DATABASE")
+host = os.getenv("PG_HOST")
+password = os.getenv("PG_PASSWORD")
+port = os.getenv("PG_PORT")
+user = os.getenv("PG_USER")
+sslmode = os.getenv("PG_SSLMODE")
 
 
 def get_db_connection():
@@ -39,6 +46,7 @@ def get_db_connection():
         password=password,
         port=port,
         user=user,
+        sslmode=sslmode,
     )
     conn.autocommit = True
     register_vector(conn)
