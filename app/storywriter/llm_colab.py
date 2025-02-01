@@ -1,6 +1,7 @@
 import logging
 import os
 from llama_cpp import Llama
+import torch
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -17,17 +18,33 @@ def initialize_model():
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file not found at: {model_path}")
 
+        # Check CUDA availability
+        gpu_layers = 35  # Number of layers to offload to GPU
+        if not torch.cuda.is_available():
+            logger.warning("CUDA not available, falling back to CPU")
+            gpu_layers = 0
+
         llm = Llama(
             model_path=model_path,
             n_ctx=8096,
-            n_gpu_layers=-1,
-            n_threads=8,  # Optimize for Colab's CPU cores
-            offload_kqv=True,  # Force offload key components to GPU
-            verbose=True,  # Enable verbose logging
-            n_batch=512,  # Larger batch size for GPU efficiency
-            main_gpu=0,  # Explicitly use first GPU
+            n_gpu_layers=gpu_layers,
+            n_threads=8,
+            offload_kqv=True,
+            verbose=True,
+            n_batch=512,
+            main_gpu=0,
+            tensor_split=None,  # Auto-configure tensor split
+            seed=-1,  # Random seed
+            use_mlock=False,
+            use_mmap=True,
+            embedding=True,  # Enable embedding mode
         )
-        logger.info("LLM initialized successfully with GPU support")
+
+        if gpu_layers > 0:
+            logger.info(f"LLM initialized successfully with {gpu_layers} GPU layers")
+        else:
+            logger.info("LLM initialized successfully in CPU-only mode")
+
         return llm
     except Exception as e:
         logger.error(f"Failed to initialize LLM: {e}")

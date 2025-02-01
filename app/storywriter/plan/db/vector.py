@@ -3,16 +3,23 @@ from llama_index.vector_stores.postgres import PGVectorStore
 import logging
 from typing import Optional, Dict, List
 from pydantic import BaseModel
-from llama_cpp import Llama
 import uuid
 from llama_index.core.schema import TextNode
 from pgvector.psycopg2 import register_vector
-from sentence_transformers import SentenceTransformer, models
 import os
 from dotenv import load_dotenv
+import torch
 
 # Load environment variables
 load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Configure embedding model with proper device
+device = "cuda" if torch.cuda.is_available() else "cpu"
+logger.info(f"Using device: {device} for embeddings")
 
 # sentence transformers
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
@@ -23,12 +30,9 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
 # embed_model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
 
-# sentence transformers
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+embed_model = HuggingFaceEmbedding(
+    model_name="BAAI/bge-small-en-v1.5", device=device, normalize=True
 )
-
-embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5", device="cuda")
 
 # Get database configuration from environment variables
 db_name = os.getenv("PG_DATABASE")
@@ -40,17 +44,21 @@ sslmode = os.getenv("PG_SSLMODE")
 
 
 def get_db_connection():
-    conn = psycopg2.connect(
-        dbname=db_name,
-        host=host,
-        password=password,
-        port=port,
-        user=user,
-        sslmode=sslmode,
-    )
-    conn.autocommit = True
-    register_vector(conn)
-    return conn
+    try:
+        conn = psycopg2.connect(
+            dbname=db_name,
+            host=host,
+            password=password,
+            port=port,
+            user=user,
+            sslmode=sslmode,
+        )
+        conn.autocommit = True
+        register_vector(conn)
+        return conn
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        raise
 
 
 # with conn.cursor() as c:
