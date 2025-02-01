@@ -1,11 +1,9 @@
 import psycopg2
-from llama_index.vector_stores.postgres import PGVectorStore
 import logging
 from typing import Optional, Dict, List
 from pydantic import BaseModel
 from llama_cpp import Llama
 import uuid
-from llama_index.core.schema import TextNode
 from pgvector.psycopg2 import register_vector
 from sentence_transformers import SentenceTransformer, models
 import os
