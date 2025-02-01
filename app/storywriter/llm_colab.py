@@ -20,9 +20,9 @@ def initialize_model():
 
         # Check CUDA availability
         gpu_layers = 35  # Number of layers to offload to GPU
-        if not torch.cuda.is_available():
-            logger.warning("CUDA not available, falling back to CPU")
-            gpu_layers = 0
+        # if not torch.cuda.is_available():
+        #     logger.warning("CUDA not available, falling back to CPU")
+        #     gpu_layers = 0
 
         llm = Llama(
             model_path=model_path,
@@ -41,9 +41,9 @@ def initialize_model():
         )
 
         if gpu_layers > 0:
-            logger.info(f"LLM initialized successfully with {gpu_layers} GPU layers")
+            print(f"LLM initialized successfully with {gpu_layers} GPU layers")
         else:
-            logger.info("LLM initialized successfully in CPU-only mode")
+            print("LLM initialized successfully in CPU-only mode")
 
         return llm
     except Exception as e:
