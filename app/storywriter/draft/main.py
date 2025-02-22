@@ -226,8 +226,15 @@ class DraftGenerator:
             return await self._get_all_characters()
 
     def prepare_prompt(self, context: PassageContext) -> str:
-        """Prepare the prompt with token management"""
-        available_tokens = self.max_tokens - self.token_buffer
+        """Prepare the prompt with dynamic weighting of context elements"""
+        PRIORITY_MAP = {
+            "current_outline": 1.0,
+            "relevant_characters": 0.9,
+            "previous_summaries": 0.7,
+            "premise": 0.6,
+            "setting": 0.5,
+            "recent_passage": 0.4,
+        }
 
         # Log the context for debugging
         logger.info(f"Context for prompt generation: {context.model_dump_json()}")
@@ -242,27 +249,27 @@ class DraftGenerator:
         Characters Involved: {', '.join(outline_details.get('characters_involved', []))}
         """
 
-        # Prioritize sections by importance
-        sections = [
-            ("Premise", context.premise),
-            ("Setting", context.setting),
-            ("Current Outline Point", outline_text),
-            (
-                "Relevant Characters",
-                self._format_characters(context.relevant_characters),
-            ),
-            (
-                "Recent Passage",
-                (
-                    context.recent_passage
-                    if context.recent_passage
-                    else "This is the first passage."
-                ),
-            ),
-            ("Previous Context", self._format_summaries(context.previous_summaries)),
-        ]
+        # Create sections with dynamic weighting
+        sections = {
+            "Premise": context.premise,
+            "Setting": context.setting,
+            "Current Outline Point": outline_text,
+            "Relevant Characters": self._format_characters(context.relevant_characters),
+            "Recent Passage": context.recent_passage or "This is the first passage.",
+            "Previous Context": self._format_summaries(context.previous_summaries),
+        }
 
-        # content = self._truncate_to_fit(sections, available_tokens)
+        # Sort sections by priority
+        sorted_sections = sorted(
+            sections.items(),
+            key=lambda x: PRIORITY_MAP.get(x[0].lower().replace(" ", "_"), 0.5),
+            reverse=True,
+        )
+
+        # Construct the prompt with clear separation
+        prompt_sections = "\n\n".join(
+            f"### {title} ###\n{content}" for title, content in sorted_sections
+        )
 
         prompt = f"""
         <|im_start|>system
@@ -270,7 +277,7 @@ class DraftGenerator:
         that follows the outline point and maintains consistency with the story context.
         
         Story Context:
-        {sections}
+        {prompt_sections}
         
         Write a passage that:
         1. Advances the story according to the outline point
@@ -589,7 +596,7 @@ class DraftGenerator:
             logit_bias = get_logit_bias()
             logger.debug("Retrieved logit bias settings")
 
-            raw_passages = []
+            raw_passages: List[str] = []
             # Add retry logic for generation like in generate_passage
             for i in range(num_variations):
                 kwargs = {
@@ -892,7 +899,13 @@ class DraftGenerator:
         passage_content: str,
         context: PassageContext,
     ) -> List[Dict]:
-        """Generate character profiles in batch"""
+        """Generate character profiles in batch with relationship context"""
+        # Fetch existing characters to provide relationship context
+        existing_characters = await self._get_all_characters()
+
+        # Create a mapping of existing character names to their details
+        existing_character_map = {char["name"]: char for char in existing_characters}
+
         batch_prompt = f"""
         <|im_start|>system
         Generate character profiles for multiple entities in JSON format.
@@ -901,6 +914,9 @@ class DraftGenerator:
         Genre: {context.genre}
         Premise: {context.premise}
         Setting: {context.setting}
+        
+        Existing Characters:
+        {json.dumps(existing_character_map)}
         
         Entities to profile:
         {json.dumps(priority_entities)}
@@ -927,6 +943,12 @@ class DraftGenerator:
             validated_profiles = []
             for profile in profiles:
                 try:
+                    # Check for continuity with existing characters
+                    if profile["name"] in existing_character_map:
+                        # Merge new profile with existing character details
+                        existing_profile = existing_character_map[profile["name"]]
+                        profile = {**existing_profile, **profile}
+
                     character = Character(**profile)
                     validated_profiles.append(character.model_dump())
                 except Exception as e:

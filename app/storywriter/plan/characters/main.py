@@ -18,9 +18,9 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
     story = await stories.find_one({"story_id": ObjectId(story_id)})
     if not story:
         raise ValueError("Story not found")
-    
+
     genre = story.get("genre", "")
-    
+
     chatML_template = f"""
     <|im_start|>system
     You are tasked with generating detailed character and entity descriptions for a {genre} story based on the given premise and setting. The output should be structured in a strict JSON format. Ensure that the descriptions are unique, creative, and fit well within the context of the provided premise and setting, while adhering to common character archetypes and tropes found in {genre} stories.
@@ -101,18 +101,15 @@ def process_characters_json(characters_json: str) -> List[Dict]:
 
 
 async def regenerate_single_character(
-    story_id: str, 
-    premise: str, 
-    setting: str,
-    character_name: str
+    story_id: str, premise: str, setting: str, character_name: str
 ) -> Dict:
     # Get story for genre
     story = await stories.find_one({"story_id": ObjectId(story_id)})
     if not story:
         raise ValueError("Story not found")
-    
+
     genre = story.get("genre", "")
-    
+
     chatML_template = f"""
     <|im_start|>system
     You are tasked with regenerating a single character for a {genre} story while maintaining their original name. The output should be a single character description in JSON format that fits well within the context of the provided premise and setting.
@@ -158,4 +155,3 @@ async def regenerate_single_character(
     except Exception as e:
         logging.error(f"Error validating character: {e}")
         raise ValueError("Failed to validate generated character")
-
