@@ -648,7 +648,7 @@ class DraftGenerator:
                 self._update_character_relevance(best_passage.mentioned_entities),
             ]
             await asyncio.gather(*update_tasks)
-            logger.debug("Finished updating character relevance") 
+            logger.debug("Finished updating character relevance")
 
             return passages
 
@@ -972,35 +972,132 @@ class DraftGenerator:
             return []
 
     def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
-        """Extract important keywords from text"""
+        """Extract important keywords from text using spaCy"""
         if isinstance(text, dict):
             text = " ".join(str(v) for v in text.values())
 
-        # Simple keyword extraction (can be improved)
-        words = text.lower().split()
-        stopwords = {
-            "the",
-            "a",
-            "an",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-        }
-        return [w for w in words if w not in stopwords and len(w) > 3]
+        # Process the text with spaCy
+        doc = self.nlp(text)
+
+        # Extract keywords: nouns and proper nouns
+        keywords = [
+            token.text.lower()
+            for token in doc
+            if token.pos_ in {"NOUN", "PROPN"} and not token.is_stop and len(token) > 3
+        ]
+
+        return list(set(keywords))  # Return unique keywords
 
     def _calculate_readability(self, text: str) -> float:
-        """Calculate a simple readability score"""
-        sentences = text.split(".")
-        words = text.split()
+        """Calculate a readability score using spaCy"""
+        doc = self.nlp(text)
 
-        if not sentences or not words:
+        # Calculate average sentence length
+        num_sentences = len(list(doc.sents))
+        num_words = len(doc)
+        avg_sentence_length = num_words / num_sentences if num_sentences > 0 else 0
+
+        # Calculate word complexity (average syllables per word)
+        num_syllables = sum(token._.syllables_count for token in doc if token.is_alpha)
+        avg_syllables_per_word = num_syllables / num_words if num_words > 0 else 0
+
+        # Simple readability formula: lower is easier to read
+        readability_score = (
+            206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
+        )
+
+        # Normalize to a score between 0 and 1
+        return max(0.0, min(1.0, readability_score / 100))
+
+    async def _evaluate_passages(
+        self, passages: List[GeneratedPassage], context: PassageContext
+    ) -> GeneratedPassage:
+        """
+        Enhanced evaluation of passages incorporating improved heuristics:
+        - Length: Optimally around 500 words.
+        - Coherence: Assessed via sentence-length uniformity (a proxy for smooth transitions).
+        - Keyword Relevance: Overlap between context outline keywords and passage keywords.
+        - Entity Coverage: Match between context entities and entities mentioned in the passage.
+        - Readability: Based on average sentence length approaching an ideal target.
+
+        We use the following weights:
+        - Length: 15%
+        - Coherence: 25%
+        - Keyword Relevance: 25%
+        - Entity Coverage: 15%
+        - Readability: 20%
+        """
+
+        async def score_passage(
+            passage: GeneratedPassage,
+        ) -> Tuple[GeneratedPassage, float]:
+            total_score = 0.0
+
+            # Heuristic: Length Score (optimal at ~500 words)
+            word_count = len(passage.content.split())
+            length_score = max(0.0, 1.0 - abs(500 - word_count) / 500)
+            total_score += length_score * 0.15
+
+            # Coherence Score: using sentence-length uniformity
+            coherence_score = self._calculate_coherence(passage.content)
+            total_score += coherence_score * 0.25
+
+            # Relevance Score: Keyword overlap between context and passage
+            outline_keywords = set(self._extract_keywords(context.current_outline))
+            passage_keywords = set(self._extract_keywords(passage.content))
+            relevance_score = (
+                len(outline_keywords & passage_keywords) / len(outline_keywords)
+                if outline_keywords
+                else 0.0
+            )
+            total_score += relevance_score * 0.25
+
+            # Entity Coverage Score: Overlap of characters/entities
+            outline_entities = set(
+                context.current_outline.get("characters_involved", [])
+            )
+            passage_entities = set(passage.mentioned_entities)
+            entity_score = (
+                len(outline_entities & passage_entities) / len(outline_entities)
+                if outline_entities
+                else 0.0
+            )
+            total_score += entity_score * 0.15
+
+            # Readability Score: existing heuristic based on average sentence length
+            readability_score = self._calculate_readability(passage.content)
+            total_score += readability_score * 0.20
+
+            return passage, total_score
+
+        scored_passages = await asyncio.gather(*(score_passage(p) for p in passages))
+        # Return the passage with the highest total score
+        return max(scored_passages, key=lambda x: x[1])[0]
+
+    def _calculate_coherence(self, text: str) -> float:
+        """
+        Calculate a simple coherence score based on the uniformity of sentence lengths.
+        The idea is that passages with more consistent sentence lengths tend to flow more naturally.
+        This heuristic computes the coefficient of variation (standard deviation divided by mean)
+        and inverts it so that a lower variation yields a higher coherence score.
+        """
+        # Split text into sentences using period as a delimiter.
+        sentences = [s.strip() for s in text.split(".") if s.strip()]
+        if not sentences:
             return 0.0
 
-        avg_sentence_length = len(words) / len(sentences)
-        # Prefer sentences between 10-20 words
-        return 1.0 - abs(15 - avg_sentence_length) / 15
+        # Compute the number of words in each sentence.
+        sentence_lengths = [len(s.split()) for s in sentences]
+        if len(sentence_lengths) <= 1:
+            return 1.0
+
+        mean_length = sum(sentence_lengths) / len(sentence_lengths)
+        variance = sum((l - mean_length) ** 2 for l in sentence_lengths) / (
+            len(sentence_lengths) - 1
+        )
+        std_dev = variance**0.5
+
+        # Coherence is high when the standard deviation is low relative to the mean.
+        # We normalize to a score between 0 and 1.
+        coherence = max(0.0, 1.0 - (std_dev / mean_length))
+        return coherence

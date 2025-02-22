@@ -158,3 +158,4 @@ async def regenerate_single_character(
     except Exception as e:
         logging.error(f"Error validating character: {e}")
         raise ValueError("Failed to validate generated character")
+
