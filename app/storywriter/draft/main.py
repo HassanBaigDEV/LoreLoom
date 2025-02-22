@@ -90,19 +90,6 @@ class DraftGenerator:
             raise ValueError("Story not found")
         return story
 
-    def _find_outline_point(
-        self, outline: OutlineNode, point_id: str
-    ) -> Optional[OutlineNode]:
-        """Recursively find an outline point by ID"""
-        if outline.text == point_id:
-            return outline
-
-        for child in outline.children:
-            result = self._find_outline_point(child, point_id)
-            if result:
-                return result
-        return None
-
     async def retrieve_relevant_context(self, outline_point_id: str) -> PassageContext:
         """Retrieve relevant context for the current outline point"""
         story = await self.load_plan_data()
@@ -238,34 +225,6 @@ class DraftGenerator:
             # Fallback to getting all characters if vector search fails
             return await self._get_all_characters()
 
-    def _count_tokens(self, text: str) -> int:
-        """Count tokens in a text string"""
-        return len(tokenizer.encode(text))
-
-    def _truncate_to_fit(self, sections: List[Tuple[str, str]], max_tokens: int) -> str:
-        """Truncate sections to fit within token limit while preserving priority"""
-        total_tokens = 0
-        result_parts = []
-
-        for section_name, content in sections:
-            tokens = self._count_tokens(content)
-            if total_tokens + tokens <= max_tokens:
-                result_parts.append(f"{section_name}:\n{content}")
-                total_tokens += tokens
-            else:
-                # Truncate this section to fit
-                available_tokens = max_tokens - total_tokens
-                if (
-                    available_tokens > 50
-                ):  # Only include if we can fit meaningful content
-                    truncated = tokenizer.decode(
-                        tokenizer.encode(content)[:available_tokens]
-                    )
-                    result_parts.append(f"{section_name}:\n{truncated}...")
-                break
-
-        return "\n\n".join(result_parts)
-
     def prepare_prompt(self, context: PassageContext) -> str:
         """Prepare the prompt with token management"""
         available_tokens = self.max_tokens - self.token_buffer
@@ -303,7 +262,7 @@ class DraftGenerator:
             ("Previous Context", self._format_summaries(context.previous_summaries)),
         ]
 
-        content = self._truncate_to_fit(sections, available_tokens)
+        # content = self._truncate_to_fit(sections, available_tokens)
 
         prompt = f"""
         <|im_start|>system
@@ -311,7 +270,7 @@ class DraftGenerator:
         that follows the outline point and maintains consistency with the story context.
         
         Story Context:
-        {content}
+        {sections}
         
         Write a passage that:
         1. Advances the story according to the outline point
@@ -329,116 +288,15 @@ class DraftGenerator:
 
         return prompt
 
-    async def _update_character_description(
-        self, character_name: str, passage_text: str
-    ) -> None:
-        """Update character description based on new developments"""
-        try:
-            # Get current character data
-            story = await stories.find_one(
-                {"story_id": ObjectId(self.story_id), "characters.name": character_name}
-            )
-            if not story:
-                logger.info(f"Character {character_name} not found in story")
-                return
-
-            prompt = f"""
-            <|im_start|>system
-            Update character profile based on recent events.
-            Return only the updated fields, excluding the name field.
-            
-            Character: {character_name}
-            Recent events: {passage_text[:500]}
-            <|im_end|>
-            <|im_start|>assistant
-            """
-
-            logger.info(f"Generating updates for character: {character_name}")
-            response = model(prompt, max_tokens=256)
-            if not isinstance(response, dict) or "choices" not in response:
-                logger.error("Invalid model response")
-                return
-
-            try:
-                updates = json.loads(response["choices"][0]["text"].strip())  # type: ignore
-
-                # Remove name field if present to avoid duplication
-                updates.pop("name", None)
-
-                # Create character object with existing name
-                character = Character(name=character_name, **updates)
-
-                logger.info(f"Updating character {character_name} with new details")
-                await stories.update_one(
-                    {
-                        "story_id": ObjectId(self.story_id),
-                        "characters.name": character_name,
-                    },
-                    {
-                        "$set": {
-                            f"characters.$.{k}": v
-                            for k, v in character.model_dump().items()
-                            if k != "name"  # Skip name field in updates
-                        }
-                    },
-                )
-                logger.info(f"Successfully updated character: {character_name}")
-
-            except Exception as e:
-                logger.error(f"Error parsing character update: {e}")
-
-        except Exception as e:
-            logger.error(f"Failed to update character description: {e}")
-
-    async def _update_character_relevance(self, mentioned_entities: List[str]):
-        """Update character relevance scores and descriptions"""
-        MENTION_BOOST = 0.2
-        DECAY_RATE = 0.1
-
-        try:
-            # Prepare batch updates
-            updates = []
-
-            # Decay all scores
-            for char in self.character_relevance:
-                self.character_relevance[char] *= 1 - DECAY_RATE
-                updates.append(
-                    UpdateOne(
-                        {"story_id": ObjectId(self.story_id), "characters.name": char},
-                        {
-                            "$set": {
-                                "characters.$.relevance": self.character_relevance[char]
-                            }
-                        },
-                    )
-                )
-
-            # Boost mentioned characters
-            for entity in mentioned_entities:
-                if entity not in self.character_relevance:
-                    self.character_relevance[entity] = 0
-                self.character_relevance[entity] += MENTION_BOOST
-                updates.append(
-                    UpdateOne(
-                        {
-                            "story_id": ObjectId(self.story_id),
-                            "characters.name": entity,
-                        },
-                        {
-                            "$set": {
-                                "characters.$.relevance": self.character_relevance[
-                                    entity
-                                ]
-                            }
-                        },
-                    )
-                )
-
-            # Execute batch update
-            if updates:
-                await stories.bulk_write(updates)
-        except Exception as e:
-            logger.error(f"Error updating character relevance: {e}")
+    @log_function_call
+    async def _generate(self, prompt, **kwargs) -> str:
+        response = model(
+            prompt,
+            **kwargs,
+        )
+        if not isinstance(response, dict) or "choices" not in response:
+            return ""
+        return response["choices"][0]["text"].strip()  # type: ignore
 
     @log_function_call
     async def generate_passage(self, outline_point_id: str) -> GeneratedPassage:
@@ -448,39 +306,15 @@ class DraftGenerator:
             prompt = self.prepare_prompt(context)
 
             # Generate passage text
-            async def _generate() -> str:
-                response = model(
-                    prompt,
-                    max_tokens=1024,
-                    temperature=0.7,
-                    top_p=0.9,
-                )
-                if not isinstance(response, dict) or "choices" not in response:
-                    return ""
-                return response["choices"][0]["text"].strip()  # type: ignore
-
-            passage_text = await retry_generation(_generate)
+            kwargs = {
+                "max_tokens": 4096,
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "frequency_penalty": 0.3,
+            }
+            passage_text = await retry_generation(self._generate(prompt, **kwargs))
             if not passage_text:
                 raise ValueError("Failed to generate valid passage")
-
-            # Generate summary with validation
-            # async def _generate_summary() -> str:
-            #     summary_prompt = f"""
-            #     <|im_start|>system
-            #     Summarize in one complete sentence:
-            #     {passage_text[:500]}
-            #     <|im_end|>
-            #     <|im_start|>assistant
-            #     """
-            #     summary_response = model(
-            #         summary_prompt,
-            #         max_tokens=128,
-            #         temperature=0.5,
-            #         stream=False,
-            #     )
-            #     return summary_response["choices"][0]["text"] if summary_response.get("choices") else ""  # type: ignore
-
-            # summary = await retry_generation(_generate_summary)
 
             summary_task = self._generate_summary(passage_text)
             entities_task = self._extract_entities(passage_text)
@@ -600,8 +434,119 @@ class DraftGenerator:
             logger.error(f"Error formatting summaries: {e}")
             return ""
 
+    async def _update_character_relevance(self, mentioned_entities: List[str]):
+        """Update character relevance scores and descriptions"""
+        MENTION_BOOST = 0.2
+        DECAY_RATE = 0.1
+
+        try:
+            # Prepare batch updates
+            updates = []
+
+            # Decay all scores
+            for char in self.character_relevance:
+                self.character_relevance[char] *= 1 - DECAY_RATE
+                updates.append(
+                    UpdateOne(
+                        {"story_id": ObjectId(self.story_id), "characters.name": char},
+                        {
+                            "$set": {
+                                "characters.$.relevance": self.character_relevance[char]
+                            }
+                        },
+                    )
+                )
+
+            # Boost mentioned characters
+            for entity in mentioned_entities:
+                if entity not in self.character_relevance:
+                    self.character_relevance[entity] = 0
+                self.character_relevance[entity] += MENTION_BOOST
+                updates.append(
+                    UpdateOne(
+                        {
+                            "story_id": ObjectId(self.story_id),
+                            "characters.name": entity,
+                        },
+                        {
+                            "$set": {
+                                "characters.$.relevance": self.character_relevance[
+                                    entity
+                                ]
+                            }
+                        },
+                    )
+                )
+
+            # Execute batch update
+            if updates:
+                await stories.bulk_write(updates)
+        except Exception as e:
+            logger.error(f"Error updating character relevance: {e}")
+
+    async def _update_character_description(
+        self, character_name: str, passage_text: str
+    ) -> None:
+        """Update character description based on new developments"""
+        try:
+            # Get current character data
+            story = await stories.find_one(
+                {"story_id": ObjectId(self.story_id), "characters.name": character_name}
+            )
+            if not story:
+                logger.info(f"Character {character_name} not found in story")
+                return
+
+            prompt = f"""
+            <|im_start|>system
+            Update character profile based on recent events.
+            Return only the updated fields, excluding the name field.
+            
+            Character: {character_name}
+            Recent events: {passage_text[:500]}
+            <|im_end|>
+            <|im_start|>assistant
+            """
+
+            logger.info(f"Generating updates for character: {character_name}")
+            response = model(prompt, max_tokens=256)
+            if not isinstance(response, dict) or "choices" not in response:
+                logger.error("Invalid model response")
+                return
+
+            try:
+                updates = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+
+                # Remove name field if present to avoid duplication
+                updates.pop("name", None)
+
+                # Create character object with existing name
+                character = Character(name=character_name, **updates)
+
+                logger.info(f"Updating character {character_name} with new details")
+                await stories.update_one(
+                    {
+                        "story_id": ObjectId(self.story_id),
+                        "characters.name": character_name,
+                    },
+                    {
+                        "$set": {
+                            f"characters.$.{k}": v
+                            for k, v in character.model_dump().items()
+                            if k != "name"  # Skip name field in updates
+                        }
+                    },
+                )
+                logger.info(f"Successfully updated character: {character_name}")
+
+            except Exception as e:
+                logger.error(f"Error parsing character update: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to update character description: {e}")
+
     @classmethod
-    async def test_llm(cls):
+    async def test_llm(cls) -> bool:
         """Test if the LLM is working properly"""
         try:
             test_prompt = """
@@ -640,44 +585,25 @@ class DraftGenerator:
             base_prompt = self.prepare_prompt(context)
             logger.debug("Prepared base prompt")
 
-            # Batch generate multiple variations in a single prompt
-            batch_prompt = f"""
-            <|im_start|>system
-            You are an expert story writer. Generate multiple variations of a passage based on the given context.
-            Context:
-            {base_prompt}
-            Return a list of passages, each on a new line,ending with [PASSAGE_END].
-            <|im_end|>
-            <|im_start|>assistant
-            """
-
             # Get logit bias
             logit_bias = get_logit_bias()
             logger.debug("Retrieved logit bias settings")
 
-            async def _generate() -> str:
-                logger.debug("Calling model to generate passages")
-                response = model(
-                    batch_prompt,
-                    max_tokens=1024 * num_variations,
-                    logit_bias=logit_bias,
-                    temperature=0.7,
-                    frequency_penalty=0.3,  # Reduce repetition
-                    presence_penalty=0.3,  # Encourage diversity
-                )
-                if not isinstance(response, dict) or "choices" not in response:
-                    logger.error("Model response was invalid")
-                    return ""
-                return response["choices"][0]["text"].strip()  # type: ignore
-
+            raw_passages = []
             # Add retry logic for generation like in generate_passage
-            raw_text = await retry_generation(_generate)
-            if not raw_text:
-                logger.error("Failed to generate valid passages after retries")
-                raise ValueError("Failed to generate valid passages")
+            for i in range(num_variations):
+                kwargs = {
+                    "max_tokens": None,
+                    "temperature": 0.7,
+                    "top_p": 0.9,
+                    "frequency_penalty": 0.3,
+                }
+                raw_text = await retry_generation(self._generate(base_prompt, **kwargs))
+                if not raw_text:
+                    logger.error("Failed to generate valid passages after retries")
+                    raise ValueError("Failed to generate valid passages")
+                raw_passages.append(raw_text)
 
-            logger.debug("Successfully generated raw passages")
-            raw_passages = raw_text.split("[PASSAGE_END]")
             logger.debug(f"Split into {len(raw_passages)} raw passages")
 
             # Process passages using PassageProcessor
@@ -708,13 +634,21 @@ class DraftGenerator:
 
             # Store passages using PassageProcessor
             logger.debug("Storing passages in database")
-            await PassageProcessor.store_passages(passages, best_passage)
+
+            # await PassageProcessor.store_passages(passages, best_passage)
 
             # Process new entities for best passage only
             logger.debug("Processing entities for best passage")
-            await self._process_new_entities(best_passage, context)
-            await self._update_character_relevance(best_passage.mentioned_entities)
-            logger.debug("Finished updating character relevance")
+
+            # await self._process_new_entities(best_passage, context)
+            # await self._update_character_relevance(best_passage.mentioned_entities)
+            update_tasks = [
+                self._store_passage(best_passage),
+                self._process_new_entities(best_passage, context),
+                self._update_character_relevance(best_passage.mentioned_entities),
+            ]
+            await asyncio.gather(*update_tasks)
+            logger.debug("Finished updating character relevance") 
 
             return passages
 
