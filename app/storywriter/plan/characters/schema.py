@@ -17,8 +17,8 @@ class Character(BaseModel):
     relationships: dict
     likesAndDislikes: Dict[str, List[str]] = {"Likes": [], "Dislikes": []}
 
-    class Config:
-        json_schema_extra = {"additionalProperties": False}
+    # class Config:
+    #     json_schema_extra = {"additionalProperties": False}
 
 
 character_schema = json.dumps(Character.model_json_schema())

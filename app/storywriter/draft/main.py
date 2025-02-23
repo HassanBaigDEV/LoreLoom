@@ -28,6 +28,7 @@ from app.utils.text_validation import (
     retry_generation,
     is_complete_sentence,
     get_logit_bias,
+    extract_and_parse_json,
 )
 from .rewrite.main import PassageRewriter
 from .passage_processor import PassageProcessor
@@ -507,47 +508,167 @@ class DraftGenerator:
             prompt = f"""
             <|im_start|>system
             Update character profile based on recent events.
-            Return only the updated fields, excluding the name field.
-            
+            Return only the entire json object following the schema below. Update the required fields only and keep the rest as is.
+            the json object should be valid and follow the schema.
+            ###Example of a correctly formatted response:
+            {{
+            "name": "Ancient Temple of Whispers",
+            "type": "location",
+            "role": "Sacred Site",
+            "physicalAppearance": "A towering structure of weathered stone, covered in glowing runes and surrounded by mist.",
+            "behavioralPatterns": "The temple seems to respond to visitors' emotions, with its runes glowing brighter or dimmer.",
+            "genderAndSexualOrientation": "N/A",
+            "relationships": {{
+                "Ayla Windsong": "Current Guardian",
+                "Magic Staff": "Source of its power",
+                "Dark Cultists": "Those who seek to corrupt it"
+            }},
+            "likesAndDislikes": {{
+                "Likes": ["Pure magic", "Worthy guardians", "Ancient rituals"],
+                "Dislikes": ["Dark magic", "Corruption", "Desecration"]
+            }}
+        }}
+        
+            ###Context:
             Character: {character_name}
-            Recent events: {passage_text[:500]}
+            Recent events: {passage_text}
+            ###Instructions:
+            response should only include json object that can directly be parsed.
+            ###Schema:
+            \n<schema>\n{character_schema}\n</schema>
+
+
             <|im_end|>
             <|im_start|>assistant
             """
 
             logger.info(f"Generating updates for character: {character_name}")
-            response = model(prompt, max_tokens=256)
+            response = model._json(
+                prompt,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "Character",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "The name of the character/entity/location",
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "description": "The type of entity. Must be one of: character, entity, or location.",
+                                },
+                                "role": {
+                                    "type": "string",
+                                    "description": "The role or function in the story",
+                                },
+                                "physicalAppearance": {
+                                    "type": "string",
+                                    "description": "The physical appearance of the character/entity/location",
+                                },
+                                "behavioralPatterns": {
+                                    "type": "string",
+                                    "description": "The behavioral patterns of the character/entity/location",
+                                },
+                                "genderAndSexualOrientation": {
+                                    "type": "string",
+                                    "description": "The gender and sexual orientation of the character/entity/location",
+                                },
+                                "relationships": {
+                                    "type": "object",
+                                    "description": "The relationships of the character/entity/location",
+                                    "additionalProperties": {
+                                        "type": "string",
+                                        "description": "The relationship description",
+                                    },
+                                },
+                                "likesAndDislikes": {
+                                    "type": "object",
+                                    "description": "The likes and dislikes of the character/entity/location",
+                                    "properties": {
+                                        "Likes": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "List of likes",
+                                        },
+                                        "Dislikes": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                            "description": "List of dislikes",
+                                        },
+                                    },
+                                    "required": ["Likes", "Dislikes"],
+                                },
+                            },
+                            "required": [
+                                "name",
+                                "type",
+                                "role",
+                                "physicalAppearance",
+                                "behavioralPatterns",
+                                "genderAndSexualOrientation",
+                                "relationships",
+                                "likesAndDislikes",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+            )
             if not isinstance(response, dict) or "choices" not in response:
                 logger.error("Invalid model response")
                 return
+            print("ssssssssssssssssssssssssss")
+            print(response)
 
             try:
-                updates = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+                raw_text = response["choices"][0]["text"]
+                updates = extract_and_parse_json(raw_text)
+
+                if not updates:
+                    raise ValueError("Failed to parse JSON response")
 
                 # Remove name field if present to avoid duplication
-                updates.pop("name", None)
+                # updates.pop("name", None)
+                # get character name from the updates object
+                character_name = updates["name"]
 
-                # Create character object with existing name
-                character = Character(name=character_name, **updates)
-
-                logger.info(f"Updating character {character_name} with new details")
-                await stories.update_one(
-                    {
-                        "story_id": ObjectId(self.story_id),
-                        "characters.name": character_name,
-                    },
-                    {
-                        "$set": {
-                            f"characters.$.{k}": v
-                            for k, v in character.model_dump().items()
-                            if k != "name"  # Skip name field in updates
-                        }
-                    },
+                # Find the character with the same name (ignoring case) in the story's characters list
+                character = next(
+                    (
+                        c
+                        for c in story["characters"]
+                        if c["name"].lower() == character_name.lower()
+                    ),
+                    None,
                 )
-                logger.info(f"Successfully updated character: {character_name}")
+                if character:
+                    # Update the character locally (if you need to update your in-memory story)
+                    story["characters"] = [
+                        updates if c["name"].lower() == character_name.lower() else c
+                        for c in story["characters"]
+                    ]
 
+                    # Update the entire character object in the database.
+                    # We use a regex filter to perform a case-insensitive match.
+                    await stories.update_one(
+                        {
+                            "story_id": ObjectId(self.story_id),
+                            "characters.name": {
+                                "$regex": f"^{character_name}$",
+                                "$options": "i",
+                            },
+                        },
+                        {"$set": {"characters.$": updates}},
+                    )
+                    logger.info(f"Successfully updated character: {character_name}")
+                else:
+                    logger.error(f"Character {character_name} not found in story")
             except Exception as e:
-                logger.error(f"Error parsing character update: {e}")
+                logger.error(f"Error processing character update: {e}")
 
         except Exception as e:
             logger.error(f"Failed to update character description: {e}")
@@ -597,7 +718,8 @@ class DraftGenerator:
             logger.debug("Retrieved logit bias settings")
 
             raw_passages: List[str] = []
-            # Add retry logic for generation like in generate_passage
+            # Generate passages in parallel
+            generation_tasks = []
             for i in range(num_variations):
                 kwargs = {
                     "max_tokens": None,
@@ -605,11 +727,18 @@ class DraftGenerator:
                     "top_p": 0.9,
                     "frequency_penalty": 0.3,
                 }
-                raw_text = await retry_generation(self._generate(base_prompt, **kwargs))
-                if not raw_text:
-                    logger.error("Failed to generate valid passages after retries")
-                    raise ValueError("Failed to generate valid passages")
-                raw_passages.append(raw_text)
+                # Create task for each generation attempt
+                task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
+                generation_tasks.append(task)
+            # Wait for all generations to complete
+            raw_passages_results = await asyncio.gather(*generation_tasks)
+            raw_passages = [
+                p for p in raw_passages_results if p
+            ]  # Filter out None values
+
+            if not raw_passages:
+                logger.error("Failed to generate valid passages after retries")
+                raise ValueError("Failed to generate valid passages")
 
             logger.debug(f"Split into {len(raw_passages)} raw passages")
 
@@ -1011,25 +1140,46 @@ class DraftGenerator:
         return list(set(keywords))  # Return unique keywords
 
     def _calculate_readability(self, text: str) -> float:
-        """Calculate a readability score using spaCy"""
-        doc = self.nlp(text)
+        """
+        Calculate a readability score using spaCy.
+        Uses a simplified version of the Flesch Reading Ease score,
+        normalized to a 0-1 scale where 1 is most readable.
+        """
+        try:
+            doc = self.nlp(text)
 
-        # Calculate average sentence length
-        num_sentences = len(list(doc.sents))
-        num_words = len(doc)
-        avg_sentence_length = num_words / num_sentences if num_sentences > 0 else 0
+            # Get sentences and words
+            sentences = list(doc.sents)
+            words = [
+                token for token in doc if not token.is_punct and not token.is_space
+            ]
 
-        # Calculate word complexity (average syllables per word)
-        num_syllables = sum(token._.syllables_count for token in doc if token.is_alpha)
-        avg_syllables_per_word = num_syllables / num_words if num_words > 0 else 0
+            if not sentences or not words:
+                return 0.0
 
-        # Simple readability formula: lower is easier to read
-        readability_score = (
-            206.835 - (1.015 * avg_sentence_length) - (84.6 * avg_syllables_per_word)
-        )
+            # Calculate metrics
+            avg_sentence_length = len(words) / len(sentences)
+            avg_word_length = sum(len(word.text) for word in words) / len(words)
 
-        # Normalize to a score between 0 and 1
-        return max(0.0, min(1.0, readability_score / 100))
+            # Complex words are those with more than 2 syllables
+            # Approximate syllables using character length and consonant clusters
+            complex_words = sum(1 for word in words if len(word.text) > 6)
+            complex_word_ratio = complex_words / len(words)
+
+            # Calculate readability (simplified Flesch formula)
+            # Higher score = more readable
+            base_score = (
+                206.835 - (1.015 * avg_sentence_length) - (84.6 * complex_word_ratio)
+            )
+
+            # Normalize to 0-1 range
+            normalized_score = max(0.0, min(1.0, base_score / 100))
+
+            return normalized_score
+
+        except Exception as e:
+            logger.error(f"Error calculating readability: {e}")
+            return 0.0
 
     async def _evaluate_passages(
         self, passages: List[GeneratedPassage], context: PassageContext

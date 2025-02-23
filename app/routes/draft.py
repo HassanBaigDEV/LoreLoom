@@ -64,7 +64,7 @@ async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
         draft_gen = DraftGenerator(story_id)
 
         # Generate passage
-        passage = await draft_gen.generate_passage(outline_point_id)
+        passage = draft_gen.generate_passage(outline_point_id)
 
         return passage
     except ValueError as ve:

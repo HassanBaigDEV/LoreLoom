@@ -38,6 +38,23 @@ class LLMClient:
             logger.error(f"LLM call failed: {e}")
             raise
 
+    def _json(self, prompt: str, response_format: dict, **kwargs) -> dict:
+        try:
+            messages = self._format_prompt(prompt)
+            completion = self.client.beta.chat.completions.parse(
+                extra_headers=self.extra_headers,
+                model=self.model,
+                messages=messages,
+                response_format=response_format,
+                **kwargs,
+            )
+            print(completion)
+            print(completion.choices[0].message.content)
+            return {"choices": [{"text": completion.choices[0].message.content}]}
+        except Exception as e:
+            logger.error(f"LLM call failed: {e}")
+            raise
+
     def _format_prompt(self, prompt: str) -> list:
         """Convert llama.cpp style prompts to ChatCompletion format"""
         parts = prompt.split("<|im_start|>")
