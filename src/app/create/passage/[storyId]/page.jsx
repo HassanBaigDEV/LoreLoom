@@ -323,6 +323,7 @@ export default function PassagePage({ params }) {
           <StoryElementsPanel
             storyElements={storyElements}
             onUpdate={fetchStoryElements}
+            storyId={storyId}
           />
         </Drawer>
 
@@ -366,6 +367,7 @@ export default function PassagePage({ params }) {
           <StoryElementsPanel
             storyElements={storyElements}
             onUpdate={fetchStoryElements}
+            storyId={storyId}
           />
         </Drawer>
       </Box>

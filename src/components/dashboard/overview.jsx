@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import gen from "@/assets/images/gen.webp";
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export default function DashboardOverview() {
   const router = useRouter();
-  const [user, setUser, isLoading] = useLocalStorage('user');
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+  const [user] = useLocalStorage("user");
 
   if (!user) {
     return null;
