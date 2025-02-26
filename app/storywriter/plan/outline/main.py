@@ -12,6 +12,7 @@ from app.config.mongo import stories
 
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ValidationError
+from ....utils.text_validation import extract_and_parse_json
 
 # Define the schema templates for prompts
 OUTLINE_NODE_EXAMPLE = """
@@ -91,7 +92,6 @@ async def generate_node_details(node: OutlineNode, plan: dict) -> None:
     Generate detailed information for the following story event:
     "{node.text}"
     Example of a correctly formatted response:
-    ```json
     {OUTLINE_NODE_EXAMPLE}
 
     Based on:
@@ -108,11 +108,16 @@ async def generate_node_details(node: OutlineNode, plan: dict) -> None:
     try:
         response = model(prompt, max_tokens=512)
         response_text = response["choices"][0]["text"].strip()  # type: ignore
-        details = json.loads(response_text)
+        details = extract_and_parse_json(response_text)
 
-        node.scene = SceneDetail(**details["scene"])
-        node.event = EventDetail(**details["event"])
-        node.entities = [EntityInvolvement(**entity) for entity in details["entities"]]
+        if details:
+            node.event = EventDetail(**details["event"])
+            node.entities = [
+                EntityInvolvement(**entity) for entity in details["entities"]
+            ]
+        else:
+            logging.error("Details are None, cannot assign event and entities.")
+            raise ValueError("Details are None, cannot assign event and entities.")
     except Exception as e:
         logging.error(f"Error generating node details: {e}")
 
@@ -225,40 +230,39 @@ NUMBERED_OUTLINE_SCHEMA = json.dumps(NumberedEvent.model_json_schema())
 
 
 async def create_numbered_outline(
-    story_id: str, num_events: int, continue_from_previous: bool = False
+    story_id: str, num_events: int, point_index:int,continue_from_previous: bool = False
 ) -> List[Dict]:
     """Create a numbered outline for a specified number of events."""
     try:
-        # Fetch the existing story document
         story = await stories.find_one({"story_id": ObjectId(story_id)})
         if not story:
             raise ValueError("Story not found")
 
-        # Initialize the outline
-        outline: List[Dict] = []
-        start_index = 1
-
-        if continue_from_previous and "outline" in story:
+        existing_outline = []
+        if continue_from_previous:
             existing_outline = story.get("outline", [])
-            if isinstance(existing_outline, list):
-                outline = existing_outline
-                start_index = len(outline) + 1
-        # Generate new events
-        for i in range(start_index, start_index + num_events):
+            if not isinstance(existing_outline, list):
+                existing_outline = []
+
+        new_events = []
+        start_index = len(existing_outline) + 1
+        end_index = start_index + num_events - 1
+
+        for i in range(start_index, end_index + 1):
             event_prompt = f"""
             <|im_start|>system
             You are an AI assistant helping a writer create a story outline. The writer has requested your help to generate a numbered outline for their story. Your task is to generate a specific event for the story based on the given premise, setting, and characters. Each event should be unique, engaging, and contribute to the overall narrative. You only write json data based on the given schema.
             The output should be structured in a strict JSON format.
             <|im_end|>
             <|im_start|>user
-            Generate event {i} for the story based on:
+            Generate event {str(point_index)} for the story based on:
             Title: {story.get('title', '')}
             Premise: {story.get('premise', '')}
             Setting: {story.get('setting', '')}
             Characters: {json.dumps(story.get('characters', []), indent=2)}
 
             Previous events:
-            {json.dumps(outline, indent=2) if outline else "None yet."}
+            {json.dumps(existing_outline, indent=2) if existing_outline else "None yet."}
 
             Example of a correctly formatted response:
             
@@ -274,39 +278,119 @@ async def create_numbered_outline(
     }}
     
     
-            ```
 
-            Here's the JSON schema you must adhere to:\n<schema>\n{NUMBERED_OUTLINE_SCHEMA}\n</schema>.
             Generate the next outline event for the story.
+            ###Instructions:
+            response should only include json object that can directly be parsed.
+            ###Schema:
+            \n<schema>\n{NUMBERED_OUTLINE_SCHEMA}\n</schema>.
             <|im_end|>
             <|im_start|>assistant
             """
 
             try:
-                response = model(event_prompt, max_tokens=1024)
+                response = await model._json(
+                    event_prompt,
+                    max_tokens=1024,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "NumberedOutline",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "events": {
+                                        "type": "array",
+                                        "description": "List of events forming the numbered outline.",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "number": {
+                                                    "type": "string",
+                                                    "description": "Event number +1 the number of the last event.",
+                                                },
+                                                "title": {
+                                                    "type": "string",
+                                                    "description": "Brief event title.",
+                                                    "nullable": False,
+                                                },
+                                                "description": {
+                                                    "type": "string",
+                                                    "description": "Detailed event description.",
+                                                    "nullable": False,
+                                                },
+                                                "purpose": {
+                                                    "type": "string",
+                                                    "description": "Story purpose of this event.",
+                                                    "nullable": False,
+                                                },
+                                                "characters_involved": {
+                                                    "type": "array",
+                                                    "description": "List of characters/entity/locations involved in the event.",
+                                                    "items": {"type": "string"},
+                                                },
+                                                "setting": {
+                                                    "type": "string",
+                                                    "description": "Location and time period of the event.",
+                                                    "nullable": False,
+                                                },
+                                                "estimated_duration": {
+                                                    "type": "string",
+                                                    "description": "Approximate scene length.",
+                                                    "nullable": False,
+                                                },
+                                            },
+                                            "required": [
+                                                "number",
+                                                "characters_involved",
+                                                "description",
+                                                "estimated_duration",
+                                                "purpose",
+                                                "setting",
+                                                "title",
+                                            ],
+                                            "additionalProperties": False,
+                                        },
+                                    }
+                                },
+                                "required": ["events"],
+                                "additionalProperties": False,
+                            },
+                        },
+                    },
+                )
                 response_text = response["choices"][0]["text"]  # type:ignore
-                print(f"Generated event {i}: {response_text}")
-                
+                print(f"Generated event {point_index}: {response_text}")
+
                 try:
-                    event_data = json.loads(response_text)
-                    outline.append(event_data)
+                    event_data = extract_and_parse_json(response_text)
+                    if event_data is not None:
+                        if event_data.get("number") != str(point_index):
+                            logging.warning(
+                                f"Event number mismatch. Expected {point_index}, got {event_data.get('number')}"
+                            )
+                            event_data["number"] = str(i)
+
+                        new_events.append(event_data)
                 except json.JSONDecodeError as e:
                     logging.error(f"Failed to parse event JSON: {e}")
                     raise ValueError(f"Invalid event data format: {response_text}")
 
             except Exception as e:
-                logging.error(f"Error generating event {i}: {e}")
-                raise ValueError("Event generation failed")
-                # Add a simple placeholder if generation fails
-                # outline.append(f"{i}. [Event generation failed]")
+                logging.error(f"Skipping invalid event {i}: {e}")
+                continue
 
-        # Save the updated outline
-        await stories.update_one(
-            {"story_id": ObjectId(story_id)},
-            {"$set": {"outline": outline, "updated_at": datetime.utcnow()}},
-        )
+        if new_events:
+            await stories.update_one(
+                {"story_id": ObjectId(story_id)},
+                {
+                    "$push": {"outline": {"$each": new_events}},
+                    "$set": {"updated_at": datetime.utcnow()},
+                },
+            )
 
-        return outline
+        return existing_outline + new_events
     except Exception as e:
         logging.error(f"Error creating numbered outline: {e}")
         raise
@@ -445,6 +529,7 @@ async def create_numbered_outline(
 
 #     return root_node
 
+
 # Define strict schema for an Outline Node
 class OutlineNodeSchema(BaseModel):
     number: str
@@ -458,9 +543,10 @@ class OutlineNodeSchema(BaseModel):
     event_type: str
     children: List["OutlineNodeSchema"] = []
 
+
 async def generate_full_outline(story_id: str, max_depth: int = 2) -> OutlineNodeSchema:
     """Generate a complete story outline with schema validation and error handling."""
-    
+
     try:
         # Fetch story data
         story = await stories.find_one({"story_id": ObjectId(story_id)})
@@ -498,20 +584,29 @@ async def generate_full_outline(story_id: str, max_depth: int = 2) -> OutlineNod
 
                 for idx, event in enumerate(subevents, start=1):
                     try:
-                        child_node = OutlineNodeSchema(
-                            number=str(idx),
-                            title=event.get("title", "Untitled Event"),
-                            description=event.get("description", "No description available"),
-                            purpose=event.get("purpose", ""),
-                            characters_involved=event.get("characters_involved", []),
-                            setting=event.get("setting", plan.get("setting", "")),
-                            estimated_duration=event.get("estimated_duration", "Unknown"),
-                            depth=depth + 1,
-                            event_type="scene" if depth + 1 == max_depth else "chapter",
-                            children=[],
-                        )
-                        current_node.children.append(child_node)
-                        nodes_to_expand.append((child_node, depth + 1))
+                        if isinstance(event, dict):
+                            child_node = OutlineNodeSchema(
+                                number=str(idx),
+                                title=event.get("title", "Untitled Event"),
+                                description=event.get(
+                                    "description", "No description available"
+                                ),
+                                purpose=event.get("purpose", ""),
+                                characters_involved=event.get(
+                                    "characters_involved", []
+                                ),
+                                setting=event.get("setting", plan.get("setting", "")),
+                                estimated_duration=event.get(
+                                    "estimated_duration", "Unknown"
+                                ),
+                                depth=depth + 1,
+                                event_type=(
+                                    "scene" if depth + 1 == max_depth else "chapter"
+                                ),
+                                children=[],
+                            )
+                        current_node.children.append(child_node)  # type: ignore
+                        nodes_to_expand.append((child_node, depth + 1))  # type: ignore
                     except ValidationError as e:
                         logging.error(f"Invalid event structure: {e}")
                         continue

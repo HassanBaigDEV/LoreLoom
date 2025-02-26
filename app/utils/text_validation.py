@@ -4,9 +4,10 @@ from typing import Optional, Callable, Mapping, Dict
 from functools import wraps
 import tiktoken
 import asyncio
-import json
+import json5
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def is_complete_sentence(text: str) -> bool:
@@ -74,42 +75,44 @@ def get_logit_bias() -> Dict[str, float]:
     return logit_bias
 
 
+import re
+import json5
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+
 def extract_and_parse_json(text: str) -> Optional[dict]:
-    """Robust JSON extraction and parsing with error handling."""
+    """Extract and parse JSON from text, handling markdown code blocks if present."""
     try:
-        # Remove markdown fences if present
-        if "```json" in text:
-            # Split off the part after "```json"
-            text = text.split("```json", 1)[1]
-        if "```" in text:
-            # Remove everything after the closing fence
-            text = text.split("```", 1)[0]
+        # Attempt to extract JSON content from a markdown code block.
+        # This regex looks for code fences with optional "json" after the backticks.
+        code_block_match = re.search(
+            r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.DOTALL | re.IGNORECASE
+        )
+        if code_block_match:
+            json_str = code_block_match.group(1)
+        else:
+            # Fallback: locate the first JSON object in the text.
+            start = text.find("{")
+            end = text.rfind("}")
+            logger.debug(text)
+            logger.debug(f"JSON start: {start}, end: {end}")
+            if start == -1 or end == -1 or start >= end:
+                logger.error("No JSON structure found in the text.")
+                return None
+            json_str = text[start : end + 1]
 
-        # Trim leading/trailing whitespace
-        text = text.strip()
+        # Clean up the extracted JSON string.
+        json_str = json_str.strip()
+        logger.debug(f"Extracted JSON string: {json_str}")
 
-        # Extract the substring from the first { to the last }
-        start = text.find("{")
-        end = text.rfind("}")
-        if start == -1 or end == -1:
-            logger.error("No JSON brackets found")
-            return None
+        # Parse the JSON string using JSON5 for added flexibility.
+        parsed = json5.loads(json_str)
+        return parsed if isinstance(parsed, dict) else None
 
-        json_str = text[start : end + 1]
-        # Remove problematic characters
-        json_str = json_str.replace("\n", " ").replace('\\"', '"')
-
-        # Handle common formatting issues
-        json_str = json_str.replace("'", '"')  # Replace single quotes
-        json_str = json_str.replace("True", "true").replace("False", "false")
-
-        # Attempt to parse the JSON string directly without altering quotes
-        return json.loads(json_str)
-
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {e}")
-        logger.debug(f"Problematic JSON string: {json_str}")
-        return None
     except Exception as e:
-        logger.error(f"Error parsing JSON: {e}")
+        logger.error(f"JSON parse error: {str(e)}")
+        logger.debug(f"Problematic content: {text}")
         return None

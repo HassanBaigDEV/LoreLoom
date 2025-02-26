@@ -12,7 +12,7 @@ from app.config.mongo import stories, db
 from app.storywriter.draft.passage_processor import PassageProcessor
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -64,7 +64,7 @@ async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
         draft_gen = DraftGenerator(story_id)
 
         # Generate passage
-        passage = draft_gen.generate_passage(outline_point_id)
+        passage = await draft_gen.generate_passage(outline_point_id)
 
         return passage
     except ValueError as ve:
@@ -324,6 +324,7 @@ async def update_passage(passage_id: str, update: PassageUpdateRequest):
     """Update a passage with new content and create revision"""
     try:
         # Get original passage
+        # logger.debug(update.model_dump_json())
         passage = await passages.find_one({"passage_id": passage_id})
         if not passage:
             raise HTTPException(status_code=404, detail="Passage not found")
@@ -331,7 +332,11 @@ async def update_passage(passage_id: str, update: PassageUpdateRequest):
         # Create passage processor
         processor = PassageProcessor()
 
-        # Update passage
+        # # Update passage
+        # # print(passage)
+        # # print passage json object
+        # print(passage)
+
         updated_passage = await processor.update_passage(
             GeneratedPassage(**passage), update.content, update.user_id
         )

@@ -38,18 +38,18 @@ class LLMClient:
             logger.error(f"LLM call failed: {e}")
             raise
 
-    def _json(self, prompt: str, response_format: dict, **kwargs) -> dict:
+    async def _json(self, prompt: str, response_format: dict, **kwargs) -> dict:
         try:
             messages = self._format_prompt(prompt)
-            completion = self.client.beta.chat.completions.parse(
+            completion = self.client.chat.completions.create(
                 extra_headers=self.extra_headers,
                 model=self.model,
                 messages=messages,
-                response_format=response_format,
+                response_format=response_format,  # type: ignore
                 **kwargs,
             )
-            print(completion)
-            print(completion.choices[0].message.content)
+            # print(completion)
+            # print(completion.choices[0].message.content)
             return {"choices": [{"text": completion.choices[0].message.content}]}
         except Exception as e:
             logger.error(f"LLM call failed: {e}")

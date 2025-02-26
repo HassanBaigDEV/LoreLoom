@@ -3,6 +3,7 @@ from turtle import st
 from fastapi import APIRouter, HTTPException, Body
 from typing import List, Dict, Optional
 from bson import ObjectId
+from regex import P
 from app.models.story import Story
 from app.config.mongo import stories
 from datetime import datetime
@@ -12,7 +13,10 @@ from pydantic import BaseModel
 # Import the generator functions
 from app.storywriter.plan.plot.premise import generate_title, generate_premise
 from app.storywriter.plan.plot.settings import generate_setting
-from app.storywriter.plan.characters.main import generate_characters, regenerate_single_character
+from app.storywriter.plan.characters.main import (
+    generate_characters,
+    regenerate_single_character,
+)
 from app.storywriter.plan.outline.main import (
     generate_full_outline,
     create_numbered_outline,
@@ -201,22 +205,27 @@ async def get_characters(story_id: str, user_id: str):
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/generate-full-outline/{story_id}")
+class OutlineRequest(BaseModel):
+    max_depth: int = 2
+    continue_from_previous: bool = False
+
+
+@router.post("/generate-full-outline/{story_id}")
 async def get_full_outline(
-    story_id: str,
-    user_id: str,
-    max_depth: int = 2,
-    continue_from_previous: bool = False,
+    story_id: str, user_id: str, outline_request: OutlineRequest = Body(...)
 ):
     logging.info(
-        "Generating full outline", story_id, user_id, max_depth, continue_from_previous
+        "Generating full outline",
+        story_id,
+        user_id,
+        outline_request.max_depth,
+        outline_request.continue_from_previous,
     )
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
         if not story:
-            # raise HTTPException(status_code=404, detail="Story not found")
             logging.error("Story not found")
             return HTTPException(status_code=404, detail="Story not found")
 
@@ -228,34 +237,19 @@ async def get_full_outline(
                 detail="Title, premise, setting, and characters must be generated first",
             )
 
-        # root_node = await generate_full_outline(
-        #     story_id,
-        #     max_depth,
-        # )
-
-        # # return root_node.model_dump()
-        # outline = await create_numbered_outline(
-        #     story_id,
-        #     num_events=max_depth,
-        #     continue_from_previous=continue_from_previous,
-        # )
-        # return outline
-        # return root_node.model_dump()
         outline = await create_numbered_outline(
             story_id,
-            num_events=max_depth,
-            continue_from_previous=continue_from_previous,
+            num_events=outline_request.max_depth,
+            continue_from_previous=outline_request.continue_from_previous,
         )
         return outline
 
     except ValueError:
-        # raise HTTPException(status_code=400, detail="Invalid ID format")
         logging.error("Invalid ID format")
         return HTTPException(
             status_code=400, detail="Invalid ID format or story not found"
         )
     except Exception as e:
-        # raise HTTPException(status_code=500, detail=str(e))
         logging.error(f"Exception: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
@@ -652,14 +646,11 @@ async def regenerate_outline_point(
         outline = story.get("outline", [])
 
         # Find the index of the point to regenerate
-        point_index = next(
-            (
-                i
-                for i, point in enumerate(outline)
-                if point["number"] == data.point_number
-            ),
-            None,
-        )
+        point_index = None
+        for i, point in enumerate(outline):
+            if point["number"] == data.point_number:
+                point_index = i+1
+                break
 
         if point_index is None:
             return HTTPException(
@@ -670,6 +661,7 @@ async def regenerate_outline_point(
         new_point = await create_numbered_outline(
             story_id,
             num_events=1,
+            point_index=point_index,
             continue_from_previous=True,  # This will help maintain narrative flow
         )
 
@@ -711,7 +703,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
         logging.info(
             f"Regenerating character: story_id={story_id}, character_name={data.character_name}"
         )
-        
+
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
@@ -720,30 +712,26 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
 
         # Get the current characters
         characters = story.get("characters", [])
-        
+
         # Find the index of the character to regenerate
         char_index = next(
             (
-                i 
-                for i, char in enumerate(characters) 
+                i
+                for i, char in enumerate(characters)
                 if char["name"] == data.character_name
             ),
             None,
         )
-        
+
         if char_index is None:
             return HTTPException(
-                status_code=404, 
-                detail=f"Character {data.character_name} not found"
+                status_code=404, detail=f"Character {data.character_name} not found"
             )
 
         try:
             # Generate new character using the single character regeneration function
             new_character = await regenerate_single_character(
-                story_id,
-                story["premise"],
-                story["setting"],
-                data.character_name
+                story_id, story["premise"], story["setting"], data.character_name
             )
 
             # Update the characters list with the new character
@@ -766,7 +754,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
             }
         except ValueError as ve:
             return HTTPException(status_code=500, detail=str(ve))
-            
+
     except Exception as e:
         logger.error(f"Error regenerating character: {e}")
         return HTTPException(status_code=500, detail=str(e))

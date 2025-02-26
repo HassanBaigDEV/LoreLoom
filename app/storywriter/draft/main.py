@@ -320,7 +320,9 @@ class DraftGenerator:
                 "top_p": 0.9,
                 "frequency_penalty": 0.3,
             }
-            passage_text = await retry_generation(self._generate(prompt, **kwargs))
+            passage_text = await retry_generation(
+                lambda: self._generate(prompt, **kwargs)
+            )
             if not passage_text:
                 raise ValueError("Failed to generate valid passage")
 
@@ -1147,7 +1149,7 @@ class DraftGenerator:
             if not sentences or not words:
                 return 0.0
 
-            # Calculate metrics
+                # Calculate metrics
             avg_sentence_length = len(words) / len(sentences)
             avg_word_length = sum(len(word.text) for word in words) / len(words)
 
