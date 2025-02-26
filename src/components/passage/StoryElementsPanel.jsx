@@ -26,6 +26,7 @@ import {
   CardContent,
   CircularProgress,
   Paper,
+  Grid,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -42,6 +43,7 @@ import {
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const sections = [
   { id: "title", label: "Title", icon: TitleIcon },
@@ -56,162 +58,18 @@ export default function StoryElementsPanel({
   onUpdate,
   storyId,
 }) {
-  const [editing, setEditing] = useState(null);
+  const router = useRouter();
   const [expanded, setExpanded] = useState({});
-  const [formData, setFormData] = useState({
-    title: storyElements?.title || "",
-    premise: storyElements?.premise || "",
-    setting: storyElements?.setting || "",
-    characters: storyElements?.characters || [],
-    outline: storyElements?.outline || [],
-  });
   const [characterDialog, setCharacterDialog] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
   const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
-
-  const handleEditToggle = (field) => {
-    setEditing(editing === field ? null : field);
-  };
+  const [outlineDialog, setOutlineDialog] = useState(null);
 
   const handleExpandToggle = (field) => {
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
   const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSave = async (field) => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-
-      let response;
-      switch (field) {
-        case "title":
-          response = await storyApiClient.put(
-            `/plan/edit-title/${storyId}`,
-            {
-              new_title: formData[field],
-            },
-            {
-              params: { user_id: user.id },
-            }
-          );
-          break;
-        case "premise":
-          response = await storyApiClient.put(
-            `/plan/edit-premise/${storyId}`,
-            {
-              new_premise: formData[field],
-            },
-            {
-              params: { user_id: user.id },
-            }
-          );
-          break;
-        case "setting":
-          response = await storyApiClient.put(
-            `/plan/edit-setting/${storyId}`,
-            {
-              new_setting: formData[field],
-            },
-            {
-              params: { user_id: user.id },
-            }
-          );
-          break;
-        case "characters":
-          if (!characterDialog) return;
-          response = await storyApiClient.put(
-            `/plan/edit-character/${storyId}`,
-            {
-              character_name: characterDialog.name,
-              updated_character: {
-                ...characterDialog,
-                ...formData[field],
-              },
-            },
-            {
-              params: { user_id: user.id },
-            }
-          );
-          break;
-        case "outline":
-          if (!selectedOutlinePoint) return;
-          response = await storyApiClient.put(
-            `/plan/edit-outline-point/${storyId}`,
-            {
-              point_number: selectedOutlinePoint.number,
-              updated_point: {
-                ...selectedOutlinePoint,
-                ...formData[field],
-              },
-            },
-            {
-              params: { user_id: user.id },
-            }
-          );
-          break;
-        default:
-          throw new Error("Invalid field type");
-      }
-
-      toast.success(
-        `${field.charAt(0).toUpperCase() + field.slice(1)} updated!`
-      );
-      onUpdate();
-      setEditing(null);
-      setCharacterDialog(null);
-      setSelectedOutlinePoint(null);
-    } catch (error) {
-      console.error(`Error updating ${field}:`, error);
-      toast.error(`Failed to update ${field}`);
-    }
-  };
-
-  const handleCharacterRegenerate = async (characterName) => {
-    setLoadingId(`character-${characterName}`);
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-
-      await storyApiClient.post(`/plan/regenerate-character/${storyId}`, null, {
-        params: {
-          user_id: user.id,
-          character_name: characterName,
-        },
-      });
-
-      toast.success("Character regenerated!");
-      onUpdate();
-    } catch (error) {
-      console.error("Error regenerating character:", error);
-      toast.error("Failed to regenerate character");
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  const handleDeleteCharacter = async (characterName) => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-
-      await storyApiClient.delete(`/plan/character/${storyId}`, {
-        params: {
-          user_id: user.id,
-          character_name: characterName,
-        },
-      });
-
-      toast.success("Character deleted!");
-      onUpdate();
-      setCharacterDialog(null);
-    } catch (error) {
-      console.error("Error deleting character:", error);
-      toast.error("Failed to delete character");
-    }
+    // This function is no longer used
   };
 
   const renderContent = (sectionId) => {
@@ -237,8 +95,7 @@ export default function StoryElementsPanel({
                 if (sectionId === "characters") {
                   setCharacterDialog(item);
                 } else if (sectionId === "outline") {
-                  setSelectedOutlinePoint(item);
-                  setEditing("outline");
+                  setOutlineDialog(item);
                 }
               }}
             >
@@ -287,16 +144,6 @@ export default function StoryElementsPanel({
       <Typography sx={{ flex: 1 }}>{label}</Typography>
       {storyElements?.[id] && (
         <>
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(id);
-            }}
-            sx={{ color: "grey.400" }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
           <Chip
             label={
               Array.isArray(storyElements[id])
@@ -315,190 +162,128 @@ export default function StoryElementsPanel({
     </Stack>
   );
 
+  const CharacterForm = ({ initialData, onSubmit, onCancel }) => {
+    // This function is no longer used
+    return null;
+  };
+
+  const OutlineForm = ({ initialData, onSubmit, onCancel }) => {
+    // This function is no longer used
+    return null;
+  };
+
   const renderEditDialog = () => {
-    if (!editing) return null;
-
-    let dialogContent;
-    if (editing === "characters" && characterDialog) {
-      dialogContent = (
-        <Box sx={{ mt: 2 }}>
-          <TextField
-            fullWidth
-            label="Name"
-            value={formData.characters.name || characterDialog.name}
-            onChange={(e) =>
-              handleInputChange("characters", {
-                ...characterDialog,
-                name: e.target.value,
-              })
-            }
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Description"
-            value={
-              formData.characters.description || characterDialog.description
-            }
-            onChange={(e) =>
-              handleInputChange("characters", {
-                ...characterDialog,
-                description: e.target.value,
-              })
-            }
-            sx={{ mb: 2 }}
-          />
-          {/* Add other character fields as needed */}
-        </Box>
-      );
-    } else if (editing === "outline" && selectedOutlinePoint) {
-      dialogContent = (
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          label={`Point ${selectedOutlinePoint.number}`}
-          value={formData.outline || selectedOutlinePoint.content}
-          onChange={(e) =>
-            handleInputChange("outline", {
-              ...selectedOutlinePoint,
-              content: e.target.value,
-            })
-          }
-          sx={{ mt: 2 }}
-        />
-      );
-    } else {
-      dialogContent = (
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          value={formData[editing]}
-          onChange={(e) => handleInputChange(editing, e.target.value)}
-          sx={{ mt: 2 }}
-        />
-      );
-    }
-
-    return (
-      <Dialog
-        open={editing !== null}
-        onClose={() => {
-          setEditing(null);
-          setSelectedOutlinePoint(null);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          Edit {editing?.charAt(0).toUpperCase() + editing?.slice(1)}
-        </DialogTitle>
-        <DialogContent>{dialogContent}</DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setSelectedOutlinePoint(null);
-            }}
-          >
-            Cancel
-          </Button>
-          <Button onClick={() => handleSave(editing)} variant="contained">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
-    );
+    // This function is no longer used
+    return null;
   };
 
   const renderCharacterDialog = () => (
     <Dialog
       open={characterDialog !== null}
       onClose={() => setCharacterDialog(null)}
-      maxWidth="sm"
+      maxWidth="md"
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: "white",
           borderRadius: 2,
+          bgcolor: "background.paper",
         },
       }}
     >
       <DialogContent sx={{ p: 0 }}>
         <Card elevation={0}>
-          <CardContent>
-            <div className="flex items-start justify-between">
-              <Typography variant="h6" className="mb-2 text-gray-800">
-                {characterDialog?.name}
-              </Typography>
-              <div className="flex space-x-1">
-                <IconButton
-                  size="small"
-                  onClick={() =>
-                    handleCharacterRegenerate(characterDialog?.name)
-                  }
-                  className="text-gray-600"
-                  disabled={loadingId === `character-${characterDialog?.name}`}
-                >
-                  {loadingId === `character-${characterDialog?.name}` ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    <RefreshIcon fontSize="small" />
-                  )}
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => setEditing("characters")}
-                  className="text-gray-600"
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => handleDeleteCharacter(characterDialog?.name)}
-                  className="text-red-500"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </div>
-            </div>
-            <Typography
-              variant="body2"
-              className="mt-2 text-gray-600"
-              sx={{ whiteSpace: "pre-wrap" }}
-            >
-              {characterDialog?.description}
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h5" className="mb-2 text-gray-800">
+              {characterDialog?.name}
             </Typography>
-            {characterDialog?.personality && (
-              <>
-                <Typography variant="subtitle2" className="mt-4 text-gray-700">
-                  Personality
+            <Typography variant="body2" color="textSecondary" className="mb-2">
+              {characterDialog?.type} • {characterDialog?.role}
+            </Typography>
+
+            <Divider className="my-2" />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Physical Appearance
+                </Typography>
+                <Typography variant="body2" className="mb-2 text-gray-600">
+                  {characterDialog?.physicalAppearance}
+                </Typography>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Behavioral Patterns
+                </Typography>
+                <Typography variant="body2" className="mb-2 text-gray-600">
+                  {characterDialog?.behavioralPatterns}
+                </Typography>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Gender & Orientation
                 </Typography>
                 <Typography variant="body2" className="text-gray-600">
-                  {characterDialog?.personality}
+                  {characterDialog?.genderAndSexualOrientation}
                 </Typography>
-              </>
-            )}
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Likes
+                </Typography>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {characterDialog?.likesAndDislikes?.Likes?.map((like, i) => (
+                    <Chip
+                      key={i}
+                      label={like}
+                      size="small"
+                      className="bg-green-50"
+                    />
+                  ))}
+                </div>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Dislikes
+                </Typography>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {characterDialog?.likesAndDislikes?.Dislikes?.map(
+                    (dislike, i) => (
+                      <Chip
+                        key={i}
+                        label={dislike}
+                        size="small"
+                        className="bg-red-50"
+                      />
+                    )
+                  )}
+                </div>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Relationships
+                </Typography>
+                <div className="space-y-1">
+                  {Object.entries(characterDialog?.relationships || {}).map(
+                    ([name, relation]) => (
+                      <Typography
+                        key={name}
+                        variant="body2"
+                        className="text-gray-600"
+                      >
+                        <span className="font-medium">{name}</span>: {relation}
+                      </Typography>
+                    )
+                  )}
+                </div>
+              </Grid>
+            </Grid>
+
             {characterDialog?.background && (
               <>
-                <Typography variant="subtitle2" className="mt-4 text-gray-700">
+                <Divider className="my-2" />
+                <Typography variant="subtitle2" className="text-gray-700">
                   Background
                 </Typography>
                 <Typography variant="body2" className="text-gray-600">
-                  {characterDialog?.background}
-                </Typography>
-              </>
-            )}
-            {characterDialog?.goals && (
-              <>
-                <Typography variant="subtitle2" className="mt-4 text-gray-700">
-                  Goals
-                </Typography>
-                <Typography variant="body2" className="text-gray-600">
-                  {characterDialog?.goals}
+                  {characterDialog.background}
                 </Typography>
               </>
             )}
@@ -508,17 +293,104 @@ export default function StoryElementsPanel({
     </Dialog>
   );
 
+  const renderOutlineDialog = () => (
+    <Dialog
+      open={outlineDialog !== null}
+      onClose={() => setOutlineDialog(null)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        },
+      }}
+    >
+      <DialogContent sx={{ p: 0 }}>
+        <Card elevation={0}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h5" className="mb-2 text-gray-800">
+              {outlineDialog?.number}. {outlineDialog?.title}
+            </Typography>
+            <Typography variant="body2" className="mt-2 text-gray-600">
+              {outlineDialog?.description}
+            </Typography>
+
+            <Divider className="my-2" />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Purpose
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {outlineDialog?.purpose}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Setting
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {outlineDialog?.setting}
+                </Typography>
+              </Grid>
+            </Grid>
+
+            <div className="mt-2">
+              <Typography variant="subtitle2" className="text-gray-700">
+                Characters Involved
+              </Typography>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {outlineDialog?.characters_involved?.map((character, i) => (
+                  <Chip
+                    key={i}
+                    label={character}
+                    size="small"
+                    className="bg-blue-50"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <Typography variant="body2" className="mt-2 text-gray-500">
+              Estimated Duration: {outlineDialog?.estimated_duration}
+            </Typography>
+          </CardContent>
+        </Card>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const renderHeader = () => (
+    <Box
+      component="a"
+      href={`/create/plan/${storyId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      sx={{
+        p: 3,
+        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+        cursor: "pointer",
+        textDecoration: "none",
+        "&:hover": {
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+        },
+      }}
+    >
+      <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
+        Story Elements
+      </Typography>
+      <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
+        Click to manage story elements (opens in new tab)
+      </Typography>
+    </Box>
+  );
+
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <Box sx={{ p: 3, borderBottom: "1px solid rgba(255, 255, 255, 0.1)" }}>
-        <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
-          Story Elements
-        </Typography>
-        <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
-          Reference your story's key elements while writing
-        </Typography>
-      </Box>
+      {renderHeader()}
 
       {/* Elements */}
       <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
@@ -553,21 +425,14 @@ export default function StoryElementsPanel({
               {renderSectionHeader(id, label, Icon)}
             </AccordionSummary>
             <AccordionDetails sx={{ pt: 0 }}>
-              {editing === id ? renderContent(id) : renderContent(id)}
+              {renderContent(id)}
             </AccordionDetails>
           </Accordion>
         ))}
       </Box>
 
-      {/* Footer */}
-      <Box sx={{ p: 2, borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
-        <Typography variant="caption" sx={{ color: "grey.500" }}>
-          Tip: Keep these elements in mind to maintain consistency in your story
-        </Typography>
-      </Box>
-
-      {renderEditDialog()}
       {renderCharacterDialog()}
+      {renderOutlineDialog()}
     </Box>
   );
 }

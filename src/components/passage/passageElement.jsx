@@ -36,6 +36,7 @@ export default function PassageElement({
   const [loading, setLoading] = useAtom(storyLoadingAtom);
   const [loadingId, setLoadingId] = useState("");
   const [manualInput, setManualInput] = useState("");
+  
 
   const renderContent = () => {
     // Loading state
