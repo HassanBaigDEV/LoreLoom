@@ -228,9 +228,181 @@ class NUMBERED_OUTLINE(BaseModel):
 
 NUMBERED_OUTLINE_SCHEMA = json.dumps(NumberedEvent.model_json_schema())
 
+async def regenerate_numbered_outline(
+    story_id: str,
+    point_index: int,
+) -> List[Dict]:
+    """Regenerate a specific numbered outline pobject and only replave the matching point["number"] object with newly generated one."the prompt will include past events as well as any events preceding the point_index(id any)"""
+    try:
+        story = await stories.find_one({"story_id": ObjectId
+        (story_id)})
+        if not story:
+            raise ValueError("Story not found")
+        
+        existing_outline = story.get("outline", [])
+        if not isinstance(existing_outline, list):
+            existing_outline = []
+
+        new_events = []
+        # as only one point so no need for the loop
+        event_prompt = f"""
+            <|im_start|>system
+            You are an AI assistant helping a writer create a story outline. The writer has requested your help to generate a specific event for the story based on the given premise, setting, and characters. Each event should be unique, engaging, and contribute to the overall narrative. You only write json data based on the given schema.
+            The output should be structured in a strict JSON format.
+            <|im_end|>
+            <|im_start|>user
+            Generate event {point_index} for the story based on:
+            Title: {story.get('title', '')}
+            Premise: {story.get('premise', '')}
+            Setting: {story.get('setting', '')}
+            Characters: {json.dumps(story.get('characters', []), indent=2)}
+
+            Previous events:
+            {json.dumps(existing_outline, indent=2) if existing_outline else "None yet."}
+
+            Example of a correctly formatted response:
+             {{
+        "number": "1",
+        "title": "The Midnight Encounter",
+        "description": "Ayla discovers an ancient artifact in the ruins of Shadowspire while Alaric, independently investigating the same location, confronts her. Their rivalry resurfaces as they realize they're both seeking the same mysterious relic. The tension escalates when the artifact begins to glow, forcing them to make a choice between competition and cooperation.",
+        "purpose": "Establish the main characters' dynamic and introduce the central mystery",
+        "characters_involved": ["Ayla Windsong", "Alaric Frost"],
+        "setting": "Shadowspire Ruins, midnight during a new moon",
+        "estimated_duration": "30 minutes"
+    }}
+            Generate the next outline event for the story.
+            ###Instructions:
+            response should only include json object that can directly be parsed.
+            ###Schema:
+            \n<schema>\n{NUMBERED_OUTLINE_SCHEMA}\n</schema>.
+            <|im_end|>
+            <|im_start|>assistant
+            """
+        
+        try:
+            response = await model._json(
+                event_prompt,
+                max_tokens=1024,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "NumberedOutline",
+                        "strict": True,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "events": {
+                                    "type": "array",
+                                    "description": "List of events forming the numbered outline.",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "number": {
+                                                "type": "string",
+                                            },
+                                            "title": {
+                                                "type": "string",
+                                                "description": "Brief event title.",
+                                                "nullable": False,
+                                            },
+                                            "description": {
+                                                "type": "string",
+                                                "description": "Detailed event description.",
+                                                "nullable": False,
+                                            },
+                                            "purpose": {
+                                                "type": "string",
+                                                "description": "Story purpose of this event.",
+                                                "nullable": False,
+                                            },
+                                            "characters_involved": {
+                                                "type": "array",
+                                                "description": "List of characters/entity/locations involved in the event.",
+                                                "items": {"type": "string"},
+                                            },
+                                            "setting": {
+                                                "type": "string",
+                                                "description": "Location and time period of the event.",
+                                                "nullable": False,
+                                            },
+                                            "estimated_duration": {
+                                                "type": "string",
+                                                "description": "Approximate scene length.",
+                                                "nullable": False,
+                                            },
+                                        },
+                                        "required": [
+                                            "number",
+                                            "characters_involved",
+                                            "description",
+                                            "estimated_duration",
+                                            "purpose",
+                                            "setting",
+                                            "title",
+                                        ],
+                                        "additionalProperties": False,
+                                    },
+                                }
+                            },
+                            "required": ["events"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+            )
+            response_text = response["choices"][0]["text"]  # type:ignore
+            print(f"Generated event {point_index}: {response_text}")
+
+            try:
+                event_data = extract_and_parse_json(response_text)
+               # Maintain the original point number and position
+
+                if event_data is not None:
+                    event_data["number"] = str(point_index)
+                    if event_data.get("number") != str(point_index):
+                        logging.warning(
+                            f"Event number mismatch. Expected {point_index}, got {event_data.get('number')}"
+                        )
+
+                        # event_data["number"] = str(point_index)
+
+                    # replace the existing event with the new one in the mongo db 
+                    # to keep the order of the events same as the one in the original outline we create a copy of all the existing outline and replace the event with the same number as the one in the new event and then update the outline in the db with the new list
+                    new_outline = existing_outline.copy()
+                    
+
+       
+                    for i, event in enumerate(new_outline):
+                        if event["number"] == str(point_index):
+                            new_outline[i] = event_data
+                            break
+
+                    await stories.update_one(
+                        {"story_id": ObjectId
+                        (story_id)},
+                        {
+                            "$set": {"outline": new_outline, "updated_at": datetime.utcnow()},
+                        },
+                    )
+            
+            except json.JSONDecodeError as e:
+                logging.error(f"Failed to parse event JSON: {e}")
+                raise ValueError(f"Invalid event data format: {response_text}")
+    
+        except Exception as e:
+            logging.error(f"Skipping invalid event {point_index}: {e}")
+            raise
+
+        return new_outline
+    except Exception as e:
+        logging.error(f"Error creating numbered outline: {e}")
+        raise
+            
 
 async def create_numbered_outline(
-    story_id: str, num_events: int, point_index:int,continue_from_previous: bool = False
+    story_id: str,
+    num_events: int,
+    continue_from_previous: bool = False,
 ) -> List[Dict]:
     """Create a numbered outline for a specified number of events."""
     try:
@@ -255,7 +427,7 @@ async def create_numbered_outline(
             The output should be structured in a strict JSON format.
             <|im_end|>
             <|im_start|>user
-            Generate event {str(point_index)} for the story based on:
+            Generate event {i+1} for the story based on:
             Title: {story.get('title', '')}
             Premise: {story.get('premise', '')}
             Setting: {story.get('setting', '')}
@@ -361,14 +533,14 @@ async def create_numbered_outline(
                     },
                 )
                 response_text = response["choices"][0]["text"]  # type:ignore
-                print(f"Generated event {point_index}: {response_text}")
+                print(f"Generated event {i+1}: {response_text}")
 
                 try:
                     event_data = extract_and_parse_json(response_text)
                     if event_data is not None:
-                        if event_data.get("number") != str(point_index):
+                        if event_data.get("number") != str(i + 1):
                             logging.warning(
-                                f"Event number mismatch. Expected {point_index}, got {event_data.get('number')}"
+                                f"Event number mismatch. Expected {i+1}, got {event_data.get('number')}"
                             )
                             event_data["number"] = str(i)
 

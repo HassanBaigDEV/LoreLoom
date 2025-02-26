@@ -20,6 +20,7 @@ from app.storywriter.plan.characters.main import (
 from app.storywriter.plan.outline.main import (
     generate_full_outline,
     create_numbered_outline,
+    regenerate_numbered_outline,
 )
 from app.storywriter.plan.characters.schema import Character
 
@@ -649,7 +650,7 @@ async def regenerate_outline_point(
         point_index = None
         for i, point in enumerate(outline):
             if point["number"] == data.point_number:
-                point_index = i+1
+                point_index = i + 1
                 break
 
         if point_index is None:
@@ -658,11 +659,13 @@ async def regenerate_outline_point(
             )
 
         # Generate new point using the outline generation function
-        new_point = await create_numbered_outline(
-            story_id,
-            num_events=1,
-            point_index=point_index,
-            continue_from_previous=True,  # This will help maintain narrative flow
+        # new_point = await create_numbered_outline(
+        #     story_id,
+        #     num_events=1,
+        #     continue_from_previous=True,  # This will help maintain narrative flow
+        # )
+        new_point = await regenerate_numbered_outline(
+            story_id, point_index
         )
 
         if not new_point:
@@ -671,25 +674,25 @@ async def regenerate_outline_point(
             )
 
         # Maintain the original point number and position
-        new_point[0]["number"] = data.point_number
+        # new_point[0]["number"] = data.point_number
 
         # Update the outline with the new point
-        outline[point_index] = new_point[0]
+        # outline[point_index] = new_point[0]
 
-        # Update the story with the modified outline
-        await stories.update_one(
-            {"story_id": ObjectId(story_id)},
-            {
-                "$set": {
-                    "outline": outline,
-                    "updated_at": datetime.utcnow(),
-                }
-            },
-        )
+        # # Update the story with the modified outline
+        # await stories.update_one(
+        #     {"story_id": ObjectId(story_id)},
+        #     {
+        #         "$set": {
+        #             "outline": outline,
+        #             "updated_at": datetime.utcnow(),
+        #         }
+        #     },
+        # )
 
         return {
             "message": "Outline point regenerated successfully",
-            "outline_point": new_point[0],
+            "outline_point": new_point,
         }
     except Exception as e:
         logger.error(f"Error regenerating outline point: {e}")
