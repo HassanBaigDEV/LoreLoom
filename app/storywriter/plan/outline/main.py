@@ -10,10 +10,8 @@ from ...llm import model
 from .schema import *
 from app.config.mongo import stories
 
-
-from typing import List, Optional
-from pydantic import BaseModel, Field
-
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, ValidationError
 
 # Define the schema templates for prompts
 OUTLINE_NODE_EXAMPLE = """
@@ -314,66 +312,237 @@ async def create_numbered_outline(
         raise
 
 
-async def generate_full_outline(
-    story_id: str,
-    max_depth: int = 2,
-) -> OutlineNode:
-    """Generate a complete story outline."""
-    story = await stories.find_one({"story_id": ObjectId(story_id)})
-    if not story:
-        raise ValueError("Story not found")
+# async def generate_full_outline(
+#     story_id: str,
+#     max_depth: int = 2,
+# ) -> OutlineNode:
+#     """Generate a complete story outline."""
+#     story = await stories.find_one({"story_id": ObjectId(story_id)})
+#     if not story:
+#         raise ValueError("Story not found")
 
-    plan = {
-        "premise": story.get("premise", ""),
-        "setting": story.get("setting", ""),
-        "characters": story.get("characters", []),
-    }
+#     plan = {
+#         "premise": story.get("premise", ""),
+#         "setting": story.get("setting", ""),
+#         "characters": story.get("characters", []),
+#     }
 
-    root_node = await generate_initial_outline(plan)
-    expanded_nodes = set()
-    nodes_to_expand = deque([(node, 1) for node in root_node.children])
+#     root_node = await generate_initial_outline(plan)
+#     expanded_nodes = set()
+#     nodes_to_expand = deque([(node, 1) for node in root_node.children])
 
-    MAX_NODES = 4  # Add a reasonable limit
-    node_count = 0
+#     MAX_NODES = 4  # Add a reasonable limit
+#     node_count = 0
 
-    while nodes_to_expand and node_count < MAX_NODES:
-        current_node, depth = nodes_to_expand.popleft()
-        node_count += 1
+#     while nodes_to_expand and node_count < MAX_NODES:
+#         current_node, depth = nodes_to_expand.popleft()
+#         node_count += 1
 
-        if depth >= max_depth or current_node in expanded_nodes:
-            continue
+#         if depth >= max_depth or current_node in expanded_nodes:
+#             continue
 
-        await generate_node_details(current_node, plan)
-        expanded_nodes.add(current_node)
+#         await generate_node_details(current_node, plan)
+#         expanded_nodes.add(current_node)
 
-        subevents = await generate_subevents(current_node, plan)
-        if not subevents:  # Add explicit check for empty subevents
-            continue
+#         subevents = await generate_subevents(current_node, plan)
+#         if not subevents:  # Add explicit check for empty subevents
+#             continue
 
-        for event in subevents:
-            child_node = OutlineNode(
-                text=event,
-                depth=depth + 1,
-                event_type="scene" if depth + 1 == max_depth else "chapter",
-                scene=None,
-                event=None,
-                estimated_duration=None,
-            )
-            current_node.children.append(child_node)
-            nodes_to_expand.append((child_node, depth + 1))
+#         for event in subevents:
+#             child_node = OutlineNode(
+#                 text=event,
+#                 depth=depth + 1,
+#                 event_type="scene" if depth + 1 == max_depth else "chapter",
+#                 scene=None,
+#                 event=None,
+#                 estimated_duration=None,
+#             )
+#             current_node.children.append(child_node)
+#             nodes_to_expand.append((child_node, depth + 1))
 
+#     try:
+#         await stories.update_one(
+#             {"story_id": ObjectId(story_id)},
+#             {
+#                 "$set": {
+#                     "outline": root_node.model_dump(),
+#                     "updated_at": datetime.utcnow(),
+#                 }
+#             },
+#         )
+#     except Exception as e:
+#         logging.error(f"Error saving outline to database: {e}")
+#         raise
+
+#     return root_node
+
+# async def generate_full_outline(
+#     story_id: str,
+#     max_depth: int = 2,
+# ) -> OutlineNode:
+#     """Generate a complete story outline with proper schema."""
+#     story = await stories.find_one({"story_id": ObjectId(story_id)})
+#     if not story:
+#         raise ValueError("Story not found")
+
+#     plan = {
+#         "premise": story.get("premise", ""),
+#         "setting": story.get("setting", ""),
+#         "characters": story.get("characters", []),
+#     }
+
+#     root_node = await generate_initial_outline(plan)
+#     expanded_nodes = set()
+#     nodes_to_expand = deque([(node, 1) for node in root_node.children])
+
+#     MAX_NODES = 4  # Limit the expansion to prevent excessive depth
+#     node_count = 0
+
+#     while nodes_to_expand and node_count < MAX_NODES:
+#         current_node, depth = nodes_to_expand.popleft()
+#         node_count += 1
+
+#         if depth >= max_depth or current_node in expanded_nodes:
+#             continue
+
+#         await generate_node_details(current_node, plan)
+#         expanded_nodes.add(current_node)
+
+#         subevents = await generate_subevents(current_node, plan)
+#         if not subevents:
+#             continue
+
+#         for idx, event in enumerate(subevents, start=1):
+#             child_node = OutlineNode(
+#                 number=str(idx),
+#                 title=event.get("title", "Untitled Event"),
+#                 description=event.get("description", "No description available"),
+#                 purpose=event.get("purpose", ""),
+#                 characters_involved=event.get("characters_involved", []),
+#                 setting=event.get("setting", plan.get("setting", "")),
+#                 estimated_duration=event.get("estimated_duration", "Unknown"),
+#                 depth=depth + 1,
+#                 event_type="scene" if depth + 1 == max_depth else "chapter",
+#                 scene=None,
+#                 event=None,
+#             )
+#             current_node.children.append(child_node)
+#             nodes_to_expand.append((child_node, depth + 1))
+
+#     try:
+#         await stories.update_one(
+#             {"story_id": ObjectId(story_id)},
+#             {
+#                 "$set": {
+#                     "outline": root_node.model_dump(),
+#                     "updated_at": datetime.utcnow(),
+#                 }
+#             },
+#         )
+#     except Exception as e:
+#         logging.error(f"Error saving outline to database: {e}")
+#         raise
+
+#     return root_node
+
+# Define strict schema for an Outline Node
+class OutlineNodeSchema(BaseModel):
+    number: str
+    title: str
+    description: str
+    purpose: str
+    characters_involved: List[str]
+    setting: str
+    estimated_duration: str
+    depth: int
+    event_type: str
+    children: List["OutlineNodeSchema"] = []
+
+async def generate_full_outline(story_id: str, max_depth: int = 2) -> OutlineNodeSchema:
+    """Generate a complete story outline with schema validation and error handling."""
+    
     try:
-        await stories.update_one(
-            {"story_id": ObjectId(story_id)},
-            {
-                "$set": {
-                    "outline": root_node.model_dump(),
-                    "updated_at": datetime.utcnow(),
-                }
-            },
-        )
-    except Exception as e:
-        logging.error(f"Error saving outline to database: {e}")
-        raise
+        # Fetch story data
+        story = await stories.find_one({"story_id": ObjectId(story_id)})
+        if not story:
+            raise ValueError(f"Story with ID {story_id} not found.")
 
-    return root_node
+        plan = {
+            "premise": story.get("premise", ""),
+            "setting": story.get("setting", ""),
+            "characters": story.get("characters", []),
+        }
+
+        # Generate the root node
+        root_node = await generate_initial_outline(plan)
+        expanded_nodes = set()
+        nodes_to_expand = deque([(node, 1) for node in root_node.children])
+
+        MAX_NODES = 4  # Prevent excessive expansion
+        node_count = 0
+
+        while nodes_to_expand and node_count < MAX_NODES:
+            current_node, depth = nodes_to_expand.popleft()
+            node_count += 1
+
+            if depth >= max_depth or current_node in expanded_nodes:
+                continue
+
+            try:
+                await generate_node_details(current_node, plan)
+                expanded_nodes.add(current_node)
+
+                subevents = await generate_subevents(current_node, plan)
+                if not subevents:
+                    continue
+
+                for idx, event in enumerate(subevents, start=1):
+                    try:
+                        child_node = OutlineNodeSchema(
+                            number=str(idx),
+                            title=event.get("title", "Untitled Event"),
+                            description=event.get("description", "No description available"),
+                            purpose=event.get("purpose", ""),
+                            characters_involved=event.get("characters_involved", []),
+                            setting=event.get("setting", plan.get("setting", "")),
+                            estimated_duration=event.get("estimated_duration", "Unknown"),
+                            depth=depth + 1,
+                            event_type="scene" if depth + 1 == max_depth else "chapter",
+                            children=[],
+                        )
+                        current_node.children.append(child_node)
+                        nodes_to_expand.append((child_node, depth + 1))
+                    except ValidationError as e:
+                        logging.error(f"Invalid event structure: {e}")
+                        continue
+
+            except Exception as e:
+                logging.error(f"Error processing node at depth {depth}: {e}")
+                continue
+
+        # Convert to JSON before saving
+        try:
+            serialized_outline = root_node.model_dump()
+            json.dumps(serialized_outline)  # Ensures it's valid JSON
+
+            # Update the outline in MongoDB
+            await stories.update_one(
+                {"story_id": ObjectId(story_id)},
+                {
+                    "$set": {
+                        "outline": serialized_outline,
+                        "updated_at": datetime.utcnow(),
+                    }
+                },
+            )
+            logging.info(f"Successfully updated outline for story {story_id}")
+
+        except Exception as e:
+            logging.error(f"Error saving outline to database: {e}")
+            raise
+
+        return root_node
+
+    except Exception as e:
+        logging.error(f"Failed to generate outline: {e}")
+        raise

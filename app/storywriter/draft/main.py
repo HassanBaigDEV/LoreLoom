@@ -3,7 +3,7 @@ import json
 from pydoc import classname
 from typing import List, Dict, Optional, Tuple, Union
 from bson import ObjectId
-import tiktoken
+# import tiktoken
 from pymongo import UpdateOne
 from datetime import datetime
 import asyncio
@@ -38,7 +38,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize tokenizer for token counting
-tokenizer = tiktoken.get_encoding("cl100k_base")
+# tokenizer = tiktoken.get_encoding("cl100k_base")
 
 # Initialize passages collection
 passage_collection = db.passages
@@ -82,7 +82,7 @@ class DraftGenerator:
         self.character_relevance: Dict[str, float] = {}
         self.max_tokens = max_tokens
         self.token_buffer = 512  # Reserve tokens for the response
-        self.nlp = spacy.load("en_core_web_sm")  # Load spaCy model
+        self.nlp = spacy.load("en_core_web_lg")  # Load spaCy model
 
     async def load_plan_data(self) -> Dict:
         """Load story plan data from MongoDB"""
@@ -492,9 +492,7 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error updating character relevance: {e}")
 
-    async def _update_character_description(
-        self, character_name: str, passage_text: str
-    ) -> None:
+    async def _update_character_description(self, character_name: str, passage_text: str) -> None:
         """Update character description based on new developments"""
         try:
             # Get current character data
@@ -699,9 +697,7 @@ class DraftGenerator:
             logger.error(f"LLM test failed: {e}")
             return False
 
-    async def generate_passages(
-        self, outline_point_id: str, num_variations: int = 3
-    ) -> List[GeneratedPassage]:
+    async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> List[GeneratedPassage]:
         """Generate multiple variations of a passage efficiently"""
         try:
             logger.debug(
@@ -792,9 +788,7 @@ class DraftGenerator:
             logger.error(f"Error generating passages: {e}")
             raise
 
-    async def _quick_evaluate_passages(
-        self, passages: List[GeneratedPassage], context: PassageContext
-    ) -> GeneratedPassage:
+    async def _quick_evaluate_passages(self, passages: List[GeneratedPassage], context: PassageContext) -> GeneratedPassage:
         """Evaluate passages using heuristics instead of LLM calls"""
 
         async def score_passage(
@@ -862,9 +856,7 @@ class DraftGenerator:
             logger.error(f"Error generating summary: {e}")
             return None
 
-    async def _process_new_entities(
-        self, passage: GeneratedPassage, context: PassageContext
-    ):
+    async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext):
         """Process entities, updating existing ones and creating new ones"""
         try:
             # Get existing characters
@@ -936,15 +928,13 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error processing entities: {e}")
 
-    async def _batch_classify_entities(
-        self, entities: set[str], passage_content: str
-    ) -> Dict[str, str]:
+    async def _batch_classify_entities(self, entities: set[str], passage_content: str) -> Dict[str, str]:
         """Classify multiple entities in a single LLM call"""
 
         # Define schema for entity classification
         class CharacterClassificationSchema(BaseModel):
             name: str
-            classification: Literal["character", "location", "object"] = Field(
+            classification: Literal["character", "location", "entity"] = Field(
                 default="character",
                 description="Type of entity (character, entity, or location)",
             )
@@ -954,7 +944,7 @@ class DraftGenerator:
         entities_list = list(entities)
         batch_prompt = f"""
         <|im_start|>system
-        You are an expert story analyzer. Classify each entity as either "character", "location", or "object" based on the passage context.
+        You are an expert story analyzer. Classify each entity as either "character", "location", or "entity" based on the passage context.
         Return a valid JSON object following the given schema exactly.
         <|im_end|>
         <|im_start|>user
@@ -1181,8 +1171,7 @@ class DraftGenerator:
             logger.error(f"Error calculating readability: {e}")
             return 0.0
 
-    async def _evaluate_passages(
-        self, passages: List[GeneratedPassage], context: PassageContext
+    async def _evaluate_passages(self, passages: List[GeneratedPassage], context: PassageContext
     ) -> GeneratedPassage:
         """
         Enhanced evaluation of passages incorporating improved heuristics:
