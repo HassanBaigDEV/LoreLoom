@@ -24,7 +24,7 @@ const LoadingSpinner = () => (
 function DashboardContent() {
   return (
     <div className="py-6 bg-gray-100">
-      <main className="pt-16">
+      <main >
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
           <div className="grid grid-cols-6 gap-6 mt-32">
             <DashboardOverview />

@@ -16,25 +16,25 @@ export default function StatsHeader() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Stories"
-          value="18"
-          subtitle="6 InProgress"
+          value={<span className="text-purple-500" >8</span>}
+          subtitle="8 InProgress"
           icon={<AssignmentIcon />}
         />
         <StatCard
           title="Users"
-          value="132"
+          value={<span className="text-purple-500" >9</span>}
           subtitle="9 Active"
           icon={<GroupsIcon />}
         />
         <StatCard
           title="Collaborations"
-          value="12"
+          value={<span className="text-purple-500" >0</span>}
           subtitle="None"
           icon={<GroupsIcon />}
         />
         <StatCard
           title="Subscriptions"
-          value="76%"
+          value={<span className="text-purple-500" >0%</span>}
           subtitle="0% Completed"
           icon={<SpeedIcon />}
         />
