@@ -3,12 +3,12 @@ import React from "react";
 import DashboardOverview from "@/components/dashboard/overview";
 import StatisticsSection from "@/components/dashboard/stat";
 import Feedback from "@/components/dashboard/feedback";
-import Notifications from "@/components/dashboard/notification";
 import StoriesSection from "@/components/dashboard/stories";
-
 import Footer from "@/components/common/footer";
 import { useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useRouter } from "next/navigation";
 
 const LoadingSpinner = () => (
   <div className="fixed inset-0 flex items-center justify-center bg-opacity-75 bg-gray-50">
@@ -22,6 +22,19 @@ const LoadingSpinner = () => (
 );
 
 function DashboardContent() {
+  const { isLoading: authLoading } = useAuth();
+  const [user, setUser, storageLoading] = useLocalStorage("user");
+  const router = useRouter();
+
+  if (authLoading || storageLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+
   return (
     <div className="py-6 bg-gray-100">
       <main >
@@ -36,6 +49,7 @@ function DashboardContent() {
           <StoriesSection />
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

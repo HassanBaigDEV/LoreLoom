@@ -41,7 +41,8 @@ adminApiClient.interceptors.request.use(
     } else {
       // If no token, redirect to admin login
       if (!isServer && !window.location.pathname.includes("/admin/login")) {
-        window.location.href = "/admin/login";
+        // window.location.href = "/admin/login";
+        router.push("/admin/login");
       }
     }
     console.log("Admin API Client Token:", token);
@@ -100,7 +101,8 @@ adminApiClient.interceptors.response.use(
 
           // Redirect to admin login instead of user login
           if (!window.location.pathname.includes("/admin/login")) {
-            window.location.href = "/admin/login";
+            // window.location.href = "/admin/login";
+            router.push("/admin/login");
           }
         }
 

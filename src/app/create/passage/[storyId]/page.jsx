@@ -40,19 +40,19 @@ const ITEMS_PER_PAGE = 10;
 const LoadingOverlay = () => (
   <Box
     sx={{
-      position: 'absolute',
+      position: "absolute",
       top: 0,
       left: 0,
       right: 0,
       bottom: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      bgcolor: 'rgba(255, 255, 255, 0.8)',
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      bgcolor: "rgba(255, 255, 255, 0.8)",
       zIndex: 1000,
     }}
   >
-    <CircularProgress sx={{ color: 'rgb(34 197 94)' }} />
+    <CircularProgress sx={{ color: "rgb(34 197 94)" }} />
   </Box>
 );
 
@@ -60,7 +60,7 @@ export default function PassagePage({ params }) {
   const router = useRouter();
   const { storyId } = params;
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [loading, setLoading] = useState(true);
   const [passages, setPassages] = useState([]);
   const [storyElements, setStoryElements] = useState(null);
@@ -103,9 +103,12 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
-        params: { user_id: user.id },
-      });
+      const response = await storyApiClient.get(
+        `/plan/story-elements/${storyId}`,
+        {
+          params: { user_id: user.id },
+        }
+      );
       setStoryElements(response.data);
     } catch (error) {
       console.error("Error fetching story elements:", error);
@@ -127,19 +130,24 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      // Get the first outline point if none selected
-      const outlinePoint = storyElements?.outline?.[0]?.id;
+      // Get the last outline point if none selected
+      const outlinePoint =
+        storyElements?.outline?.[storyElements?.outline?.length - 1]?.number;
       if (!outlinePoint) {
         toast.error("Please create an outline first");
         return;
       }
 
-      const response = await storyApiClient.post(`/draft/generate-passage/${storyId}`, null, {
-        params: {
-          user_id: user.id,
-          outline_point_id: outlinePoint,
-        },
-      });
+      const response = await storyApiClient.post(
+        `/draft/generate-passage/${storyId}`,
+        null,
+        {
+          params: {
+            user_id: user.id,
+            outline_point_id: outlinePoint,
+          },
+        }
+      );
 
       toast.success("New passage created!");
       fetchPassages(); // Refresh the list
@@ -153,49 +161,53 @@ export default function PassagePage({ params }) {
 
   return (
     <>
-      <Box sx={{ 
-        display: 'flex', 
-        minHeight: '100vh', 
-        bgcolor: 'grey.50',
-        flexDirection: { xs: 'column', lg: 'row' }, // Stack vertically on mobile
-      }}>
+      <Box
+        sx={{
+          display: "flex",
+          minHeight: "100vh",
+          bgcolor: "grey.50",
+          flexDirection: { xs: "column", lg: "row" }, // Stack vertically on mobile
+        }}
+      >
         <Toaster position="top-right" />
-        
+
         {/* Main Content */}
-        <Box 
-          sx={{ 
-            flexGrow: 1, 
+        <Box
+          sx={{
+            flexGrow: 1,
             p: { xs: 2, sm: 3 }, // Reduced padding on mobile
             pt: { xs: 8, sm: 10, md: 12 }, // Adjusted top padding for header
-            pr: { xs: 2, sm: 3, lg: '360px' }, // Right padding only on desktop
-            width: '100%', // Full width on mobile
+            pr: { xs: 2, sm: 3, lg: "360px" }, // Right padding only on desktop
+            width: "100%", // Full width on mobile
           }}
         >
-          <Container 
+          <Container
             maxWidth="lg"
             sx={{
-              mx: 'auto',
-              width: '100%',
+              mx: "auto",
+              width: "100%",
             }}
           >
             {/* Header */}
-            <Box sx={{ 
-              mb: { xs: 2, sm: 4 }, 
-              display: 'flex', 
-              flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on mobile
-              gap: { xs: 2, sm: 0 },
-              justifyContent: 'space-between', 
-              alignItems: { xs: 'stretch', sm: 'center' },
-            }}>
+            <Box
+              sx={{
+                mb: { xs: 2, sm: 4 },
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" }, // Stack vertically on mobile
+                gap: { xs: 2, sm: 0 },
+                justifyContent: "space-between",
+                alignItems: { xs: "stretch", sm: "center" },
+              }}
+            >
               <Typography
                 variant="h4"
                 sx={{
                   fontWeight: 700,
-                  fontSize: { xs: '1.5rem', sm: '2rem', md: '2.25rem' },
-                  background: 'linear-gradient(45deg, #22c55e, #16a34a)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  color: 'transparent',
+                  fontSize: { xs: "1.5rem", sm: "2rem", md: "2.25rem" },
+                  background: "linear-gradient(45deg, #22c55e, #16a34a)",
+                  backgroundClip: "text",
+                  WebkitBackgroundClip: "text",
+                  color: "transparent",
                 }}
               >
                 Write Your Story
@@ -207,9 +219,9 @@ export default function PassagePage({ params }) {
                 disabled={loading}
                 fullWidth={false}
                 sx={{
-                  bgcolor: 'rgb(34 197 94)',
-                  '&:hover': { bgcolor: 'rgb(22 163 74)' },
-                  width: { xs: '100%', sm: 'auto' }, // Full width on mobile
+                  bgcolor: "rgb(34 197 94)",
+                  "&:hover": { bgcolor: "rgb(22 163 74)" },
+                  width: { xs: "100%", sm: "auto" }, // Full width on mobile
                 }}
               >
                 New Passage
@@ -234,15 +246,18 @@ export default function PassagePage({ params }) {
                         elevation={expandedPassage === passage.id ? 3 : 1}
                         sx={{
                           p: { xs: 2, sm: 3 }, // Reduced padding on mobile
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
+                          transition: "all 0.3s ease",
+                          "&:hover": {
                             boxShadow: 3,
-                            transform: 'translateY(-2px)',
+                            transform: "translateY(-2px)",
                           },
                         }}
                       >
                         {/* Passage content here */}
-                        <PassageEditor passage={passage} onUpdate={fetchPassages} />
+                        <PassageEditor
+                          passage={passage}
+                          onUpdate={fetchPassages}
+                        />
                       </Paper>
                     </motion.div>
                   ))}
@@ -251,14 +266,16 @@ export default function PassagePage({ params }) {
             </AnimatePresence>
 
             {/* Pagination */}
-            <Box sx={{ 
-              mt: 4, 
-              display: 'flex', 
-              justifyContent: 'center',
-              '& .MuiPagination-ul': {
-                flexWrap: 'nowrap', // Prevent pagination buttons from wrapping
-              }
-            }}>
+            <Box
+              sx={{
+                mt: 4,
+                display: "flex",
+                justifyContent: "center",
+                "& .MuiPagination-ul": {
+                  flexWrap: "nowrap", // Prevent pagination buttons from wrapping
+                },
+              }}
+            >
               <Pagination
                 count={totalPages}
                 page={page}
@@ -268,12 +285,12 @@ export default function PassagePage({ params }) {
                 siblingCount={isMobile ? 0 : 1}
                 boundaryCount={isMobile ? 1 : 2}
                 sx={{
-                  '& .MuiPaginationItem-root': {
-                    color: 'rgb(34 197 94)',
+                  "& .MuiPaginationItem-root": {
+                    color: "rgb(34 197 94)",
                   },
-                  '& .Mui-selected': {
-                    bgcolor: 'rgb(34 197 94) !important',
-                    color: 'white !important',
+                  "& .Mui-selected": {
+                    bgcolor: "rgb(34 197 94) !important",
+                    color: "white !important",
                   },
                 }}
               />
@@ -288,34 +305,35 @@ export default function PassagePage({ params }) {
           sx={{
             width: 340,
             flexShrink: 0,
-            position: 'fixed',
-            height: '100%',
-            '& .MuiDrawer-paper': {
+            position: "fixed",
+            height: "100%",
+            "& .MuiDrawer-paper": {
               width: 340,
-              boxSizing: 'border-box',
-              bgcolor: 'rgb(17 24 39)',
-              color: 'white',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-              height: '100%',
-              pt: { xs: '64px', sm: '70px' },
+              boxSizing: "border-box",
+              bgcolor: "rgb(17 24 39)",
+              color: "white",
+              borderLeft: "1px solid rgba(255, 255, 255, 0.1)",
+              height: "100%",
+              pt: { xs: "64px", sm: "70px" },
               zIndex: 1,
             },
-            display: { xs: 'none', lg: 'block' },
+            display: { xs: "none", lg: "block" },
           }}
         >
           <StoryElementsPanel
             storyElements={storyElements}
             onUpdate={fetchStoryElements}
+            storyId={storyId}
           />
         </Drawer>
 
         {/* Mobile Story Elements Toggle */}
         <Box
           sx={{
-            position: 'fixed',
+            position: "fixed",
             bottom: 16,
             right: 16,
-            display: { xs: 'block', lg: 'none' },
+            display: { xs: "block", lg: "none" },
             zIndex: 2,
           }}
         >
@@ -323,8 +341,8 @@ export default function PassagePage({ params }) {
             color="primary"
             onClick={() => setDrawerOpen(!drawerOpen)}
             sx={{
-              bgcolor: 'rgb(34 197 94)',
-              '&:hover': { bgcolor: 'rgb(22 163 74)' },
+              bgcolor: "rgb(34 197 94)",
+              "&:hover": { bgcolor: "rgb(22 163 74)" },
             }}
           >
             <MenuBookIcon />
@@ -337,18 +355,19 @@ export default function PassagePage({ params }) {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           sx={{
-            display: { xs: 'block', lg: 'none' },
-            '& .MuiDrawer-paper': {
-              width: { xs: '100%', sm: 340 }, // Full width on mobile phones
-              bgcolor: 'rgb(17 24 39)',
-              color: 'white',
-              pt: { xs: '64px', sm: '70px' },
+            display: { xs: "block", lg: "none" },
+            "& .MuiDrawer-paper": {
+              width: { xs: "100%", sm: 340 }, // Full width on mobile phones
+              bgcolor: "rgb(17 24 39)",
+              color: "white",
+              pt: { xs: "64px", sm: "70px" },
             },
           }}
         >
           <StoryElementsPanel
             storyElements={storyElements}
             onUpdate={fetchStoryElements}
+            storyId={storyId}
           />
         </Drawer>
       </Box>

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from 'react';
+import React, { useState, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -9,6 +9,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  ListItemSecondaryAction,
   Divider,
   IconButton,
   Tooltip,
@@ -20,7 +21,13 @@ import {
   DialogActions,
   TextField,
   Button,
-} from '@mui/material';
+  Collapse,
+  Card,
+  CardContent,
+  CircularProgress,
+  Paper,
+  Grid,
+} from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
   Edit as EditIcon,
@@ -29,41 +36,40 @@ import {
   LocationOn as LocationIcon,
   People as PeopleIcon,
   FormatListBulleted as OutlineIcon,
-} from '@mui/icons-material';
+  Save as SaveIcon,
+  ExpandLess as ExpandLessIcon,
+  Refresh as RefreshIcon,
+  Delete as DeleteIcon,
+} from "@mui/icons-material";
+import storyApiClient from "@/lib/storyApi";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const sections = [
-  { id: 'title', label: 'Title', icon: TitleIcon },
-  { id: 'premise', label: 'Premise', icon: DescriptionIcon },
-  { id: 'setting', label: 'Setting', icon: LocationIcon },
-  { id: 'characters', label: 'Characters', icon: PeopleIcon },
-  { id: 'outline', label: 'Outline', icon: OutlineIcon },
+  { id: "title", label: "Title", icon: TitleIcon },
+  { id: "premise", label: "Premise", icon: DescriptionIcon },
+  { id: "setting", label: "Setting", icon: LocationIcon },
+  { id: "characters", label: "Characters", icon: PeopleIcon },
+  { id: "outline", label: "Outline", icon: OutlineIcon },
 ];
 
-export default function StoryElementsPanel({ storyElements, onUpdate }) {
-  const [expanded, setExpanded] = useState('');
-  const [editDialog, setEditDialog] = useState({ open: false, type: '', content: '' });
+export default function StoryElementsPanel({
+  storyElements,
+  onUpdate,
+  storyId,
+}) {
+  const router = useRouter();
+  const [expanded, setExpanded] = useState({});
+  const [characterDialog, setCharacterDialog] = useState(null);
+  const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
+  const [outlineDialog, setOutlineDialog] = useState(null);
 
-  const handleChange = (panel) => (event, newExpanded) => {
-    setExpanded(newExpanded ? panel : false);
+  const handleExpandToggle = (field) => {
+    setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const handleEdit = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-
-      await storyApiClient.put(`/plan/edit-${editDialog.type}/${storyId}`, {
-        user_id: user.id,
-        [`new_${editDialog.type}`]: editDialog.content,
-      });
-
-      toast.success("Updated successfully!");
-      onUpdate();
-      setEditDialog({ open: false, type: '', content: '' });
-    } catch (error) {
-      console.error("Error updating:", error);
-      toast.error("Failed to update");
-    }
+  const handleInputChange = (field, value) => {
+    // This function is no longer used
   };
 
   const renderContent = (sectionId) => {
@@ -74,25 +80,37 @@ export default function StoryElementsPanel({ storyElements, onUpdate }) {
       return (
         <List dense disablePadding>
           {content.map((item, index) => (
-            <ListItem 
+            <ListItem
               key={index}
               sx={{
-                borderLeft: '2px solid',
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                '&:hover': {
-                  borderColor: 'rgb(34 197 94)',
-                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                borderLeft: "2px solid",
+                borderColor: "rgba(255, 255, 255, 0.1)",
+                "&:hover": {
+                  borderColor: "rgb(34 197 94)",
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
                 },
+              }}
+              button
+              onClick={() => {
+                if (sectionId === "characters") {
+                  setCharacterDialog(item);
+                } else if (sectionId === "outline") {
+                  setOutlineDialog(item);
+                }
               }}
             >
               <ListItemText
-                primary={item.name || item.title || item}
+                primary={
+                  item.name ||
+                  item.title ||
+                  `Point ${item.number}: ${item.content}`
+                }
                 secondary={item.description || null}
                 primaryTypographyProps={{
-                  sx: { color: 'white' }
+                  sx: { color: "white" },
                 }}
                 secondaryTypographyProps={{
-                  sx: { color: 'grey.400' }
+                  sx: { color: "grey.400" },
                 }}
               />
             </ListItem>
@@ -102,11 +120,11 @@ export default function StoryElementsPanel({ storyElements, onUpdate }) {
     }
 
     return (
-      <Typography 
-        variant="body2" 
-        sx={{ 
-          color: 'grey.300',
-          whiteSpace: 'pre-wrap',
+      <Typography
+        variant="body2"
+        sx={{
+          color: "grey.300",
+          whiteSpace: "pre-wrap",
           lineHeight: 1.6,
         }}
       >
@@ -116,34 +134,26 @@ export default function StoryElementsPanel({ storyElements, onUpdate }) {
   };
 
   const renderSectionHeader = (id, label, Icon) => (
-    <Stack direction="row" spacing={1} alignItems="center" sx={{ width: '100%' }}>
-      <Icon sx={{ color: 'grey.400' }} />
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{ width: "100%" }}
+    >
+      <Icon sx={{ color: "grey.400" }} />
       <Typography sx={{ flex: 1 }}>{label}</Typography>
       {storyElements?.[id] && (
         <>
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditDialog({
-                open: true,
-                type: id,
-                content: storyElements[id],
-              });
-            }}
-            sx={{ color: 'grey.400' }}
-          >
-            <EditIcon fontSize="small" />
-          </IconButton>
           <Chip
-            label={Array.isArray(storyElements[id]) ? 
-              `${storyElements[id].length} items` : 
-              'Added'
+            label={
+              Array.isArray(storyElements[id])
+                ? `${storyElements[id].length} items`
+                : "Added"
             }
             size="small"
             sx={{
-              bgcolor: 'rgba(34, 197, 94, 0.2)',
-              color: 'rgb(34 197 94)',
+              bgcolor: "rgba(34, 197, 94, 0.2)",
+              color: "rgb(34 197 94)",
               height: 20,
             }}
           />
@@ -152,75 +162,264 @@ export default function StoryElementsPanel({ storyElements, onUpdate }) {
     </Stack>
   );
 
-  const renderEditDialog = () => (
+  const CharacterForm = ({ initialData, onSubmit, onCancel }) => {
+    // This function is no longer used
+    return null;
+  };
+
+  const OutlineForm = ({ initialData, onSubmit, onCancel }) => {
+    // This function is no longer used
+    return null;
+  };
+
+  const renderEditDialog = () => {
+    // This function is no longer used
+    return null;
+  };
+
+  const renderCharacterDialog = () => (
     <Dialog
-      open={editDialog.open}
-      onClose={() => setEditDialog({ open: false, type: '', content: '' })}
-      maxWidth="sm"
+      open={characterDialog !== null}
+      onClose={() => setCharacterDialog(null)}
+      maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        },
+      }}
     >
-      <DialogTitle>
-        Edit {editDialog.type.charAt(0).toUpperCase() + editDialog.type.slice(1)}
-      </DialogTitle>
-      <DialogContent>
-        <TextField
-          fullWidth
-          multiline
-          rows={4}
-          value={editDialog.content}
-          onChange={(e) => setEditDialog({ ...editDialog, content: e.target.value })}
-          sx={{ mt: 2 }}
-        />
+      <DialogContent sx={{ p: 0 }}>
+        <Card elevation={0}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h5" className="mb-2 text-gray-800">
+              {characterDialog?.name}
+            </Typography>
+            <Typography variant="body2" color="textSecondary" className="mb-2">
+              {characterDialog?.type} • {characterDialog?.role}
+            </Typography>
+
+            <Divider className="my-2" />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Physical Appearance
+                </Typography>
+                <Typography variant="body2" className="mb-2 text-gray-600">
+                  {characterDialog?.physicalAppearance}
+                </Typography>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Behavioral Patterns
+                </Typography>
+                <Typography variant="body2" className="mb-2 text-gray-600">
+                  {characterDialog?.behavioralPatterns}
+                </Typography>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Gender & Orientation
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {characterDialog?.genderAndSexualOrientation}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Likes
+                </Typography>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {characterDialog?.likesAndDislikes?.Likes?.map((like, i) => (
+                    <Chip
+                      key={i}
+                      label={like}
+                      size="small"
+                      className="bg-green-50"
+                    />
+                  ))}
+                </div>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Dislikes
+                </Typography>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {characterDialog?.likesAndDislikes?.Dislikes?.map(
+                    (dislike, i) => (
+                      <Chip
+                        key={i}
+                        label={dislike}
+                        size="small"
+                        className="bg-red-50"
+                      />
+                    )
+                  )}
+                </div>
+
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Relationships
+                </Typography>
+                <div className="space-y-1">
+                  {Object.entries(characterDialog?.relationships || {}).map(
+                    ([name, relation]) => (
+                      <Typography
+                        key={name}
+                        variant="body2"
+                        className="text-gray-600"
+                      >
+                        <span className="font-medium">{name}</span>: {relation}
+                      </Typography>
+                    )
+                  )}
+                </div>
+              </Grid>
+            </Grid>
+
+            {characterDialog?.background && (
+              <>
+                <Divider className="my-2" />
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Background
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {characterDialog.background}
+                </Typography>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setEditDialog({ open: false, type: '', content: '' })}>
-          Cancel
-        </Button>
-        <Button onClick={handleEdit} variant="contained">
-          Save
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 
+  const renderOutlineDialog = () => (
+    <Dialog
+      open={outlineDialog !== null}
+      onClose={() => setOutlineDialog(null)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        },
+      }}
+    >
+      <DialogContent sx={{ p: 0 }}>
+        <Card elevation={0}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h5" className="mb-2 text-gray-800">
+              {outlineDialog?.number}. {outlineDialog?.title}
+            </Typography>
+            <Typography variant="body2" className="mt-2 text-gray-600">
+              {outlineDialog?.description}
+            </Typography>
+
+            <Divider className="my-2" />
+
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Purpose
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {outlineDialog?.purpose}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <Typography variant="subtitle2" className="text-gray-700">
+                  Setting
+                </Typography>
+                <Typography variant="body2" className="text-gray-600">
+                  {outlineDialog?.setting}
+                </Typography>
+              </Grid>
+            </Grid>
+
+            <div className="mt-2">
+              <Typography variant="subtitle2" className="text-gray-700">
+                Characters Involved
+              </Typography>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {outlineDialog?.characters_involved?.map((character, i) => (
+                  <Chip
+                    key={i}
+                    label={character}
+                    size="small"
+                    className="bg-blue-50"
+                  />
+                ))}
+              </div>
+            </div>
+
+            <Typography variant="body2" className="mt-2 text-gray-500">
+              Estimated Duration: {outlineDialog?.estimated_duration}
+            </Typography>
+          </CardContent>
+        </Card>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const renderHeader = () => (
+    <Box
+      component="a"
+      href={`/create/plan/${storyId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      sx={{
+        p: 3,
+        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+        cursor: "pointer",
+        textDecoration: "none",
+        "&:hover": {
+          backgroundColor: "rgba(255, 255, 255, 0.05)",
+        },
+      }}
+    >
+      <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
+        Story Elements
+      </Typography>
+      <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
+        Click to manage story elements (opens in new tab)
+      </Typography>
+    </Box>
+  );
+
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Box sx={{ p: 3, borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-        <Typography variant="h6" sx={{ color: 'white', fontWeight: 600 }}>
-          Story Elements
-        </Typography>
-        <Typography variant="body2" sx={{ color: 'grey.400', mt: 1 }}>
-          Reference your story's key elements while writing
-        </Typography>
-      </Box>
+    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {renderHeader()}
 
       {/* Elements */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+      <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
         {sections.map(({ id, label, icon: Icon }) => (
           <Accordion
             key={id}
-            expanded={expanded === id}
-            onChange={handleChange(id)}
+            expanded={expanded[id]}
+            onChange={() => handleExpandToggle(id)}
             sx={{
-              bgcolor: 'transparent',
-              color: 'white',
-              backgroundImage: 'none',
-              boxShadow: 'none',
-              '&:before': { display: 'none' },
-              '& .MuiAccordionSummary-root': {
+              bgcolor: "transparent",
+              color: "white",
+              backgroundImage: "none",
+              boxShadow: "none",
+              "&:before": { display: "none" },
+              "& .MuiAccordionSummary-root": {
                 borderRadius: 1,
-                '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.05)',
+                "&:hover": {
+                  bgcolor: "rgba(255, 255, 255, 0.05)",
                 },
               },
-              '& .MuiAccordionSummary-expandIconWrapper': {
-                color: 'grey.500',
+              "& .MuiAccordionSummary-expandIconWrapper": {
+                color: "grey.500",
               },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
+              expandIcon={
+                expanded[id] ? <ExpandLessIcon /> : <ExpandMoreIcon />
+              }
               sx={{ minHeight: 56 }}
             >
               {renderSectionHeader(id, label, Icon)}
@@ -232,14 +431,8 @@ export default function StoryElementsPanel({ storyElements, onUpdate }) {
         ))}
       </Box>
 
-      {/* Footer */}
-      <Box sx={{ p: 2, borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
-        <Typography variant="caption" sx={{ color: 'grey.500' }}>
-          Tip: Keep these elements in mind to maintain consistency in your story
-        </Typography>
-      </Box>
-
-      {renderEditDialog()}
+      {renderCharacterDialog()}
+      {renderOutlineDialog()}
     </Box>
   );
-} 
+}

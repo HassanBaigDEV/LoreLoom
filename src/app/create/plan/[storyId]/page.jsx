@@ -69,7 +69,6 @@ export default function PlanStory({ params }) {
         `/plan/story-elements/${storyId}`,
         {
           params: {
-            story_id: storyId,
             user_id: user.id,
           },
         }
@@ -103,7 +102,7 @@ export default function PlanStory({ params }) {
   };
 
   const handleProceedP = () => {
-    router.push(`/draft/passage/${storyId}`);
+    router.push(`/create/passage/${storyId}`);
   };
 
   return (

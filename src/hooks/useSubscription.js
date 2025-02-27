@@ -48,7 +48,8 @@ export function useSubscription() {
         router.push('/dashboard');
       } else {
         const { checkout_url } = await subscriptionService.createCheckoutSession(tier);
-        window.location.href = checkout_url;
+        // window.location.href = checkout_url;
+        router.push(checkout_url);
       }
     } catch (error) {
       toast.error('Failed to upgrade plan. Please try again.');

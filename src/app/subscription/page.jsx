@@ -43,7 +43,8 @@ export default function SubscriptionPage() {
       const { checkout_url } = await subscriptionService.createCheckoutSession(
         tier
       );
-      window.location.href = checkout_url;
+      // use Next router to navigate to the checkout page
+      router.push(checkout_url);
     } catch (error) {
       console.error("Error creating checkout session:", error);
     } finally {
