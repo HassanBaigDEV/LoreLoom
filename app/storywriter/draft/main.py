@@ -858,19 +858,106 @@ class DraftGenerator:
             logger.error(f"Error generating summary: {e}")
             return None
 
+    # async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext):
+    #     """Process entities, updating existing ones and creating new ones while ensuring uniqueness."""
+    #     try:
+    #         # Fetch existing story
+    #         story = await stories.find_one({"story_id": ObjectId(self.story_id)})
+    #         if not story:
+    #             return
+
+    #         def normalize_name(name):
+    #             """Normalize entity names for comparison: lowercase and remove leading 'the'."""
+    #             return name.lower().lstrip("the ").strip()
+
+    #         # Normalize existing characters' names for case-insensitive comparison
+    #         existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
+
+    #         # Normalize mentioned entities
+    #         mentioned_entities = {normalize_name(entity) for entity in passage.mentioned_entities}
+
+    #         # Split into existing and new entities
+    #         existing_entities = mentioned_entities & existing_chars
+    #         new_entities = mentioned_entities - existing_chars
+    #         logger.info(f"Existing entities: {existing_entities}")
+    #         logger.info(f"New entities: {new_entities}")
+
+    #         # Update existing characters in parallel
+    #         update_tasks = [
+    #             self._update_character_description(entity, passage.content)
+    #             for entity in existing_entities
+    #         ]
+
+    #         if new_entities:
+    #             # Classify and prioritize new entities
+    #             entity_types = await self._batch_classify_entities(new_entities, passage.content)
+    #             priority_entities = self._prioritize_entities(entity_types)
+
+    #             if priority_entities:
+    #                 # Generate profiles for new characters
+    #                 new_characters = await self._batch_generate_characters(priority_entities, passage.content, context)
+
+    #                 if new_characters:
+    #                     validated_characters = []
+    #                     existing_names = {char["name"].lower() for char in story.get("characters", [])}  # Original case for storage
+
+    #                     for char in new_characters:
+    #                         if "role" not in char:
+    #                             char["role"] = "Supporting Character"
+                            
+    #                         char_name = char["name"]
+    #                         norm_name = normalize_name(char_name)
+
+    #                         # Avoid duplicate characters after normalization
+    #                         if norm_name in existing_names:
+    #                             logger.warning(f"Skipping duplicate character: {char_name}")
+    #                             continue
+
+    #                         try:
+    #                             validated_char = Character(**char)
+    #                             validated_characters.append(validated_char.model_dump())
+    #                             existing_names.add(norm_name)  # Add to existing names after validation
+    #                         except Exception as e:
+    #                             logger.error(f"Character validation error: {e}")
+    #                             continue
+
+    #                     if validated_characters:
+    #                         # Insert new validated characters
+    #                         await stories.update_one(
+    #                             {"story_id": ObjectId(self.story_id)},
+    #                             {
+    #                                 "$push": {"characters": {"$each": validated_characters}},
+    #                                 "$set": {"updated_at": datetime.utcnow()},
+    #                             },
+    #                         )
+    #                         logger.info(f"Added {len(validated_characters)} new characters")
+
+    #         # Wait for all updates to complete
+    #         if update_tasks:
+    #             await asyncio.gather(*update_tasks)
+    #             logger.info(f"Updated {len(update_tasks)} existing characters")
+
+    #     except Exception as e:
+    #         logger.error(f"Error processing entities: {e}")
+
     async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext):
-        """Process entities, updating existing ones and creating new ones"""
+        """Process entities, updating existing ones and creating new ones while ensuring uniqueness."""
         try:
-            # Get existing characters
+            # Fetch existing story
             story = await stories.find_one({"story_id": ObjectId(self.story_id)})
             if not story:
                 return
 
-            existing_chars = {char["name"] for char in story.get("characters", [])}
+            def normalize_name(name):
+                """Normalize entity names for comparison: lowercase and remove leading 'the'."""
+                return name.lower().lstrip("the ").strip()
 
-            # Split entities into existing and new
-            existing_entities = set(passage.mentioned_entities) & existing_chars
-            new_entities = set(passage.mentioned_entities) - existing_chars
+            # Normalize existing characters' names for case-insensitive comparison
+            existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
+            mentioned_entities = {normalize_name(entity) for entity in passage.mentioned_entities}
+
+            existing_entities = mentioned_entities & existing_chars
+            new_entities = mentioned_entities - existing_chars
             logger.info(f"Existing entities: {existing_entities}")
             logger.info(f"New entities: {new_entities}")
 
@@ -880,55 +967,67 @@ class DraftGenerator:
                 for entity in existing_entities
             ]
 
-            # Process new entities only if they exist
             if new_entities:
-                # Classify and prioritize new entities
-                entity_types = await self._batch_classify_entities(
-                    new_entities, passage.content
-                )
+                entity_types = await self._batch_classify_entities(new_entities, passage.content)
                 priority_entities = self._prioritize_entities(entity_types)
 
                 if priority_entities:
-                    # Generate profiles for new characters
-                    new_characters = await self._batch_generate_characters(
-                        priority_entities, passage.content, context
-                    )
+                    new_characters = await self._batch_generate_characters(priority_entities, passage.content, context)
 
                     if new_characters:
-                        # Add required role field and validate
                         validated_characters = []
+                        existing_names = {normalize_name(char["name"]) for char in story.get("characters", [])}
+
                         for char in new_characters:
                             if "role" not in char:
                                 char["role"] = "Supporting Character"
+
+                            char_name = char["name"]
+                            norm_name = normalize_name(char_name)
+
+                            if norm_name in existing_names:
+                                logger.warning(f"Skipping duplicate character: {char_name}")
+                                continue
+
                             try:
+                                # Generate detailed character description
+                                char["physicalAppearance"], char["behavioralPatterns"], char["genderAndSexualOrientation"], char["relationships"], char["likesAndDislikes"] = await self._generate_character_details(char_name)
+                                logger.info(f"Generated details for {char_name}: {char}")
                                 validated_char = Character(**char)
                                 validated_characters.append(validated_char.model_dump())
+                                existing_names.add(norm_name)
                             except Exception as e:
                                 logger.error(f"Character validation error: {e}")
                                 continue
 
                         if validated_characters:
-                            # if any character with the same name already exist, update them, append the rest
                             await stories.update_one(
                                 {"story_id": ObjectId(self.story_id)},
                                 {
-                                    "$push": {
-                                        "characters": {"$each": validated_characters}
-                                    },
+                                    "$push": {"characters": {"$each": validated_characters}},
                                     "$set": {"updated_at": datetime.utcnow()},
                                 },
                             )
-                            logger.info(
-                                f"Added {len(validated_characters)} new characters"
-                            )
+                            logger.info(f"Added {len(validated_characters)} new characters to story {self.story_id}")
 
-            # Wait for all updates to complete
             if update_tasks:
                 await asyncio.gather(*update_tasks)
                 logger.info(f"Updated {len(update_tasks)} existing characters")
 
         except Exception as e:
             logger.error(f"Error processing entities: {e}")
+
+    async def _generate_character_details(self, name: str):
+        """Generate a detailed description for a new character."""
+        # Placeholder logic - replace with AI-driven or predefined descriptions
+        physical_appearance = f"A distinct look unique to {name}."
+        behavioral_patterns = f"Typical behaviors associated with {name}."
+        gender_and_sexual_orientation = "Unknown"
+        relationships = {}
+        likes_and_dislikes = {"Likes": ["Example Like"], "Dislikes": ["Example Dislike"]}
+        
+        logger.info(f"Generated character details for {name}")
+        return physical_appearance, behavioral_patterns, gender_and_sexual_orientation, relationships, likes_and_dislikes
 
     async def _batch_classify_entities(self, entities: set[str], passage_content: str) -> Dict[str, str]:
         """Classify multiple entities in a single LLM call"""

@@ -15,6 +15,7 @@ from app.storywriter.plan.plot.premise import generate_title, generate_premise
 from app.storywriter.plan.plot.settings import generate_setting
 from app.storywriter.plan.characters.main import (
     generate_characters,
+    generate_character,
     regenerate_single_character,
 )
 from app.storywriter.plan.outline.main import (
@@ -205,6 +206,29 @@ async def get_characters(story_id: str, user_id: str):
         logging.error(f"Exception: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
+@router.get("/generate-character/{story_id}")
+async def get_character(story_id: str, user_id: str):
+    try:
+        # Convert story_id and user_id to ObjectId
+        story_id_obj = ObjectId(story_id)
+        user_id_obj = ObjectId(user_id)
+
+        # Check if story exists and belongs to user
+        story = await stories.find_one(
+            {"story_id": story_id_obj, "author": user_id_obj}
+        )
+        if not story:
+            logging.error("Story not found")
+            return HTTPException(status_code=404, detail="Story not found")
+
+        character = await generate_character(story_id)
+        return character
+    except ValueError as ve:
+        logging.error(f"ValueError: {ve}")
+        return HTTPException(status_code=400, detail="Invalid ID format")
+    except Exception as e:
+        logging.error(f"Exception: {e}")
+        return HTTPException(status_code=500, detail=str(e))
 
 class OutlineRequest(BaseModel):
     max_depth: int = 2

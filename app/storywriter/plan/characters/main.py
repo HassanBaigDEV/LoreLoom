@@ -290,3 +290,110 @@ async def regenerate_single_character(
     except Exception as e:
         logging.error(f"Error validating character: {e}")
         raise ValueError("Failed to validate generated character")
+
+# Generate single character based on premise and setting
+async def generate_character(story_id: str) -> Dict:
+    """Generate a single character/entity with strict schema validation and efficient updates."""
+
+    # Fetch story to get genre
+    story = await stories.find_one({"story_id": ObjectId(story_id)})
+    if not story:
+        raise ValueError("Story not found")
+
+    genre = story.get("genre", "")
+    premise = story.get("premise", "")
+    setting = story.get("setting", "")
+
+    chatML_template = f"""
+    <|im_start|>system
+    You are an AI designed to generate a single character description for a {genre} story.
+    Ensure the output adheres to this **strict JSON schema**:
+
+    ```json
+    {{
+      "type": "object",
+      "properties": {{
+        "name": {{"type": "string"}},
+        "type": {{"type": "string", "enum": ["character", "entity", "location"]}},
+        "role": {{"type": "string"}},
+        "physicalAppearance": {{"type": "string"}},
+        "behavioralPatterns": {{"type": "string"}},
+        "genderAndSexualOrientation": {{"type": "string"}},
+        "relationships": {{
+          "type": "object",
+          "additionalProperties": {{"type": "string"}}
+        }},
+        "likesAndDislikes": {{
+          "type": "object",
+          "properties": {{
+            "Likes": {{"type": "array", "items": {{"type": "string"}}}},
+            "Dislikes": {{"type": "array", "items": {{"type": "string"}}}}
+          }},
+          "required": ["Likes", "Dislikes"]
+        }}
+      }},
+      "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
+                   "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
+    }}
+    ```
+
+    Generate a single character/entity based on:
+    Premise: {premise}
+    Setting: {setting}
+    <|im_end|>
+    <|im_start|>assistant
+    """
+
+    try:
+        # ✅ Await the AI response
+        character_response = await model._json(
+            chatML_template,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "type": {"type": "string", "enum": ["character", "entity", "location"]},
+                        "role": {"type": "string"},
+                        "physicalAppearance": {"type": "string"},
+                        "behavioralPatterns": {"type": "string"},
+                        "genderAndSexualOrientation": {"type": "string"},
+                        "relationships": {
+                            "type": "object",
+                            "additionalProperties": {"type": "string"}
+                        },
+                        "likesAndDislikes": {
+                            "type": "object",
+                            "properties": {
+                                "Likes": {"type": "array", "items": {"type": "string"}},
+                                "Dislikes": {"type": "array", "items": {"type": "string"}}
+                            },
+                            "required": ["Likes", "Dislikes"]
+                        }
+                    },
+                    "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
+                                 "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
+                }
+            },
+        )
+
+        # ✅ Validate AI response
+        if not isinstance(character_response, dict):
+            logging.error("Invalid AI model response format")
+            raise ValueError("Invalid AI response format")
+
+        # ✅ Use response directly if it's already a dictionary
+        character_data = character_response
+
+        # ✅ Update database safely
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"character": character_data, "updated_at": datetime.utcnow()}},
+        )
+
+        return character_data
+
+    except Exception as e:
+        logging.error(f"Error generating character: {e}")
+        raise
