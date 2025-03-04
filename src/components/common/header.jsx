@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   AppBar,
   Box,
@@ -20,27 +20,27 @@ import {
   ListItem,
   ListItemText,
   Divider,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Menu as MenuIcon,
   Close as CloseIcon,
   KeyboardArrowDown as ArrowDownIcon,
-} from '@mui/icons-material';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
-import Logo from './logo';
+} from "@mui/icons-material";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import Logo from "./logo";
 
 const publicPages = [
-  { name: 'Discover', href: '/discover' },
-  { name: 'About', href: '/about' },
-  { name: 'Pricing', href: '/subscription' },
-  { name: 'Contact', href: '/contact' },
+  { name: "Discover", href: "/discover" },
+  { name: "Pricing", href: "/subscription" },
+  { name: "About", href: "/about" },
+  // { name: 'Contact', href: '/contact' },
 ];
 
 const userPages = [
-  { name: 'Dashboard', href: '/dashboard' },
-  { name: 'Create Story', href: '/create' },
+  { name: "Dashboard", href: "/dashboard" },
+  { name: "Create Story", href: "/create" },
 ];
 
 function Header() {
@@ -59,80 +59,99 @@ function Header() {
   const handleLogout = async () => {
     await logout();
     handleCloseUserMenu();
-    router.push('/');
+    router.push("/");
   };
 
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
 
   return (
-    <AppBar 
-      position="fixed" 
+    <AppBar
+      position="fixed"
       elevation={trigger ? 4 : 0}
       sx={{
-        bgcolor: 'rgb(17 24 39)',
-        borderBottom: trigger ? 'none' : '1px solid rgba(255, 255, 255, 0.1)',
-        transition: 'all 0.3s ease-in-out',
+        bgcolor: "rgb(17 24 39)",
+        borderBottom: trigger ? "none" : "1px solid rgba(255, 255, 255, 0.1)",
+        transition: "all 0.3s ease-in-out",
         mb: 2,
       }}
     >
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ height: 70 }}>
           {/* Desktop Logo */}
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, mr: 4 }}>
-            <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ display: { xs: "none", md: "flex" }, mr: 4 }}>
+            <Link
+              href="/"
+              style={{
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <Logo />
             </Link>
           </Box>
 
           {/* Mobile Menu Button */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
-            <IconButton
-              size="large"
-              onClick={toggleMobileMenu}
-              color="inherit"
-            >
+          <Box sx={{ display: { xs: "flex", md: "none" } }}>
+            <IconButton size="large" onClick={toggleMobileMenu} color="inherit">
               {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
             </IconButton>
           </Box>
 
           {/* Mobile Logo */}
-          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' }, justifyContent: 'center' }}>
-            <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: { xs: "flex", md: "none" },
+              justifyContent: "center",
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
               <Logo />
             </Link>
           </Box>
 
           {/* Desktop Navigation - Centered */}
-          <Box sx={{ 
-            flexGrow: 1, 
-            display: { xs: 'none', md: 'flex' }, 
-            justifyContent: 'center',
-            gap: 4
-          }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: { xs: "none", md: "flex" },
+              justifyContent: "center",
+              gap: 4,
+            }}
+          >
+            {user &&
+              userPages.map((page) => (
+                <Button
+                  key={page.name}
+                  component={Link}
+                  href={page.href}
+                  sx={{
+                    color: "white",
+                    "&:hover": {
+                      color: "rgb(34 197 94)",
+                    },
+                  }}
+                >
+                  {page.name}
+                </Button>
+              ))}
             {publicPages.map((page) => (
               <Button
                 key={page.name}
                 component={Link}
                 href={page.href}
                 sx={{
-                  color: 'white',
-                  '&:hover': {
-                    color: 'rgb(34 197 94)',
-                  },
-                }}
-              >
-                {page.name}
-              </Button>
-            ))}
-            {user && userPages.map((page) => (
-              <Button
-                key={page.name}
-                component={Link}
-                href={page.href}
-                sx={{
-                  color: 'white',
-                  '&:hover': {
-                    color: 'rgb(34 197 94)',
+                  color: "white",
+                  "&:hover": {
+                    color: "rgb(34 197 94)",
                   },
                 }}
               >
@@ -147,13 +166,13 @@ function Header() {
               <>
                 <Tooltip title="Account settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar 
+                    <Avatar
                       alt={user.username}
                       src={user?.photo}
                       sx={{
-                        bgcolor: 'rgb(34 197 94)',
-                        border: '2px solid',
-                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                        bgcolor: "rgb(34 197 94)",
+                        border: "2px solid",
+                        borderColor: "rgba(255, 255, 255, 0.3)",
                         width: 40,
                         height: 40,
                       }}
@@ -167,21 +186,21 @@ function Header() {
                   open={Boolean(anchorElUser)}
                   onClose={handleCloseUserMenu}
                   sx={{
-                    '& .MuiPaper-root': {
+                    "& .MuiPaper-root": {
                       borderRadius: 2,
                       mt: 1.5,
                       minWidth: 180,
-                    }
+                    },
                   }}
                 >
-                  <MenuItem onClick={() => router.push('/profile')}>
+                  <MenuItem onClick={() => router.push("/profile")}>
                     Profile
                   </MenuItem>
-                  <MenuItem onClick={() => router.push('/subscription')}>
+                  <MenuItem onClick={() => router.push("/subscription")}>
                     Subscription
                   </MenuItem>
                   <Divider />
-                  <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+                  <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
                     Logout
                   </MenuItem>
                 </Menu>
@@ -193,9 +212,9 @@ function Header() {
                   href="/login"
                   variant="text"
                   sx={{
-                    color: 'white',
-                    '&:hover': {
-                      color: 'rgb(34 197 94)',
+                    color: "white",
+                    "&:hover": {
+                      color: "rgb(34 197 94)",
                     },
                   }}
                 >
@@ -206,9 +225,9 @@ function Header() {
                   href="/register"
                   variant="contained"
                   sx={{
-                    bgcolor: 'rgb(34 197 94)',
-                    '&:hover': {
-                      bgcolor: 'rgb(22 163 74)',
+                    bgcolor: "rgb(34 197 94)",
+                    "&:hover": {
+                      bgcolor: "rgb(22 163 74)",
                     },
                   }}
                 >
@@ -226,28 +245,28 @@ function Header() {
         open={mobileMenuOpen}
         onClose={toggleMobileMenu}
         sx={{
-          '& .MuiDrawer-paper': {
-            width: '80%',
+          "& .MuiDrawer-paper": {
+            width: "80%",
             maxWidth: 300,
-            bgcolor: 'rgb(17 24 39)',
-            color: 'white',
+            bgcolor: "rgb(17 24 39)",
+            color: "white",
           },
         }}
       >
         <Box sx={{ p: 2 }}>
           <Logo />
         </Box>
-        <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)' }} />
+        <Divider sx={{ borderColor: "rgba(255, 255, 255, 0.1)" }} />
         <List>
           {publicPages.map((page) => (
-            <ListItem 
+            <ListItem
               key={page.name}
               component={Link}
               href={page.href}
               onClick={toggleMobileMenu}
               sx={{
-                '&:hover': {
-                  color: 'rgb(34 197 94)',
+                "&:hover": {
+                  color: "rgb(34 197 94)",
                 },
               }}
             >
@@ -256,16 +275,18 @@ function Header() {
           ))}
           {user && (
             <>
-              <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', my: 1 }} />
+              <Divider
+                sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 1 }}
+              />
               {userPages.map((page) => (
-                <ListItem 
+                <ListItem
                   key={page.name}
                   component={Link}
                   href={page.href}
                   onClick={toggleMobileMenu}
                   sx={{
-                    '&:hover': {
-                      color: 'rgb(34 197 94)',
+                    "&:hover": {
+                      color: "rgb(34 197 94)",
                     },
                   }}
                 >
@@ -276,17 +297,17 @@ function Header() {
           )}
         </List>
         {!user && (
-          <Box sx={{ p: 2, mt: 'auto' }}>
+          <Box sx={{ p: 2, mt: "auto" }}>
             <Button
               fullWidth
               variant="contained"
               component={Link}
               href="/register"
               sx={{
-                bgcolor: 'rgb(34 197 94)',
+                bgcolor: "rgb(34 197 94)",
                 mb: 1,
-                '&:hover': {
-                  bgcolor: 'rgb(22 163 74)',
+                "&:hover": {
+                  bgcolor: "rgb(22 163 74)",
                 },
               }}
             >
@@ -298,11 +319,11 @@ function Header() {
               component={Link}
               href="/login"
               sx={{
-                color: 'white',
-                borderColor: 'white',
-                '&:hover': {
-                  borderColor: 'rgb(34 197 94)',
-                  color: 'rgb(34 197 94)',
+                color: "white",
+                borderColor: "white",
+                "&:hover": {
+                  borderColor: "rgb(34 197 94)",
+                  color: "rgb(34 197 94)",
                 },
               }}
             >
@@ -315,4 +336,4 @@ function Header() {
   );
 }
 
-export default Header; 
+export default Header;

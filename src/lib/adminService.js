@@ -58,7 +58,7 @@ export const adminService = {
 
   // Get all stories
   getAllStories: async () => {
-    const response = await adminApiClient.get("/admin/stories");
+    const response = await adminApiClient.get("/author/stories");
     return response.data;
   },
   getAllSubmissions: async () => {

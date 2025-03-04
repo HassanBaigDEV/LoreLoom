@@ -77,6 +77,9 @@ export default function Dashboard() {
   }, [checkAuth, router]);
 
   useEffect(() => {
+    console.log(feedback);
+  }, []); 
+  useEffect(() => {
     if (!admin) {
       initializeDashboard();
     } else {

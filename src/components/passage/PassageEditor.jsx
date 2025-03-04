@@ -48,9 +48,8 @@ export default function PassageEditor({ passage, onUpdate }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      await storyApiClient.put(`/draft/passages/${passage.passage_id}`, {
+      await storyApiClient.put(`/draft/passage/${passage.passage_id}`, {
         user_id: user.id,
-        title,
         content,
       });
 

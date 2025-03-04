@@ -303,12 +303,12 @@ export default function PassagePage({ params }) {
           variant="permanent"
           anchor="right"
           sx={{
-            width: 340,
+            width: { xs: 300, lg: 340 },
             flexShrink: 0,
             position: "fixed",
             height: "100%",
             "& .MuiDrawer-paper": {
-              width: 340,
+              width: { xs: 300, lg: 340 },
               boxSizing: "border-box",
               bgcolor: "rgb(17 24 39)",
               color: "white",

@@ -68,9 +68,7 @@ export default function StoryElementsPanel({
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const handleInputChange = (field, value) => {
-    // This function is no longer used
-  };
+  
 
   const renderContent = (sectionId) => {
     const content = storyElements?.[sectionId];
