@@ -59,7 +59,7 @@ class StoryBase(BaseModel):
     author_name: Optional[str] = ""
 
     class Config:
-        allow_population_by_field_name = True
+        populate_by_name = True
         json_encoders = {
             ObjectId: str,
             datetime: lambda dt: dt.isoformat(),
@@ -87,6 +87,8 @@ def objectid_to_str(doc):
         doc["_id"] = str(doc["_id"])
     if "author" in doc:
         doc["author"] = str(doc["author"])
+    if "story_id" in doc:
+        doc["story_id"] = str(doc["story_id"])
     return doc
 
 
@@ -133,15 +135,18 @@ async def get_pstories():
 
     # Fetch stories from the database
     stories = await stories_collection.find(query).to_list(length=100)
+    # print(stories)
 
     # Add author's name to each story
     stories_with_author = []
     for story in stories:
         author_id = str(story.get("author"))
+        # print(author_id)
 
         if author_id:
             # Fetch the author's first and last name from the users collection
-            author = await users_collection.find_one({"_id": author_id})
+            author = await users_collection.find_one({"_id": str(author_id)})
+            # print(author)
             if author:
                 story["author_name"] = author.get("username", "Unknown Author")
             else:
