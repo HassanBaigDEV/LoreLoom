@@ -1,16 +1,43 @@
 from typing import List, Tuple, Dict
+from enum import Enum
+from functools import lru_cache
 from app.storywriter.draft.schema import GeneratedPassage, PassageContext
 from .evaluator import PassageEvaluator
 from .improver import PassageImprover
 import re
-import math
 from collections import Counter
 import numpy as np
 import logging
+import spacy
+from sentence_transformers import SentenceTransformer
+import logging
 
+from pydoc import classname
+from typing import List, Dict, Optional, Tuple, Union
+# import tiktoken
+from pymongo import UpdateOne
+from datetime import datetime
+import asyncio
+import re
+import spacy
+from typing import Set
+from functools import wraps
+
+
+from ..schema import PassageContext, GeneratedPassage
+from app.config.mongo import db
+
+
+
+
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 nlp = spacy.load("en_core_web_lg")
 
+class SimilarityMethod(Enum):
+        COSINE = "cosine"
+        EUCLIDEAN = "euclidean"
+        DOT_PRODUCT = "dot_product"
 class PassageRewriter:
     def __init__(self, story_id: str):
         self.story_id = story_id
@@ -54,45 +81,7 @@ class PassageRewriter:
 
         return best_passage, best_scores
     from functools import lru_cache
-from sentence_transformers import SentenceTransformer
-import logging
-import json
-from pydoc import classname
-from typing import List, Dict, Optional, Tuple, Union
-from bson import ObjectId
-# import tiktoken
-from pymongo import UpdateOne
-from datetime import datetime
-import asyncio
-import re
-import spacy
-from typing import Set
-from functools import wraps
-import time
-from pydantic import BaseModel, Field
-from typing import Literal
 
-from ..plan.db.vector import store_story_part, find_similar_parts
-from ..llm import model
-from .schema import PassageContext, GeneratedPassage
-from app.config.mongo import db, stories
-from ..plan.characters.schema import character_schema
-from ..plan.outline.schema import (
-    OutlineNode,
-)
-from ..plan.characters.schema import Character
-from app.utils.text_validation import (
-    retry_generation,
-    is_complete_sentence,
-    get_logit_bias,
-    extract_and_parse_json,
-)
-from .rewrite.main import PassageRewriter
-from .passage_processor import PassageProcessor
-from .entity_processor import EntityProcessor
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 # Initialize tokenizer for token counting
 # tokenizer = tiktoken.get_encoding("cl100k_base")
@@ -113,17 +102,39 @@ class PassageRewriterS:
             self.nlp = spacy.load("en_core_web_lg")
         except:
             self.nlp = spacy.load("en_core_web_sm")
-
     """
     Computes coherence score using semantic similarity between consecutive passages first method
     Calculating similarity between two vectors using the specified method second methods.
     """
-    class SimilarityMethod(Enum):
-        COSINE = "cosine"
-        EUCLIDEAN = "euclidean"
-        DOT_PRODUCT = "dot_product"
+   
+    
+    def _calculate_similarity(self, vec1: np.ndarray, vec2: np.ndarray, method: SimilarityMethod) -> float:
+
+        if method in [SimilarityMethod.COSINE, SimilarityMethod.DOT_PRODUCT]:
+            norm1 = np.linalg.norm(vec1)
+            norm2 = np.linalg.norm(vec2)
+            
+            if norm1 == 0 or norm2 == 0:
+                return 0.0
+                
+            vec1_normalized = vec1 / norm1
+            vec2_normalized = vec2 / norm2
+        
+        if method == SimilarityMethod.COSINE:
+            return np.dot(vec1_normalized, vec2_normalized)
+        
+        elif method == SimilarityMethod.EUCLIDEAN:
+            distance = np.linalg.norm(vec1 - vec2)
+            return float(1.0 / (1.0 + distance))  
+        
+        elif method == SimilarityMethod.DOT_PRODUCT:
+            return np.dot(vec1_normalized, vec2_normalized)
+        
+        else:
+            raise ValueError(f"Unknown similarity method: {method}")
 
     def calculate_semantic_coherence(
+        self,
         text: Union[str, List[str]], 
         prev_text: Union[str, List[str], None] = None, 
         model = None,
@@ -150,7 +161,7 @@ class PassageRewriterS:
                 embeddings = model.encode([prev_text, text], convert_to_numpy=True)
                 prev_embedding, current_embedding = embeddings[0], embeddings[1]
                 
-                similarity = _calculate_similarity(prev_embedding, current_embedding, method)
+                similarity = self._calculate_similarity(prev_embedding, current_embedding, method)
                 
                 if similarity < threshold:
                     similarity = 0.0
@@ -162,15 +173,17 @@ class PassageRewriterS:
             else:
                 if len(text) != len(prev_text):
                     raise ValueError("Batch sizes must match for text and prev_text")
-                    
+                # prev_text = [prev_text] if isinstance(prev_text, str) else prev_text
+                # text = [text] if isinstance(text, str) else text
                 all_texts = prev_text + text
+
                 all_embeddings = model.encode(all_texts, convert_to_numpy=True)
                 
                 prev_embeddings = all_embeddings[:len(prev_text)]
                 current_embeddings = all_embeddings[len(prev_text):]
                 
                 similarities = [
-                    _calculate_similarity(prev_embeddings[i], current_embeddings[i], method)
+                    self._calculate_similarity(prev_embeddings[i], current_embeddings[i], method)
                     for i in range(len(text))
                 ]
                 
@@ -183,31 +196,7 @@ class PassageRewriterS:
         except Exception as e:
             raise RuntimeError(f"Error calculating semantic coherence: {str(e)}")
 
-    def _calculate_similarity(vec1: np.ndarray, vec2: np.ndarray, method: SimilarityMethod) -> float:
 
-        if method in [SimilarityMethod.COSINE, SimilarityMethod.DOT_PRODUCT]:
-            norm1 = np.linalg.norm(vec1)
-            norm2 = np.linalg.norm(vec2)
-            
-            if norm1 == 0 or norm2 == 0:
-                return 0.0
-                
-            vec1_normalized = vec1 / norm1
-            vec2_normalized = vec2 / norm2
-        
-        if method == SimilarityMethod.COSINE:
-            return np.dot(vec1_normalized, vec2_normalized)
-        
-        elif method == SimilarityMethod.EUCLIDEAN:
-            distance = np.linalg.norm(vec1 - vec2)
-            return 1.0 / (1.0 + distance)  
-        
-        elif method == SimilarityMethod.DOT_PRODUCT:
-            return np.dot(vec1_normalized, vec2_normalized)
-        
-        else:
-            raise ValueError(f"Unknown similarity method: {method}")
- 
     # def _calculate_relevance(self, passage: str, outline: str) -> float:
     #     """
     #     Measures semantic relevance of a passage to an outline using SBERT.
@@ -224,21 +213,21 @@ class PassageRewriterS:
 
     #     return similarity  # Higher means better alignment with outline.
     
-    def _calculate_entity_coverage(passage_entities: List[str], outline_entities: List[str], 
-                                special_weights: Dict[str, float] = None) -> float:
+        def _calculate_entity_coverage(self, passage_entities: List[str], outline_entities: List[str], 
+                                    special_weights: Optional[Dict[str, float]] = None) -> float:
 
-        if not outline_entities:
-            return 0.0
+            if not outline_entities:
+                return 0.0
 
-        # Default weight is 1.0, but special entities get custom weights
-        special_weights = special_weights or {"protagonist": 2.0, "main character": 2.0}
-        entity_weights = {ent: special_weights.get(ent, 1.0) for ent in outline_entities}
+            # Default weight is 1.0, but special entities get custom weights
+            special_weights = special_weights or {"protagonist": 2.0, "main character": 2.0}
+            entity_weights = {ent: special_weights.get(ent, 1.0) for ent in outline_entities}
 
-        matched_weight = sum(entity_weights.get(ent, 0) for ent in set(passage_entities) & set(outline_entities))
-        total_weight = sum(entity_weights.values())
+            matched_weight = sum(entity_weights.get(ent, 0) for ent in set(passage_entities) & set(outline_entities))
+            total_weight = sum(entity_weights.values())
 
-        return matched_weight / total_weight if total_weight > 0 else 0.0
-        
+            return matched_weight / total_weight if total_weight > 0 else 0.0
+            
     # def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
     #     """Extract important keywords from text using spaCy"""
     #     if isinstance(text, dict):
