@@ -17,25 +17,31 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 nlp = spacy.load("en_core_web_lg")
 
+
 class SimilarityMethod(Enum):
     COSINE = "cosine"
     EUCLIDEAN = "euclidean"
     DOT_PRODUCT = "dot_product"
 
+
 class PassageRewriter:
-    _FIRST_PERSON_PATTERN = re.compile(r'\b(I|me|my|mine|myself|we|us|our|ours|ourselves)\b', re.IGNORECASE)
-    _QUOTE_PATTERN = re.compile(r'(["\”\“])((?:\\.|(?!\1).)*?)\1', re.DOTALL)
+    _FIRST_PERSON_PATTERN = re.compile(
+        r"\b(I|me|my|mine|myself|we|us|our|ours|ourselves)\b", re.IGNORECASE
+    )
+    _QUOTE_PATTERN = re.compile(r'(["\"])((?:\\.|(?!\1).)*?)\1', re.DOTALL)
 
     def __init__(self, story_id: str):
         self.story_id = story_id
         self.evaluator = PassageEvaluator()
         self.improver = PassageImprover()
-        self.coherence_model = SentenceTransformer("sentence-transformers/paraphrase-mpnet-base-v2")
+        self.coherence_model = SentenceTransformer(
+            "sentence-transformers/paraphrase-mpnet-base-v2"
+        )
         try:
             self.nlp = spacy.load("en_core_web_lg")
         except:
             self.nlp = spacy.load("en_core_web_sm")
-            
+
     async def process_passages(
         self,
         passages: List[GeneratedPassage],
@@ -62,14 +68,18 @@ class PassageRewriter:
 
         return best_passage, best_scores
 
-    def _normalize_vectors(self, vec1: np.ndarray, vec2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _normalize_vectors(
+        self, vec1: np.ndarray, vec2: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         norm1 = np.linalg.norm(vec1)
         norm2 = np.linalg.norm(vec2)
         if norm1 == 0 or norm2 == 0:
             return vec1, vec2
-        return vec1 / (norm1 + 1e-10), vec2 / (norm2 + 1e-10) 
+        return vec1 / (norm1 + 1e-10), vec2 / (norm2 + 1e-10)
 
-    def _calculate_similarity(self, vec1: np.ndarray, vec2: np.ndarray, method: SimilarityMethod) -> float:
+    def _calculate_similarity(
+        self, vec1: np.ndarray, vec2: np.ndarray, method: SimilarityMethod
+    ) -> float:
         if method == SimilarityMethod.COSINE:
             vec1_norm, vec2_norm = self._normalize_vectors(vec1, vec2)
             return float(np.dot(vec1_norm, vec2_norm))
@@ -93,7 +103,7 @@ class PassageRewriter:
     #         return 1.0
 
     #     is_batch = isinstance(text, list) and isinstance(prev_text, list)
-        
+
     #     try:
     #         if not is_batch:
     #             embeddings = self.coherence_model.encode([prev_text, text], convert_to_numpy=True)
@@ -102,7 +112,7 @@ class PassageRewriter:
     #         else:
     #             if len(text) != len(prev_text):
     #                 raise ValueError("Batch sizes must match for text and prev_text")
-                
+
     #             if isinstance(prev_text, str):
     #                 prev_text = [prev_text] * len(text)
     #             all_embeddings = self.coherence_model.encode(prev_text + text, convert_to_numpy=True)
@@ -111,7 +121,7 @@ class PassageRewriter:
     #                 for i in range(len(text))
     #             ]
     #             return [max(s, threshold) for s in similarities]
-                
+
     #     except Exception as e:
     #         logger.error(f"Error calculating semantic coherence: {str(e)}")
     #         return 0.0 if not is_batch else [0.0]*len(text)
@@ -121,16 +131,18 @@ class PassageRewriter:
         prev_text: Union[str, List[str], None] = None,
         method: SimilarityMethod = SimilarityMethod.COSINE,
         threshold: float = 0.0,
-        force_scalar: bool = False
+        force_scalar: bool = False,
     ) -> Union[float, List[float]]:
         # Return default value for empty previous text
         if prev_text is None or (isinstance(prev_text, str) and not prev_text.strip()):
-            return 1.0 if not isinstance(text, list) or force_scalar else [1.0] * len(text)
-        
+            return (
+                1.0 if not isinstance(text, list) or force_scalar else [1.0] * len(text)
+            )
+
         # Standardize input formats
         is_input_batch = isinstance(text, list)
         text_list = text if is_input_batch else [text]
-        
+
         # Handle different prev_text formats
         if isinstance(prev_text, list):
             if len(prev_text) != len(text_list):
@@ -139,30 +151,30 @@ class PassageRewriter:
         else:
             # If prev_text is a string, replicate it for each text item
             prev_text_list = [prev_text] * len(text_list)
-        
+
         try:
             # Encode all texts at once for efficiency
             all_texts = prev_text_list + text_list
-            all_embeddings = self.coherence_model.encode(all_texts, convert_to_numpy=True)
-            
+            all_embeddings = self.coherence_model.encode(
+                all_texts, convert_to_numpy=True
+            )
+
             # Calculate similarities
             similarities = [
                 self._calculate_similarity(
-                    all_embeddings[i], 
-                    all_embeddings[i + len(prev_text_list)],
-                    method
+                    all_embeddings[i], all_embeddings[i + len(prev_text_list)], method
                 )
                 for i in range(len(text_list))
             ]
-            
+
             # Apply threshold
             similarities = [max(s, threshold) for s in similarities]
-            
+
             # Return appropriate format based on input and force_scalar flag
             if not is_input_batch or force_scalar:
                 return similarities[0] if similarities else 0.0
             return similarities
-                
+
         except Exception as e:
             logger.error(f"Error calculating semantic coherence: {str(e)}")
             if not is_input_batch or force_scalar:
@@ -175,31 +187,40 @@ class PassageRewriter:
 
         passage_embed = self.coherence_model.encode(passage)
         outline_embed = self.coherence_model.encode(outline)
-        return np.dot(passage_embed, outline_embed) / (np.linalg.norm(passage_embed) * np.linalg.norm(outline_embed))
+        return np.dot(passage_embed, outline_embed) / (
+            np.linalg.norm(passage_embed) * np.linalg.norm(outline_embed)
+        )
 
     def _calculate_entity_coverage(
         self,
         passage_entities: List[str],
         outline_entities: List[str],
-        special_weights: Optional[Dict[str, float]] = None
+        special_weights: Optional[Dict[str, float]] = None,
     ) -> float:
         if not outline_entities:
             return 0.0
 
         weights = special_weights or {"protagonist": 2.0, "main character": 2.0}
         entity_weights = {ent: weights.get(ent, 1.0) for ent in outline_entities}
-        matched = sum(entity_weights.get(ent, 0) for ent in set(passage_entities) & set(outline_entities))
+        matched = sum(
+            entity_weights.get(ent, 0)
+            for ent in set(passage_entities) & set(outline_entities)
+        )
         total = sum(entity_weights.values())
         return matched / total if total > 0 else 0.0
 
     def _extract_keywords(self, text: Union[str, Dict]) -> List[str]:
         content = " ".join(text.values()) if isinstance(text, dict) else text
         doc = self.nlp(content)
-        return list({
-            chunk.text.lower()
-            for chunk in doc.noun_chunks
-            if chunk.root.pos_ in {"NOUN", "PROPN"} and not chunk.root.is_stop and len(chunk.text) > 2
-        })
+        return list(
+            {
+                chunk.text.lower()
+                for chunk in doc.noun_chunks
+                if chunk.root.pos_ in {"NOUN", "PROPN"}
+                and not chunk.root.is_stop
+                and len(chunk.text) > 2
+            }
+        )
 
     @staticmethod
     @lru_cache(maxsize=2048)
@@ -217,7 +238,7 @@ class PassageRewriter:
             else:
                 prev_vowel = False
 
-        if word.endswith(('e', 'es', 'ed')) and count > 1:
+        if word.endswith(("e", "es", "ed")) and count > 1:
             count -= 1
 
         return max(1, count)
@@ -226,7 +247,9 @@ class PassageRewriter:
         try:
             doc = self.nlp(text)
             sentences = list(doc.sents)
-            words = [token.text for token in doc if not token.is_punct and not token.is_space]
+            words = [
+                token.text for token in doc if not token.is_punct and not token.is_space
+            ]
 
             if not sentences or not words:
                 return 0.0
@@ -246,19 +269,34 @@ class PassageRewriter:
         if len(words) < 8:
             return 1.0
 
-        current_grams = {' '.join(words[i:i+4]) for i in range(len(words)-3)} if len(words) >=4 else set()
-        prev_grams = {' '.join(previous_text.split()[i:i+4]) for i in range(len(previous_text.split())-3)} if previous_text else set()
-        
-        overlap = len(current_grams & prev_grams) / len(current_grams) if current_grams else 0
+        current_grams = (
+            {" ".join(words[i : i + 4]) for i in range(len(words) - 3)}
+            if len(words) >= 4
+            else set()
+        )
+        prev_grams = (
+            {
+                " ".join(previous_text.split()[i : i + 4])
+                for i in range(len(previous_text.split()) - 3)
+            }
+            if previous_text
+            else set()
+        )
+
+        overlap = (
+            len(current_grams & prev_grams) / len(current_grams) if current_grams else 0
+        )
         return 1.0 - min(overlap / 0.15, 1.0) if overlap > 0.1 else 1.0
 
     def _check_narrative_perspective(self, text: str) -> float:
-        cleaned = self._QUOTE_PATTERN.sub('', text)
+        cleaned = self._QUOTE_PATTERN.sub("", text)
         return 1.0 if not self._FIRST_PERSON_PATTERN.search(cleaned) else 0.0
 
     def calculate_coherence_flow(self, text: str) -> float:
         doc = self.nlp(text)
-        sentences = [sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 10]
+        sentences = [
+            sent.text.strip() for sent in doc.sents if len(sent.text.strip()) > 10
+        ]
 
         if len(sentences) < 2:
             return 0.8 if sentences else 0.0
@@ -269,58 +307,80 @@ class PassageRewriter:
         length_score = max(0, 1 - abs(cv - 0.5))
 
         # Semantic cohesion
-        vectors = [sent.vector for sent in doc.sents if len(sent.text.split()) > 3]
+        vectors = [
+            np.array(sent.vector, dtype=np.float64)
+            for sent in doc.sents
+            if len(sent.text.split()) > 3
+        ]
         if len(vectors) > 1:
             similarities = [
-                np.dot(vectors[i], vectors[i+1]) / (np.linalg.norm(vectors[i]) * np.linalg.norm(vectors[i+1]))
-                for i in range(len(vectors)-1)
+                float(
+                    np.dot(vectors[i], vectors[i + 1])
+                    / (np.linalg.norm(vectors[i]) * np.linalg.norm(vectors[i + 1]))
+                )
+                for i in range(len(vectors) - 1)
             ]
-            cohesion_score = np.mean(similarities).clip(0, 1)
+            cohesion_score = float(np.mean(similarities).clip(0, 1))
         else:
             cohesion_score = 0.5
 
-        return round((length_score * 0.4 + cohesion_score * 0.6), 4)
+        return float(round((length_score * 0.4 + cohesion_score * 0.6), 4))
 
-    async def rewrite(self, passages: List[GeneratedPassage], context: PassageContext) -> GeneratedPassage:
+    async def rewrite(
+        self, passages: List[GeneratedPassage], context: PassageContext
+    ) -> GeneratedPassage:
         if not passages:
             raise ValueError("No passages provided for rewriting")
 
-        async def score_passage(passage: GeneratedPassage) -> Tuple[GeneratedPassage, float]:
+        async def score_passage(
+            passage: GeneratedPassage,
+        ) -> Tuple[GeneratedPassage, float]:
             text = passage.content
-            outline = " ".join(str(v) for v in context.current_outline.values()) if isinstance(context.current_outline, dict) else str(context.current_outline)
+            outline = (
+                " ".join(str(v) for v in context.current_outline.values())
+                if isinstance(context.current_outline, dict)
+                else str(context.current_outline)
+            )
 
             # Get coherence score and ensure it's a scalar
-            coherence = self.calculate_semantic_coherence(text, context.recent_passage, force_scalar=True),
+            coherence = (
+                self.calculate_semantic_coherence(
+                    text, context.recent_passage, force_scalar=True
+                ),
+            )
             # coherence = self.calculate_semantic_coherence(text, context.recent_passage)
             if isinstance(coherence, list):
                 coherence = coherence[0] if coherence else 0.0
 
             scores = {
-                'coherence': coherence,  # Now guaranteed to be a scalar
-                'relevance': self._calculate_relevance(text, outline),
-                'repetition': self._detect_repetition(text, context.recent_passage or ""),
-                'perspective': self._check_narrative_perspective(text),
-                'flow': self.calculate_coherence_flow(text),
-                'readability': self._calculate_readability(text)
+                "coherence": coherence,  # Now guaranteed to be a scalar
+                "relevance": self._calculate_relevance(text, outline),
+                "repetition": self._detect_repetition(
+                    text, context.recent_passage or ""
+                ),
+                "perspective": self._check_narrative_perspective(text),
+                "flow": self.calculate_coherence_flow(text),
+                "readability": self._calculate_readability(text),
             }
 
             # Now all scores should be scalar values and can be safely compared with floats
             total = (
-                scores['coherence'] * 0.25 +
-                scores['relevance'] * 0.25 +
-                scores['repetition'] * 0.2 +
-                scores['perspective'] * 0.1 +
-                scores['flow'] * 0.1 +
-                scores['readability'] * 0.1
+                scores["coherence"] * 0.25
+                + scores["relevance"] * 0.25
+                + scores["repetition"] * 0.2
+                + scores["perspective"] * 0.1
+                + scores["flow"] * 0.1
+                + scores["readability"] * 0.1
             )
 
-            if scores['repetition'] < 0.3 or scores['perspective'] < 0.4:
+            if scores["repetition"] < 0.3 or scores["perspective"] < 0.4:
                 total *= 0.2
 
             return passage, total
 
         scored = await asyncio.gather(*(score_passage(p) for p in passages))
         return max(scored, key=lambda x: x[1])[0]
+
 
 # MongoDB collection instance
 passage_collection = db.passages
