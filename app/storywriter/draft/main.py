@@ -3,7 +3,6 @@ import json
 from pydoc import classname
 from typing import List, Dict, Optional, Tuple, Union
 from bson import ObjectId
-# import tiktoken
 from pymongo import UpdateOne
 from datetime import datetime
 import asyncio
@@ -30,19 +29,16 @@ from app.utils.text_validation import (
     get_logit_bias,
     extract_and_parse_json,
 )
-from .rewrite.main import PassageRewriter
+from app.storywriter.draft.rewrite.main import PassageRewriter
 from .passage_processor import PassageProcessor
 from .entity_processor import EntityProcessor
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-# Initialize tokenizer for token counting
-# tokenizer = tiktoken.get_encoding("cl100k_base")
+rewriter = PassageRewriter()
 
 # Initialize passages collection
 passage_collection = db.passages
-
 
 # Add this decorator for function logging
 def log_function_call(func):
@@ -61,7 +57,6 @@ def log_function_call(func):
 
     return wrapper
 
-
 # Add this for LLM call logging
 def log_llm_call(prompt: str, **kwargs) -> Dict:
     logger.info(f"Starting LLM call with params: {kwargs}")
@@ -74,7 +69,6 @@ def log_llm_call(prompt: str, **kwargs) -> Dict:
     except Exception as e:
         logger.error(f"Failed LLM call: {str(e)}")
         raise
-
 
 class DraftGenerator:
     def __init__(self, story_id: str, max_tokens: int = 4096):
@@ -702,22 +696,22 @@ class DraftGenerator:
     async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> List[GeneratedPassage]:
         """Generate multiple variations of a passage efficiently"""
         try:
-            logger.debug(
-                f"Starting passage generation for outline point {outline_point_id}"
-            )
+            logger.debug(f"Starting passage generation for outline point {outline_point_id}")
+
             context = await self.retrieve_relevant_context(outline_point_id)
-            logger.debug("Retrieved context for prompt generation")
+            logger.debug(f"Retrieved context: {context} (Type: {type(context)})")
 
             base_prompt = self.prepare_prompt(context)
-            logger.debug("Prepared base prompt")
+            logger.debug(f"Prepared base prompt: {base_prompt} (Type: {type(base_prompt)})")
 
-            # Get logit bias
             logit_bias = get_logit_bias()
-            logger.debug("Retrieved logit bias settings")
+            logger.debug(f"Retrieved logit bias settings: {logit_bias} (Type: {type(logit_bias)})")
 
             raw_passages: List[str] = []
-            # Generate passages in parallel
             generation_tasks = []
+
+            logger.debug(f"num_variations: {num_variations} (Type: {type(num_variations)})")
+
             for i in range(num_variations):
                 kwargs = {
                     "max_tokens": None,
@@ -725,14 +719,17 @@ class DraftGenerator:
                     "top_p": 0.9,
                     "frequency_penalty": 0.3,
                 }
-                # Create task for each generation attempt
+                logger.debug(f"Generation task {i}: kwargs = {kwargs}")
+
                 task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
                 generation_tasks.append(task)
-            # Wait for all generations to complete
+
+            logger.debug(f"Created {len(generation_tasks)} generation tasks")
+
             raw_passages_results = await asyncio.gather(*generation_tasks)
-            raw_passages = [
-                p for p in raw_passages_results if p
-            ]  # Filter out None values
+            raw_passages = [p for p in raw_passages_results if p]
+
+            logger.debug(f"Raw passages generated: {raw_passages} (Type: {type(raw_passages)})")
 
             if not raw_passages:
                 logger.error("Failed to generate valid passages after retries")
@@ -740,8 +737,6 @@ class DraftGenerator:
 
             logger.debug(f"Split into {len(raw_passages)} raw passages")
 
-            # Process passages using PassageProcessor
-            logger.debug("Starting parallel passage processing")
             passage_tasks = [
                 PassageProcessor.process_passage(
                     text,
@@ -754,8 +749,11 @@ class DraftGenerator:
                 if text.strip()
             ]
 
+            logger.debug(f"Created {len(passage_tasks)} passage processing tasks")
+
             processed_passages = await asyncio.gather(*passage_tasks)
             passages = [p for p in processed_passages if p is not None]
+
             logger.debug(f"Successfully processed {len(passages)} valid passages")
 
             if not passages:
@@ -763,19 +761,9 @@ class DraftGenerator:
                 raise ValueError("Failed to generate any valid passages")
 
             logger.debug("Starting passage evaluation")
-            best_passage = await self._quick_evaluate_passages(passages, context)
+            best_passage = await rewriter.rewrite(passages, context)
             logger.debug(f"Selected best passage with ID {best_passage.passage_id}")
 
-            # Store passages using PassageProcessor
-            logger.debug("Storing passages in database")
-
-            # await PassageProcessor.store_passages(passages, best_passage)
-
-            # Process new entities for best passage only
-            logger.debug("Processing entities for best passage")
-
-            # await self._process_new_entities(best_passage, context)
-            # await self._update_character_relevance(best_passage.mentioned_entities)
             update_tasks = [
                 self._store_passage(best_passage),
                 self._process_new_entities(best_passage, context),
@@ -787,7 +775,7 @@ class DraftGenerator:
             return passages
 
         except Exception as e:
-            logger.error(f"Error generating passages: {e}")
+            logger.error(f"Error generating passages: {e}", exc_info=True)  # Log traceback
             raise
 
     async def _quick_evaluate_passages(self, passages: List[GeneratedPassage], context: PassageContext) -> GeneratedPassage:
@@ -816,8 +804,8 @@ class DraftGenerator:
             score += coverage * 0.3
 
             # Keyword relevance score
-            outline_keywords = set(self._extract_keywords(context.current_outline))
-            passage_keywords = set(self._extract_keywords(passage.content))
+            outline_keywords = set(rewriter._extract_keywords(context.current_outline))
+            passage_keywords = set(rewriter._extract_keywords(passage.content))
             relevance = (
                 len(outline_keywords & passage_keywords) / len(outline_keywords)
                 if outline_keywords
@@ -826,7 +814,7 @@ class DraftGenerator:
             score += relevance * 0.3
 
             # Readability score
-            readability = self._calculate_readability(passage.content)
+            readability = rewriter._calculate_readability(passage.content)
             score += readability * 0.2
 
             return passage, score
@@ -948,10 +936,17 @@ class DraftGenerator:
             if not story:
                 return
 
-            def normalize_name(name):
-                """Normalize entity names for comparison: lowercase and remove leading 'the'."""
-                return name.lower().lstrip("the ").strip()
+            # def normalize_name(name):
+            #     """Normalize entity names for comparison: lowercase and remove leading 'the'."""
+            #     return name.lower().lstrip("the ").strip()
 
+            def normalize_name(name):
+                """Consistent normalization across all entity types."""
+                return (
+                    re.sub(r'^\s*the\s+', '', name, flags=re.IGNORECASE)
+                    .strip()
+                    .lower()
+                )
             # Normalize existing characters' names for case-insensitive comparison
             existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
             mentioned_entities = {normalize_name(entity) for entity in passage.mentioned_entities}
@@ -1301,7 +1296,7 @@ class DraftGenerator:
             total_score += length_score * 0.15
 
             # Coherence Score: using sentence-length uniformity
-            coherence_score = self._calculate_coherence(passage.content)
+            coherence_score = self.calculate_coherence_flow(passage.content)
             total_score += coherence_score * 0.25
 
             # Relevance Score: Keyword overlap between context and passage
@@ -1327,7 +1322,7 @@ class DraftGenerator:
             total_score += entity_score * 0.15
 
             # Readability Score: existing heuristic based on average sentence length
-            readability_score = self._calculate_readability(passage.content)
+            readability_score = rewriter._calculate_readability(passage.content)
             total_score += readability_score * 0.20
 
             return passage, total_score

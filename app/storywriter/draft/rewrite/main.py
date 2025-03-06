@@ -30,8 +30,8 @@ class PassageRewriter:
     )
     _QUOTE_PATTERN = re.compile(r'(["\"])((?:\\.|(?!\1).)*?)\1', re.DOTALL)
 
-    def __init__(self, story_id: str):
-        self.story_id = story_id
+    def __init__(self):
+        # self.story_id = story_id
         self.evaluator = PassageEvaluator()
         self.improver = PassageImprover()
         self.coherence_model = SentenceTransformer(
@@ -333,51 +333,50 @@ class PassageRewriter:
             raise ValueError("No passages provided for rewriting")
 
         async def score_passage(
-            passage: GeneratedPassage,
-        ) -> Tuple[GeneratedPassage, float]:
-            text = passage.content
-            outline = (
-                " ".join(str(v) for v in context.current_outline.values())
-                if isinstance(context.current_outline, dict)
-                else str(context.current_outline)
-            )
+                passage: GeneratedPassage,
+            ) -> Tuple[GeneratedPassage, float]:
+                text = passage.content
+                outline = (
+                    " ".join(str(v) for v in context.current_outline.values())
+                    if isinstance(context.current_outline, dict)
+                    else str(context.current_outline)
+                )
 
-            # Get coherence score and ensure it's a scalar
-            coherence = (
-                self.calculate_semantic_coherence(
+                # Get coherence score as scalar
+                coherence = self.calculate_semantic_coherence(  # <-- Fixed assignment
                     text, context.recent_passage, force_scalar=True
-                ),
-            )
-            # coherence = self.calculate_semantic_coherence(text, context.recent_passage)
-            if isinstance(coherence, list):
-                coherence = coherence[0] if coherence else 0.0
+                )
 
-            scores = {
-                "coherence": coherence,  # Now guaranteed to be a scalar
-                "relevance": self._calculate_relevance(text, outline),
-                "repetition": self._detect_repetition(
-                    text, context.recent_passage or ""
-                ),
-                "perspective": self._check_narrative_perspective(text),
-                "flow": self.calculate_coherence_flow(text),
-                "readability": self._calculate_readability(text),
-            }
+                # Ensure numerical type
+                if isinstance(coherence, (list, tuple)):
+                    coherence = float(coherence[0]) if coherence else 0.0
+                coherence = float(coherence)
 
-            # Now all scores should be scalar values and can be safely compared with floats
-            total = (
-                scores["coherence"] * 0.25
-                + scores["relevance"] * 0.25
-                + scores["repetition"] * 0.2
-                + scores["perspective"] * 0.1
-                + scores["flow"] * 0.1
-                + scores["readability"] * 0.1
-            )
+                scores = {
+                    "coherence": coherence,
+                    "relevance": self._calculate_relevance(text, outline),
+                    "repetition": self._detect_repetition(
+                        text, context.recent_passage or ""
+                    ),
+                    "perspective": self._check_narrative_perspective(text),
+                    "flow": self.calculate_coherence_flow(text),
+                    "readability": self._calculate_readability(text),
+                }
 
-            if scores["repetition"] < 0.3 or scores["perspective"] < 0.4:
-                total *= 0.2
+                total = (
+                    scores["coherence"] * 0.25
+                    + scores["relevance"] * 0.25
+                    + scores["repetition"] * 0.2
+                    + scores["perspective"] * 0.1
+                    + scores["flow"] * 0.1
+                    + scores["readability"] * 0.1
+                )
 
-            return passage, total
+                if scores["repetition"] < 0.3 or scores["perspective"] < 0.4:
+                    total *= 0.2
 
+                return passage, total
+        
         scored = await asyncio.gather(*(score_passage(p) for p in passages))
         return max(scored, key=lambda x: x[1])[0]
 
