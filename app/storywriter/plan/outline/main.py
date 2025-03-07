@@ -6,7 +6,7 @@ from typing import List, Dict
 from datetime import datetime
 from bson import ObjectId
 
-from ...llm import model
+from ...llm.llama import model
 from .schema import *
 from app.config.mongo import stories
 

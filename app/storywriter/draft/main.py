@@ -15,13 +15,13 @@ from pydantic import BaseModel, Field
 from typing import Literal
 
 from ..plan.db.vector import store_story_part, find_similar_parts
-from ..llm import model
+from ..llm.llama import model
+from ..llm.gemini import model as gemini_model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema
-from ..plan.outline.schema import (
-    OutlineNode,
-)
+
+
 from ..plan.characters.schema import Character
 from app.utils.text_validation import (
     retry_generation,
@@ -31,10 +31,11 @@ from app.utils.text_validation import (
 )
 from app.storywriter.draft.rewrite.main import PassageRewriter
 from .passage_processor import PassageProcessor
-from .entity_processor import EntityProcessor
+# from .entity_processor import EntityProcessor
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
 rewriter = PassageRewriter()
 
 # Initialize passages collection
@@ -292,7 +293,7 @@ class DraftGenerator:
 
     @log_function_call
     async def _generate(self, prompt, **kwargs) -> str:
-        response = model(
+        response = gemini_model(
             prompt,
             **kwargs,
         )
@@ -309,8 +310,7 @@ class DraftGenerator:
 
             # Generate passage text
             kwargs = {
-                "max_tokens": 4096,
-                "temperature": 0.7,
+                "temperature": 1.2,
                 "top_p": 0.9,
                 "frequency_penalty": 0.3,
             }
@@ -715,7 +715,7 @@ class DraftGenerator:
             for i in range(num_variations):
                 kwargs = {
                     "max_tokens": None,
-                    "temperature": 0.7,
+                    "temperature": 1.2,
                     "top_p": 0.9,
                     "frequency_penalty": 0.3,
                 }
@@ -1296,7 +1296,7 @@ class DraftGenerator:
             total_score += length_score * 0.15
 
             # Coherence Score: using sentence-length uniformity
-            coherence_score = self.calculate_coherence_flow(passage.content)
+            coherence_score = rewriter.calculate_coherence_flow(passage.content)
             total_score += coherence_score * 0.25
 
             # Relevance Score: Keyword overlap between context and passage
