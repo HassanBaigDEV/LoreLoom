@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   TextField,
   Box,
@@ -6,38 +6,77 @@ import {
   Chip,
   IconButton,
   Button,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+  FormHelperText,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function OutlineForm({ initialData, onSubmit, onCancel }) {
   const defaultOutline = {
-    number: '',
-    title: '',
-    description: '',
-    purpose: '',
-    setting: '',
+    number: "",
+    title: "",
+    description: "",
+    purpose: "",
+    setting: "",
     characters_involved: [],
-    estimated_duration: ''
+    estimated_duration: "",
   };
 
   const [outline, setOutline] = useState(initialData || defaultOutline);
-  const [newCharacter, setNewCharacter] = useState('');
+  const [newCharacter, setNewCharacter] = useState("");
+  const [errors, setErrors] = useState({});
 
   const handleChange = (field) => (event) => {
-    setOutline(prev => ({
+    const value = event.target.value;
+    setOutline((prev) => ({
       ...prev,
-      [field]: event.target.value
+      [field]: value,
     }));
+
+    // Clear error for this field if it was previously set
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: null }));
+    }
   };
 
   const handleAddCharacter = () => {
     if (newCharacter.trim()) {
-      setOutline(prev => ({
+      setOutline((prev) => ({
         ...prev,
-        characters_involved: [...(prev.characters_involved || []), newCharacter.trim()]
+        characters_involved: [
+          ...(prev.characters_involved || []),
+          newCharacter.trim(),
+        ],
       }));
-      setNewCharacter('');
+      setNewCharacter("");
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    // Required fields validation with whitespace check
+    if (!outline.title?.trim()) {
+      newErrors.title = "Title is required";
+    }
+
+    if (!outline.description?.trim()) {
+      newErrors.description = "Description is required";
+    }
+
+    // Additional validation for number field
+    if (isNaN(Number(outline.number)) || Number(outline.number) <= 0) {
+      newErrors.number = "Valid point number is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validateForm()) {
+      // Form is valid, submit the data
+      onSubmit(outline);
     }
   };
 
@@ -45,9 +84,24 @@ export default function OutlineForm({ initialData, onSubmit, onCancel }) {
     <Box className="space-y-4">
       <TextField
         fullWidth
+        label="Point Number"
+        value={outline.number}
+        onChange={handleChange("number")}
+        type="number"
+        error={!!errors.number}
+        helperText={errors.number}
+        required
+        disabled={!!initialData} // Disable editing for existing points
+      />
+
+      <TextField
+        fullWidth
         label="Title"
         value={outline.title}
-        onChange={handleChange('title')}
+        onChange={handleChange("title")}
+        error={!!errors.title}
+        helperText={errors.title}
+        required
       />
 
       <TextField
@@ -56,21 +110,24 @@ export default function OutlineForm({ initialData, onSubmit, onCancel }) {
         rows={3}
         label="Description"
         value={outline.description}
-        onChange={handleChange('description')}
+        onChange={handleChange("description")}
+        error={!!errors.description}
+        helperText={errors.description}
+        required
       />
 
       <TextField
         fullWidth
         label="Purpose"
         value={outline.purpose}
-        onChange={handleChange('purpose')}
+        onChange={handleChange("purpose")}
       />
 
       <TextField
         fullWidth
         label="Setting"
         value={outline.setting}
-        onChange={handleChange('setting')}
+        onChange={handleChange("setting")}
       />
 
       <Box className="space-y-2">
@@ -81,10 +138,12 @@ export default function OutlineForm({ initialData, onSubmit, onCancel }) {
               key={index}
               label={char}
               onDelete={() => {
-                const newChars = outline.characters_involved.filter((_, i) => i !== index);
-                setOutline(prev => ({
+                const newChars = outline.characters_involved.filter(
+                  (_, i) => i !== index
+                );
+                setOutline((prev) => ({
                   ...prev,
-                  characters_involved: newChars
+                  characters_involved: newChars,
                 }));
               }}
             />
@@ -96,6 +155,12 @@ export default function OutlineForm({ initialData, onSubmit, onCancel }) {
             value={newCharacter}
             onChange={(e) => setNewCharacter(e.target.value)}
             placeholder="Add a character"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddCharacter();
+              }
+            }}
           />
           <IconButton onClick={handleAddCharacter} color="primary">
             <AddIcon />
@@ -107,25 +172,21 @@ export default function OutlineForm({ initialData, onSubmit, onCancel }) {
         fullWidth
         label="Estimated Duration"
         value={outline.estimated_duration}
-        onChange={handleChange('estimated_duration')}
+        onChange={handleChange("estimated_duration")}
       />
 
       <div className="flex justify-end space-x-2">
-        <Button
-          variant="outlined"
-          onClick={onCancel}
-          color="secondary"
-        >
+        <Button variant="outlined" onClick={onCancel} color="secondary">
           Cancel
         </Button>
         <Button
           variant="contained"
-          onClick={() => onSubmit(outline)}
+          onClick={handleSubmit}
           className="bg-green-500 hover:bg-green-600"
         >
-          {initialData ? 'Update' : 'Add'} Outline Point
+          {initialData ? "Update" : "Add"} Outline Point
         </Button>
       </div>
     </Box>
   );
-} 
+}

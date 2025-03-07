@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   TextField,
   Select,
@@ -10,20 +10,21 @@ import {
   Chip,
   IconButton,
   Button,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+  FormHelperText,
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 export default function CharacterForm({ initialData, onSubmit, onCancel }) {
   const defaultCharacter = {
-    name: '',
-    type: 'character',
-    role: '',
-    physicalAppearance: '',
-    behavioralPatterns: '',
-    genderAndSexualOrientation: '',
+    name: "",
+    type: "character",
+    role: "",
+    physicalAppearance: "",
+    behavioralPatterns: "",
+    genderAndSexualOrientation: "",
     relationships: {},
-    likesAndDislikes: { Likes: [], Dislikes: [] }
+    likesAndDislikes: { Likes: [], Dislikes: [] },
   };
 
   const [character, setCharacter] = useState(() => ({
@@ -31,59 +32,79 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
     ...initialData,
     likesAndDislikes: {
       Likes: initialData?.likesAndDislikes?.Likes || [],
-      Dislikes: initialData?.likesAndDislikes?.Dislikes || []
+      Dislikes: initialData?.likesAndDislikes?.Dislikes || [],
     },
-    relationships: initialData?.relationships || {}
+    relationships: initialData?.relationships || {},
   }));
-  const [newLike, setNewLike] = useState('');
-  const [newDislike, setNewDislike] = useState('');
-  const [newRelationship, setNewRelationship] = useState({ name: '', relation: '' });
+  const [newLike, setNewLike] = useState("");
+  const [newDislike, setNewDislike] = useState("");
+  const [newRelationship, setNewRelationship] = useState({
+    name: "",
+    relation: "",
+  });
+  const [errors, setErrors] = useState({});
 
-  const safeArray = (arr) => Array.isArray(arr) ? arr : [];
+  const safeArray = (arr) => (Array.isArray(arr) ? arr : []);
 
   const handleChange = (field) => (event) => {
-    setCharacter(prev => ({
-      ...prev,
-      [field]: event.target.value
-    }));
+    const value = event.target.value;
+    setCharacter((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: null }));
   };
 
   const handleAddLike = () => {
     if (newLike.trim()) {
-      setCharacter(prev => ({
+      setCharacter((prev) => ({
         ...prev,
         likesAndDislikes: {
           ...prev.likesAndDislikes,
-          Likes: [...(prev.likesAndDislikes.Likes || []), newLike.trim()]
-        }
+          Likes: [...(prev.likesAndDislikes.Likes || []), newLike.trim()],
+        },
       }));
-      setNewLike('');
+      setNewLike("");
     }
   };
 
   const handleAddDislike = () => {
     if (newDislike.trim()) {
-      setCharacter(prev => ({
+      setCharacter((prev) => ({
         ...prev,
         likesAndDislikes: {
           ...prev.likesAndDislikes,
-          Dislikes: [...(prev.likesAndDislikes.Dislikes || []), newDislike.trim()]
-        }
+          Dislikes: [
+            ...(prev.likesAndDislikes.Dislikes || []),
+            newDislike.trim(),
+          ],
+        },
       }));
-      setNewDislike('');
+      setNewDislike("");
     }
   };
 
   const handleAddRelationship = () => {
     if (newRelationship.name && newRelationship.relation) {
-      setCharacter(prev => ({
+      setCharacter((prev) => ({
         ...prev,
         relationships: {
           ...(prev.relationships || {}),
-          [newRelationship.name]: newRelationship.relation
-        }
+          [newRelationship.name]: newRelationship.relation,
+        },
       }));
-      setNewRelationship({ name: '', relation: '' });
+      setNewRelationship({ name: "", relation: "" });
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!character.name?.trim()) newErrors.name = "Name is required";
+    if (!character.role?.trim()) newErrors.role = "Role is required";
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = () => {
+    if (validateForm()) {
+      onSubmit(character);
     }
   };
 
@@ -91,16 +112,19 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
     <Box className="space-y-4">
       <TextField
         fullWidth
-        label="Name"
-        value={character.name || ''}
-        onChange={handleChange('name')}
+        label="Character Name"
+        value={character.name}
+        onChange={handleChange("name")}
+        error={!!errors.name}
+        helperText={errors.name}
+        required
       />
 
       <FormControl fullWidth>
         <InputLabel>Type</InputLabel>
         <Select
-          value={character.type || 'character'}
-          onChange={handleChange('type')}
+          value={character.type || "character"}
+          onChange={handleChange("type")}
           label="Type"
         >
           <MenuItem value="character">Character</MenuItem>
@@ -112,8 +136,11 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
       <TextField
         fullWidth
         label="Role"
-        value={character.role || ''}
-        onChange={handleChange('role')}
+        value={character.role}
+        onChange={handleChange("role")}
+        error={!!errors.role}
+        helperText={errors.role}
+        required
       />
 
       <TextField
@@ -121,8 +148,8 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
         multiline
         rows={3}
         label="Physical Appearance"
-        value={character.physicalAppearance || ''}
-        onChange={handleChange('physicalAppearance')}
+        value={character.physicalAppearance || ""}
+        onChange={handleChange("physicalAppearance")}
       />
 
       <TextField
@@ -130,15 +157,15 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
         multiline
         rows={3}
         label="Behavioral Patterns"
-        value={character.behavioralPatterns || ''}
-        onChange={handleChange('behavioralPatterns')}
+        value={character.behavioralPatterns || ""}
+        onChange={handleChange("behavioralPatterns")}
       />
 
       <TextField
         fullWidth
         label="Gender and Sexual Orientation"
-        value={character.genderAndSexualOrientation || ''}
-        onChange={handleChange('genderAndSexualOrientation')}
+        value={character.genderAndSexualOrientation || ""}
+        onChange={handleChange("genderAndSexualOrientation")}
       />
 
       {/* Likes */}
@@ -150,14 +177,15 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
               key={index}
               label={like}
               onDelete={() => {
-                const newLikes = safeArray(character?.likesAndDislikes?.Likes)
-                  .filter((_, i) => i !== index);
-                setCharacter(prev => ({
+                const newLikes = safeArray(
+                  character?.likesAndDislikes?.Likes
+                ).filter((_, i) => i !== index);
+                setCharacter((prev) => ({
                   ...prev,
                   likesAndDislikes: {
                     ...prev.likesAndDislikes,
-                    Likes: newLikes
-                  }
+                    Likes: newLikes,
+                  },
                 }));
               }}
             />
@@ -180,23 +208,26 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
       <Box className="space-y-2">
         <Typography variant="subtitle2">Dislikes</Typography>
         <div className="flex gap-2 flex-wrap">
-          {safeArray(character?.likesAndDislikes?.Dislikes).map((dislike, index) => (
-            <Chip
-              key={index}
-              label={dislike}
-              onDelete={() => {
-                const newDislikes = safeArray(character?.likesAndDislikes?.Dislikes)
-                  .filter((_, i) => i !== index);
-                setCharacter(prev => ({
-                  ...prev,
-                  likesAndDislikes: {
-                    ...prev.likesAndDislikes,
-                    Dislikes: newDislikes
-                  }
-                }));
-              }}
-            />
-          ))}
+          {safeArray(character?.likesAndDislikes?.Dislikes).map(
+            (dislike, index) => (
+              <Chip
+                key={index}
+                label={dislike}
+                onDelete={() => {
+                  const newDislikes = safeArray(
+                    character?.likesAndDislikes?.Dislikes
+                  ).filter((_, i) => i !== index);
+                  setCharacter((prev) => ({
+                    ...prev,
+                    likesAndDislikes: {
+                      ...prev.likesAndDislikes,
+                      Dislikes: newDislikes,
+                    },
+                  }));
+                }}
+              />
+            )
+          )}
         </div>
         <div className="flex gap-2">
           <TextField
@@ -214,32 +245,44 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
       <Box className="space-y-2">
         <Typography variant="subtitle2">Relationships</Typography>
         <div className="space-y-2">
-          {Object.entries(character?.relationships || {}).map(([name, relation]) => (
-            <div key={name} className="flex items-center gap-2">
-              <Typography>{name}: {relation}</Typography>
-              <IconButton
-                size="small"
-                onClick={() => {
-                  const { [name]: _, ...rest } = character.relationships || {};
-                  setCharacter(prev => ({ ...prev, relationships: rest }));
-                }}
-              >
-                <DeleteIcon />
-              </IconButton>
-            </div>
-          ))}
+          {Object.entries(character?.relationships || {}).map(
+            ([name, relation]) => (
+              <div key={name} className="flex items-center gap-2">
+                <Typography>
+                  {name}: {relation}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const { [name]: _, ...rest } =
+                      character.relationships || {};
+                    setCharacter((prev) => ({ ...prev, relationships: rest }));
+                  }}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </div>
+            )
+          )}
         </div>
         <div className="flex gap-2">
           <TextField
             size="small"
             value={newRelationship.name}
-            onChange={(e) => setNewRelationship({ ...newRelationship, name: e.target.value })}
+            onChange={(e) =>
+              setNewRelationship({ ...newRelationship, name: e.target.value })
+            }
             placeholder="Character name"
           />
           <TextField
             size="small"
             value={newRelationship.relation}
-            onChange={(e) => setNewRelationship({ ...newRelationship, relation: e.target.value })}
+            onChange={(e) =>
+              setNewRelationship({
+                ...newRelationship,
+                relation: e.target.value,
+              })
+            }
             placeholder="Relationship"
           />
           <IconButton onClick={handleAddRelationship} color="primary">
@@ -249,21 +292,17 @@ export default function CharacterForm({ initialData, onSubmit, onCancel }) {
       </Box>
 
       <div className="flex justify-end space-x-2">
-        <Button
-          variant="outlined"
-          onClick={onCancel}
-          color="secondary"
-        >
+        <Button variant="outlined" onClick={onCancel} color="secondary">
           Cancel
         </Button>
         <Button
           variant="contained"
-          onClick={() => onSubmit(character)}
+          onClick={handleSubmit}
           className="bg-green-500 hover:bg-green-600"
         >
-          {initialData ? 'Update' : 'Add'} Character
+          {initialData ? "Update" : "Add"} Character
         </Button>
       </div>
     </Box>
   );
-} 
+}
