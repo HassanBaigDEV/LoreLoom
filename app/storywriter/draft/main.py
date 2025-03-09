@@ -1,5 +1,6 @@
 import logging
 import json
+import json5
 from pydoc import classname
 from typing import List, Dict, Optional, Tuple, Union
 from bson import ObjectId
@@ -11,17 +12,14 @@ import spacy
 from typing import Set
 from functools import wraps
 import time
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from typing import Literal
-
 from ..plan.db.vector import store_story_part, find_similar_parts
 from ..llm.llama import model
 from ..llm.gemini import model as gemini_model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema
-
-
 from ..plan.characters.schema import Character
 from app.utils.text_validation import (
     retry_generation,
@@ -31,11 +29,9 @@ from app.utils.text_validation import (
 )
 from app.storywriter.draft.rewrite.main import PassageRewriter
 from .passage_processor import PassageProcessor
-# from .entity_processor import EntityProcessor
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
 rewriter = PassageRewriter()
 
 # Initialize passages collection
@@ -232,9 +228,6 @@ class DraftGenerator:
             "recent_passage": 0.4,
         }
 
-        # Log the context for debugging
-        logger.info(f"Context for prompt generation: {context.model_dump_json()}")
-
         # Format the outline point details
         outline_details = context.current_outline
         outline_text = f"""
@@ -285,9 +278,6 @@ class DraftGenerator:
         <|im_end|>
         <|im_start|>assistant
         """
-
-        # Log the final prompt for debugging
-        logger.debug(f"Generated prompt: {prompt}")
 
         return prompt
 
@@ -488,185 +478,6 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error updating character relevance: {e}")
 
-    async def _update_character_description(self, character_name: str, passage_text: str) -> None:
-        """Update character description based on new developments"""
-        try:
-            # Get current character data
-            story = await stories.find_one(
-                {"story_id": ObjectId(self.story_id), "characters.name": character_name}
-            )
-            if not story:
-                logger.info(f"Character {character_name} not found in story")
-                return
-
-            prompt = f"""
-            <|im_start|>system
-            Update character profile based on recent events.
-            Return only the entire json object following the schema below. Update the required fields only and keep the rest as is.
-            the json object should be valid and follow the schema.
-            ###Example of a correctly formatted response:
-            {{
-            "name": "Ancient Temple of Whispers",
-            "type": "location",
-            "role": "Sacred Site",
-            "physicalAppearance": "A towering structure of weathered stone, covered in glowing runes and surrounded by mist.",
-            "behavioralPatterns": "The temple seems to respond to visitors' emotions, with its runes glowing brighter or dimmer.",
-            "genderAndSexualOrientation": "N/A",
-            "relationships": {{
-                "Ayla Windsong": "Current Guardian",
-                "Magic Staff": "Source of its power",
-                "Dark Cultists": "Those who seek to corrupt it"
-            }},
-            "likesAndDislikes": {{
-                "Likes": ["Pure magic", "Worthy guardians", "Ancient rituals"],
-                "Dislikes": ["Dark magic", "Corruption", "Desecration"]
-            }}
-        }}
-        
-            ###Context:
-            Character: {character_name}
-            Recent events: {passage_text}
-            ###Instructions:
-            response should only include json object that can directly be parsed.
-            ###Schema:
-            \n<schema>\n{character_schema}\n</schema>
-
-
-            <|im_end|>
-            <|im_start|>assistant
-            """
-
-            logger.info(f"Generating updates for character: {character_name}")
-            response = model._json(
-                prompt,
-                response_format={
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "Character",
-                        "strict": True,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string",
-                                    "description": "The name of the character/entity/location",
-                                },
-                                "type": {
-                                    "type": "string",
-                                    "description": "The type of entity. Must be one of: character, entity, or location.",
-                                },
-                                "role": {
-                                    "type": "string",
-                                    "description": "The role or function in the story",
-                                },
-                                "physicalAppearance": {
-                                    "type": "string",
-                                    "description": "The physical appearance of the character/entity/location",
-                                },
-                                "behavioralPatterns": {
-                                    "type": "string",
-                                    "description": "The behavioral patterns of the character/entity/location",
-                                },
-                                "genderAndSexualOrientation": {
-                                    "type": "string",
-                                    "description": "The gender and sexual orientation of the character/entity/location",
-                                },
-                                "relationships": {
-                                    "type": "object",
-                                    "description": "The relationships of the character/entity/location",
-                                    "additionalProperties": {
-                                        "type": "string",
-                                        "description": "The relationship description",
-                                    },
-                                },
-                                "likesAndDislikes": {
-                                    "type": "object",
-                                    "description": "The likes and dislikes of the character/entity/location",
-                                    "properties": {
-                                        "Likes": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "List of likes",
-                                        },
-                                        "Dislikes": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                            "description": "List of dislikes",
-                                        },
-                                    },
-                                    "required": ["Likes", "Dislikes"],
-                                },
-                            },
-                            "required": [
-                                "name",
-                                "type",
-                                "role",
-                                "physicalAppearance",
-                                "behavioralPatterns",
-                                "genderAndSexualOrientation",
-                                "relationships",
-                                "likesAndDislikes",
-                            ],
-                            "additionalProperties": False,
-                        },
-                    },
-                },
-            )
-            if not isinstance(response, dict) or "choices" not in response:
-                logger.error("Invalid model response")
-                return
-            print("ssssssssssssssssssssssssss")
-            print(response)
-
-            try:
-                raw_text = response["choices"][0]["text"]
-                updates = extract_and_parse_json(raw_text)
-
-                if not updates:
-                    raise ValueError("Failed to parse JSON response")
-
-                # Remove name field if present to avoid duplication
-                # updates.pop("name", None)
-                # get character name from the updates object
-                character_name = updates["name"]
-
-                # Find the character with the same name (ignoring case) in the story's characters list
-                character = next(
-                    (
-                        c
-                        for c in story["characters"]
-                        if c["name"].lower() == character_name.lower()
-                    ),
-                    None,
-                )
-                if character:
-                    # Update the character locally (if you need to update your in-memory story)
-                    story["characters"] = [
-                        updates if c["name"].lower() == character_name.lower() else c
-                        for c in story["characters"]
-                    ]
-
-                    # Update the entire character object in the database.
-                    # We use a regex filter to perform a case-insensitive match.
-                    await stories.update_one(
-                        {
-                            "story_id": ObjectId(self.story_id),
-                            "characters.name": {
-                                "$regex": f"^{character_name}$",
-                                "$options": "i",
-                            },
-                        },
-                        {"$set": {"characters.$": updates}},
-                    )
-                    logger.info(f"Successfully updated character: {character_name}")
-                else:
-                    logger.error(f"Character {character_name} not found in story")
-            except Exception as e:
-                logger.error(f"Error processing character update: {e}")
-
-        except Exception as e:
-            logger.error(f"Failed to update character description: {e}")
-
     @classmethod
     async def test_llm(cls) -> bool:
         """Test if the LLM is working properly"""
@@ -696,21 +507,17 @@ class DraftGenerator:
     async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> List[GeneratedPassage]:
         """Generate multiple variations of a passage efficiently"""
         try:
-            logger.debug(f"Starting passage generation for outline point {outline_point_id}")
-
+            logger.info(f"Starting passage generation for outline point {outline_point_id}")
             context = await self.retrieve_relevant_context(outline_point_id)
-            logger.debug(f"Retrieved context: {context} (Type: {type(context)})")
-
             base_prompt = self.prepare_prompt(context)
-            logger.debug(f"Prepared base prompt: {base_prompt} (Type: {type(base_prompt)})")
 
             logit_bias = get_logit_bias()
-            logger.debug(f"Retrieved logit bias settings: {logit_bias} (Type: {type(logit_bias)})")
+            logger.info(f"Retrieved logit bias settings: {logit_bias}")
 
             raw_passages: List[str] = []
             generation_tasks = []
 
-            logger.debug(f"num_variations: {num_variations} (Type: {type(num_variations)})")
+            logger.info(f"num_variations: {num_variations}")
 
             for i in range(num_variations):
                 kwargs = {
@@ -719,23 +526,23 @@ class DraftGenerator:
                     "top_p": 0.9,
                     "frequency_penalty": 0.3,
                 }
-                logger.debug(f"Generation task {i}: kwargs = {kwargs}")
+                logger.info(f"Generation task {i}: kwargs = {kwargs}")
 
                 task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
                 generation_tasks.append(task)
 
-            logger.debug(f"Created {len(generation_tasks)} generation tasks")
+            logger.info(f"Created {len(generation_tasks)} generation tasks")
 
             raw_passages_results = await asyncio.gather(*generation_tasks)
             raw_passages = [p for p in raw_passages_results if p]
 
-            logger.debug(f"Raw passages generated: {raw_passages} (Type: {type(raw_passages)})")
+            logger.info(f"Raw passages generated: {raw_passages}")
 
             if not raw_passages:
                 logger.error("Failed to generate valid passages after retries")
                 raise ValueError("Failed to generate valid passages")
 
-            logger.debug(f"Split into {len(raw_passages)} raw passages")
+            logger.info(f"Split into {len(raw_passages)} raw passages")
 
             passage_tasks = [
                 PassageProcessor.process_passage(
@@ -749,20 +556,20 @@ class DraftGenerator:
                 if text.strip()
             ]
 
-            logger.debug(f"Created {len(passage_tasks)} passage processing tasks")
+            logger.info(f"Created {len(passage_tasks)} passage processing tasks")
 
             processed_passages = await asyncio.gather(*passage_tasks)
             passages = [p for p in processed_passages if p is not None]
 
-            logger.debug(f"Successfully processed {len(passages)} valid passages")
+            logger.info(f"Successfully processed {len(passages)} valid passages")
 
             if not passages:
                 logger.error("No valid passages after processing")
                 raise ValueError("Failed to generate any valid passages")
 
-            logger.debug("Starting passage evaluation")
+            logger.info("Starting passage evaluation")
             best_passage = await rewriter.rewrite(passages, context)
-            logger.debug(f"Selected best passage with ID {best_passage.passage_id}")
+            logger.info(f"Selected best passage with ID {best_passage.passage_id}")
 
             update_tasks = [
                 self._store_passage(best_passage),
@@ -770,7 +577,7 @@ class DraftGenerator:
                 self._update_character_relevance(best_passage.mentioned_entities),
             ]
             await asyncio.gather(*update_tasks)
-            logger.debug("Finished updating character relevance")
+            logger.info("Finished updating character relevance")
 
             return passages
 
@@ -846,334 +653,455 @@ class DraftGenerator:
             logger.error(f"Error generating summary: {e}")
             return None
 
-    # async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext):
-    #     """Process entities, updating existing ones and creating new ones while ensuring uniqueness."""
-    #     try:
-    #         # Fetch existing story
-    #         story = await stories.find_one({"story_id": ObjectId(self.story_id)})
-    #         if not story:
-    #             return
-
-    #         def normalize_name(name):
-    #             """Normalize entity names for comparison: lowercase and remove leading 'the'."""
-    #             return name.lower().lstrip("the ").strip()
-
-    #         # Normalize existing characters' names for case-insensitive comparison
-    #         existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
-
-    #         # Normalize mentioned entities
-    #         mentioned_entities = {normalize_name(entity) for entity in passage.mentioned_entities}
-
-    #         # Split into existing and new entities
-    #         existing_entities = mentioned_entities & existing_chars
-    #         new_entities = mentioned_entities - existing_chars
-    #         logger.info(f"Existing entities: {existing_entities}")
-    #         logger.info(f"New entities: {new_entities}")
-
-    #         # Update existing characters in parallel
-    #         update_tasks = [
-    #             self._update_character_description(entity, passage.content)
-    #             for entity in existing_entities
-    #         ]
-
-    #         if new_entities:
-    #             # Classify and prioritize new entities
-    #             entity_types = await self._batch_classify_entities(new_entities, passage.content)
-    #             priority_entities = self._prioritize_entities(entity_types)
-
-    #             if priority_entities:
-    #                 # Generate profiles for new characters
-    #                 new_characters = await self._batch_generate_characters(priority_entities, passage.content, context)
-
-    #                 if new_characters:
-    #                     validated_characters = []
-    #                     existing_names = {char["name"].lower() for char in story.get("characters", [])}  # Original case for storage
-
-    #                     for char in new_characters:
-    #                         if "role" not in char:
-    #                             char["role"] = "Supporting Character"
-                            
-    #                         char_name = char["name"]
-    #                         norm_name = normalize_name(char_name)
-
-    #                         # Avoid duplicate characters after normalization
-    #                         if norm_name in existing_names:
-    #                             logger.warning(f"Skipping duplicate character: {char_name}")
-    #                             continue
-
-    #                         try:
-    #                             validated_char = Character(**char)
-    #                             validated_characters.append(validated_char.model_dump())
-    #                             existing_names.add(norm_name)  # Add to existing names after validation
-    #                         except Exception as e:
-    #                             logger.error(f"Character validation error: {e}")
-    #                             continue
-
-    #                     if validated_characters:
-    #                         # Insert new validated characters
-    #                         await stories.update_one(
-    #                             {"story_id": ObjectId(self.story_id)},
-    #                             {
-    #                                 "$push": {"characters": {"$each": validated_characters}},
-    #                                 "$set": {"updated_at": datetime.utcnow()},
-    #                             },
-    #                         )
-    #                         logger.info(f"Added {len(validated_characters)} new characters")
-
-    #         # Wait for all updates to complete
-    #         if update_tasks:
-    #             await asyncio.gather(*update_tasks)
-    #             logger.info(f"Updated {len(update_tasks)} existing characters")
-
-    #     except Exception as e:
-    #         logger.error(f"Error processing entities: {e}")
-
-    async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext):
-        """Process entities, updating existing ones and creating new ones while ensuring uniqueness."""
+    async def _process_new_entities(self, passage: GeneratedPassage, context: PassageContext, debug_mode: bool = False):
+        """Process entities with deduplication, normalization, and selective debugging."""
         try:
-            # Fetch existing story
             story = await stories.find_one({"story_id": ObjectId(self.story_id)})
             if not story:
                 return
 
-            # def normalize_name(name):
-            #     """Normalize entity names for comparison: lowercase and remove leading 'the'."""
-            #     return name.lower().lstrip("the ").strip()
+            def normalize_name(name: str) -> str:
+                """Normalize entity names for consistent comparison."""
+                name = re.sub(r'^\s*the\s+', '', name, flags=re.IGNORECASE)
+                name = re.sub(r'\s+(of|in|at|on|by|for|with)\s*$', '', name, flags=re.IGNORECASE)
+                return name.strip().lower()
 
-            def normalize_name(name):
-                """Consistent normalization across all entity types."""
-                return (
-                    re.sub(r'^\s*the\s+', '', name, flags=re.IGNORECASE)
-                    .strip()
-                    .lower()
-                )
-            # Normalize existing characters' names for case-insensitive comparison
+            def deduplicate_entities(entities: List[str]) -> Set[str]:
+                """Remove duplicate entities considering name normalization."""
+                seen = set()
+                deduped = set()
+                for entity in sorted(set(entities), key=lambda x: -len(x)):
+                    norm = normalize_name(entity)
+                    if all(norm not in s and s not in norm for s in seen):  # Stronger check
+                        seen.add(norm)
+                        deduped.add(entity)
+                return deduped
+            
+            def strip_leading_article(name: str) -> str:
+                return re.sub(r'(?i)^\s*the\s+', '', name)
+
+            raw_entities = passage.mentioned_entities
+            logger.info(f"Found {len(raw_entities)} raw entities to process Raw entities: {raw_entities}")
+            deduped_entities = deduplicate_entities(raw_entities)
+            logger.info(f"Found {len(deduped_entities)}  entities to process Deduped entities: {deduped_entities}")
+            normalized_entities = [normalize_name(e) for e in deduped_entities]
+            logger.info(f"Normalized entities: {normalized_entities}")
+
+            # Get existing character names
             existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
-            mentioned_entities = {normalize_name(entity) for entity in passage.mentioned_entities}
+            logger.info(f"Found {len(existing_chars)} existing entities to process Existing: {existing_chars}")
+            # Classify entities
+            entity_types = await self._batch_classify_entities(
+                {normalize_name(e) for e in deduped_entities}, 
+                passage.content
+            )
+            normalized_entity_types = {normalize_name(key): typ for key, typ in entity_types.items()}
 
-            existing_entities = mentioned_entities & existing_chars
-            new_entities = mentioned_entities - existing_chars
-            logger.info(f"Existing entities: {existing_entities}")
-            logger.info(f"New entities: {new_entities}")
-
-            # Update existing characters in parallel
-            update_tasks = [
-                self._update_character_description(entity, passage.content)
-                for entity in existing_entities
-            ]
-
+            # Filter valid entities (characters & locations)
+            valid_entities = {
+                strip_leading_article(orig_name): typ
+                for orig_name in deduped_entities
+                if (typ := normalized_entity_types.get(normalize_name(orig_name))) and typ in ('character', 'location', 'entity')
+            }
+            logger.info(f"Found {len(valid_entities)} valid entities to process \n Valid entities: {valid_entities} ")
+            new_entities = [e for e in valid_entities if normalize_name(e) not in existing_chars]
+            logger.info(f"Found {len(new_entities)} new entities to process \n New entities: {new_entities} ")
+            
             if new_entities:
-                entity_types = await self._batch_classify_entities(new_entities, passage.content)
-                priority_entities = self._prioritize_entities(entity_types)
-
-                if priority_entities:
-                    new_characters = await self._batch_generate_characters(priority_entities, passage.content, context)
-
-                    if new_characters:
-                        validated_characters = []
-                        existing_names = {normalize_name(char["name"]) for char in story.get("characters", [])}
-
-                        for char in new_characters:
-                            if "role" not in char:
-                                char["role"] = "Supporting Character"
-
-                            char_name = char["name"]
-                            norm_name = normalize_name(char_name)
-
-                            if norm_name in existing_names:
-                                logger.warning(f"Skipping duplicate character: {char_name}")
-                                continue
-
-                            try:
-                                # Generate detailed character description
-                                char["physicalAppearance"], char["behavioralPatterns"], char["genderAndSexualOrientation"], char["relationships"], char["likesAndDislikes"] = await self._generate_character_details(char_name)
-                                logger.info(f"Generated details for {char_name}: {char}")
-                                validated_char = Character(**char)
-                                validated_characters.append(validated_char.model_dump())
-                                existing_names.add(norm_name)
-                            except Exception as e:
-                                logger.error(f"Character validation error: {e}")
-                                continue
-
-                        if validated_characters:
-                            await stories.update_one(
-                                {"story_id": ObjectId(self.story_id)},
-                                {
-                                    "$push": {"characters": {"$each": validated_characters}},
-                                    "$set": {"updated_at": datetime.utcnow()},
-                                },
-                            )
-                            logger.info(f"Added {len(validated_characters)} new characters to story {self.story_id}")
-
-            if update_tasks:
-                await asyncio.gather(*update_tasks)
-                logger.info(f"Updated {len(update_tasks)} existing characters")
+                await self._process_new_characters(new_entities, passage.content, context, story, entity_types)
+            existing_updates = [e for e in deduped_entities if normalize_name(e) in existing_chars]
+            await self._update_existing_characters(existing_updates, passage.content)
 
         except Exception as e:
-            logger.error(f"Error processing entities: {e}")
+            logger.error(f"Error processing entities: {str(e)}", exc_info=True)
 
-    async def _generate_character_details(self, name: str):
-        """Generate a detailed description for a new character."""
-        # Placeholder logic - replace with AI-driven or predefined descriptions
-        physical_appearance = f"A distinct look unique to {name}."
-        behavioral_patterns = f"Typical behaviors associated with {name}."
-        gender_and_sexual_orientation = "Unknown"
-        relationships = {}
-        likes_and_dislikes = {"Likes": ["Example Like"], "Dislikes": ["Example Dislike"]}
-        
-        logger.info(f"Generated character details for {name}")
-        return physical_appearance, behavioral_patterns, gender_and_sexual_orientation, relationships, likes_and_dislikes
+    async def _process_new_characters(self, entities, content, context, story, classified_types):
+        """Enhanced character processing with validation and logging"""
+        try:
+            def normalize_name(name: str) -> str:
+                """Normalize entity names for consistent comparison."""
+                name = re.sub(r'^\s*the\s+', '', name, flags=re.IGNORECASE)
+                name = re.sub(r'\s+(of|in|at|on|by|for|with)\s*$', '', name, flags=re.IGNORECASE)
+                return name.strip().lower()
+            
+            logger.info(f"⏳ Processing {len(entities)} new character candidates ⏳")
+            generated = await self._batch_generate_characters(entities, content, context, classified_types)
+            
+            if not generated:
+                logger.warning("No characters generated in batch process")
+                return
 
-    async def _batch_classify_entities(self, entities: set[str], passage_content: str) -> Dict[str, str]:
-        """Classify multiple entities in a single LLM call"""
+            validated = []
+            existing_names = {normalize_name(c["name"]) for c in story.get("characters", [])}
 
-        # Define schema for entity classification
-        class CharacterClassificationSchema(BaseModel):
-            name: str
-            classification: Literal["character", "location", "entity"] = Field(
-                default="character",
-                description="Type of entity (character, entity, or location)",
+            for char in generated:
+                try:
+                    logger.info(f"🔄 RAW CHARACTER DATA:\n{json.dumps(char, indent=2)} 🔄")   
+                    # Clean and validate name
+                    clean_name = re.sub(r'^\s*the\s+', '', char["name"], flags=re.IGNORECASE).strip()
+                    if not clean_name:
+                        logger.warning("Skipping empty character name")
+                        continue
+
+                    clean_name = clean_name[0].upper() + clean_name[1:]
+                    norm_name = normalize_name(clean_name)
+
+                    if norm_name in existing_names:
+                        logger.info(f"Skipping duplicate: {clean_name}")
+                        continue
+                    
+                    # VALIDATION MOVED TO BATCH GENERATION
+                    validated_char = Character(**char).model_dump()
+                    validated.append(validated_char)
+                    existing_names.add(norm_name)
+                    logger.info(f"--- New {char['type']} created: {clean_name} ---")
+                    
+                    #  Detailed success logging
+                    logger.info(f"✅ CREATED {char['type'].upper()}: {clean_name} ✅")
+                    logger.info(f"""📝 CHARACTER DETAILS 📝 :
+                        {json.dumps({
+                            "Role": char.get('role'),
+                            "Type": char.get('type'),
+                            "Appearance": char.get('physicalAppearance'),
+                            "Relationships": char.get('relationships'),
+                            "Likes/Dislikes": char.get('likesAndDislikes')
+                        }, indent=2)}""")
+                    
+                except ValidationError as ve:
+                    logger.error(f"Schema validation failed for {clean_name}: {ve.errors()}")
+                    logger.error(f"❌ VALIDATION FAILED: {clean_name} ❌")
+                    logger.info(f"Validation errors:\n{ve.json()}")
+                except Exception as e:
+                    logger.error(f"💥Unexpected error processing {clean_name}: {str(e)} 💥")
+
+            # if validated:
+            await stories.update_one(
+                {"story_id": ObjectId(self.story_id)},
+                {"$push": {"characters": {"$each": validated}}}
             )
+            logger.info(f"Database updated with {len(validated)} new characters")
+            logger.info(f"📥 DATABASE: Added {len(validated)} new characters")
+            logger.info(f"Inserted documents:\n{json.dumps(validated, indent=2)}")
 
-        schema = CharacterClassificationSchema.model_json_schema()
+        except Exception as e:
+            logger.error(f"Character processing pipeline failed: {str(e)}", exc_info=True)
+            logger.error(f"🔥 CRITICAL FAILURE: {str(e)}", exc_info=True)
 
-        entities_list = list(entities)
-        batch_prompt = f"""
-        <|im_start|>system
-        You are an expert story analyzer. Classify each entity as either "character", "location", or "entity" based on the passage context.
-        Return a valid JSON object following the given schema exactly.
+    async def _update_existing_characters(self, entities, content):
+        """Batch update existing characters."""
+        try:
+            updates = await asyncio.gather(*[
+                self._update_character_description(entity, content)
+                for entity in entities
+            ])
+            logger.info(f"Updated {len([u for u in updates if u])} characters")
+        except Exception as e:
+            logger.error(f"Character update failed: {str(e)}")
+            
+    async def _batch_classify_entities(self, entities: Set[str], passage: str) -> Dict[str, str]:
+        """Classify entities with strict filtering."""
+        prompt = f"""<|im_start|>system
+        Classify entities as character/location/entity. Focus on:
+        - Characters: Names of people, sentient beings, or significant roles (e.g., Guardian, Archivist)
+        - Locations: Specific places (e.g., Atlantis, Shattered Palace)
+        - Entity: Other tangible items (e.g., carnelian)
+        Exclude:
+        - Abstract concepts (e.g., 'Justice', 'Time')
+        - Generic terms (e.g., 'Building', 'Vehicle')
+        - Non-story-relevant items
+        
+        Return JSON array like: [{{"name":"Entity", "type":"character"}}]
         <|im_end|>
         <|im_start|>user
-        Entities to classify:
-        {json.dumps(entities_list)}
-        
-        Passage context:
-        {passage_content[:1000]}
-        
-        Here's the JSON schema you must adhere to:\n<schema>\n{schema}\n</schema>
-        
-        Example response:
-        [{{"name":"TheArchivist", "classification":"character"}}, {{"name":"AtlantisLibrary", "classification":"location"}}]
+        Entities: {json.dumps(list(entities))}
+        Passage: {passage[:1500]}
         <|im_end|>
         <|im_start|>assistant
         """
-
+        
         try:
-            response = model(
-                batch_prompt,
-                max_tokens=256,
-            )
-            if not isinstance(response, dict) or "choices" not in response:
+            response = model(prompt, temperature=0.3)
+            response_text = response["choices"][0]["text"]
+            
+            # Call extract_parse_json to handle JSON extraction and parsing
+            parsed_items = await self.extract_parse_json(response_text)
+            
+            if not parsed_items:  # Handles None or empty list
                 return {}
-
-            response_text = response["choices"][0]["text"].strip()  # type: ignore
-            logger.info(f"Entity classification response: {response_text}")
-
-            try:
-                classifications = json.loads(response_text)
-                logger.info(f"Classifications: {classifications}")
-                # Convert list of dicts to dict format
-                return {
-                    item["name"]: item["classification"]
-                    for item in classifications
-                    if isinstance(item, dict)
-                    and "name" in item
-                    and "classification" in item
-                }
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing JSON response: {e}")
-                return {}
-
+            
+            return {
+                item["name"]: item["type"]
+                for item in parsed_items
+                if "name" in item and "type" in item
+            }
         except Exception as e:
-            logger.error(f"Error classifying entities: {e}")
+            logger.error(f"Classification failed: {str(e)}")
             return {}
-
-    def _prioritize_entities(self, entity_types: Dict[str, str]) -> Dict[str, str]:
-        """Filter and prioritize entities based on type"""
-        # Priority weights
-        priorities = {"character": 3, "location": 2, "object": 1}
-
-        # Sort entities by priority
-        prioritized = sorted(
-            entity_types.items(), key=lambda x: priorities.get(x[1], 0), reverse=True
-        )
-
-        # Take top 5 entities or all if less
-        top_entities = dict(prioritized[:5])
-
-        # Always include characters
-        characters = {
-            name: type_ for name, type_ in entity_types.items() if type_ == "character"
-        }
-
-        return {**characters, **top_entities}
-
-    async def _batch_generate_characters(
-        self,
-        priority_entities: Dict[str, str],
-        passage_content: str,
-        context: PassageContext,
-    ) -> List[Dict]:
-        """Generate character profiles in batch with relationship context"""
-        # Fetch existing characters to provide relationship context
-        existing_characters = await self._get_all_characters()
-
-        # Create a mapping of existing character names to their details
-        existing_character_map = {char["name"]: char for char in existing_characters}
-
-        batch_prompt = f"""
-        <|im_start|>system
-        Generate character profiles for multiple entities in JSON format.
         
-        Story Context:
-        Genre: {context.genre}
-        Premise: {context.premise}
-        Setting: {context.setting}
-        
-        Existing Characters:
-        {json.dumps(existing_character_map)}
-        
-        Entities to profile:
-        {json.dumps(priority_entities)}
-        
-        Recent passage:
-        {passage_content[:1000]}
-        
-        Return a list of character profiles following this schema:
-        \n<schema>
-        {character_schema}
-        </schema>\n
-        <|im_end|>
-        <|im_start|>assistant
-        """
-
+    async def extract_parse_json(self, text: str) -> Optional[list]:
+        """Extract and parse JSON from text, handling markdown code blocks."""
         try:
-            response = model(batch_prompt, max_tokens=2048, temperature=0.7)
-            if not isinstance(response, dict) or "choices" not in response:
-                return []
+            # Improved regex to handle code blocks with optional language specifiers
+            code_block_match = re.search(
+                r"```(?:json)?\s*([\s\S]*?)\s*```", 
+                text, 
+                flags=re.IGNORECASE
+            )
+            
+            if code_block_match:
+                json_str = code_block_match.group(1)
+                # Remove any remaining backticks that might be in the content
+                json_str = json_str.replace('`', '')
+            else:
+                # Fallback: look for the first complete JSON structure
+                json_candidates = re.findall(r'({.*}|[.*])', text, re.DOTALL)
+                if json_candidates:
+                    json_str = json_candidates[0]
+                else:
+                    logger.error("No JSON structure found in text")
+                    return None
 
-            profiles = json.loads(response["choices"][0]["text"].strip())  # type: ignore
+            # Clean whitespace and validate
+            json_str = json_str.strip()
+            if not json_str:
+                return None
 
-            # Validate profiles
-            validated_profiles = []
-            for profile in profiles:
-                try:
-                    # Check for continuity with existing characters
-                    if profile["name"] in existing_character_map:
-                        # Merge new profile with existing character details
-                        existing_profile = existing_character_map[profile["name"]]
-                        profile = {**existing_profile, **profile}
+            logger.info(f"Extracted JSON string: {json_str}")
+            
+            # Parse with JSON5 (more forgiving)
+            parsed = json5.loads(json_str)
+            
+            # Ensure we return a list
+            if isinstance(parsed, list):
+                return parsed
+            if isinstance(parsed, dict):
+                return [parsed]
+            
+            logger.error(f"Unexpected JSON type: {type(parsed)}")
+            return None
 
-                    character = Character(**profile)
-                    validated_profiles.append(character.model_dump())
-                except Exception as e:
-                    logger.error(f"Error validating profile: {e}")
-
-            return validated_profiles
+        except (json.JSONDecodeError, ValueError) as je:
+            logger.error(f"JSON error at line {je.lineno}: {je.msg}")
+            logger.info(f"Invalid JSON content: {json_str}")
+            logger.error(f"JSON decode error: {str(je)}")
+            logger.info(f"Problem content: {json_str}")
+            return None
         except Exception as e:
-            logger.error(f"Error generating character profiles: {e}")
-            return []
+            logger.error(f"JSON parse error: {str(e)}")
+            return None
+          
+    async def _generate_character_details(self, name, content):
+            """Generate detailed character attributes with validation"""
+            prompt = f"""<|im_start|>system
+            Generate details for {name} based on {content} if nothing in content then based on {name}
+            - physicalAppearance: 1-2 sentences, f"A distinct look unique to {name}."
+            - behavioralPatterns: 2-3 traits, f"Typical behaviors associated with {name}."
+            - genderAndSexualOrientation: f"Female, heterosexual"
+            - relationships: Key connections
+            - likesAndDislikes: 3 likes/dislikes
+            
+            Context: {content[:1000]}
+            Return JSON only.<|im_end|>
+            """
+            response = await model._json(prompt, response_format={"type": "json_object"})
+            raw_text = response["choices"][0]["text"]
+            details  = await self.extract_parse_json(raw_text)
+            
+            return self._validate_character_details(details, name)
 
+    async def _update_character_description(self, character_name: str, passage_text: str) -> None:
+            """Update character description based on new developments"""
+            try:
+                # Get current character data
+                story = await stories.find_one(
+                    {"story_id": ObjectId(self.story_id), "characters.name": character_name}
+                )
+                if not story:
+                    logger.info(f"Character {character_name} not found in story")
+                    return
+
+                prompt = f"""
+                <|im_start|>system
+                Update character profile based on recent events.
+                You MUST maintain these rules:
+                1. Keep character name EXACTLY as: {character_name}
+                2. Only update fields with new information from this passage: {passage_text}
+                Return only the entire json object following the schema below. Update the required fields only and keep the rest as is.
+                the json object should be valid and follow the schema.
+                ###Example of a correctly formatted response:
+                  {{
+                    "name": {character_name},
+                    "type": "character",
+                    "role": "Protagonist",
+                    "physicalAppearance": "A striking figure with piercing blue eyes, shoulder-length chestnut hair, and a lean, athletic build. Alex's face is marked by a small scar above the left eyebrow, a memento from a past adventure.",
+                    "behavioralPatterns": "Inquisitive and determined, Alex is not afraid to dig deep to uncover the truth. They are empathetic and fiercely loyal to those they care about, but can be impulsive and headstrong at times.",
+                    "genderAndSexualOrientation": "Female, bisexual",
+                    "relationships": {{
+                        "Lila Blackwood": "Local librarian and confidante",
+                        "Samuel Gray": "Enigmatic antique shop owner",
+                        "Whispers of Millfield": "Mysterious forces driving Alex's quest"
+                    }},
+                    "likesAndDislikes": {{
+                        "Likes": [
+                        "Unsolved mysteries",
+                        "Old books and artifacts",
+                        "Long walks in nature"
+                        ],
+                        "Dislikes": [
+                        "Deception",
+                        "People who shy away from the truth",
+                        "Crowded places"
+                        ]
+                    }}
+                    }},
+            
+                ###Context:
+                Character: {character_name}
+                Recent events: {passage_text}
+                ###Instructions:
+                response should only include json object that can directly be parsed.
+                ###Schema:
+                \n<schema>\n{character_schema}\n</schema>
+
+
+                <|im_end|>
+                <|im_start|>assistant
+                """
+
+                logger.info(f"Generating updates for character: {character_name}")
+                response = await model._json(
+                    prompt,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "Character",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "description": "The name of the character/entity/location",
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "description": "The type of entity. Must be one of: character, entity, or location.",
+                                    },
+                                    "role": {
+                                        "type": "string",
+                                        "description": "The role or function in the story",
+                                    },
+                                    "physicalAppearance": {
+                                        "type": "string",
+                                        "description": "The physical appearance of the character/entity/location",
+                                    },
+                                    "behavioralPatterns": {
+                                        "type": "string",
+                                        "description": "The behavioral patterns of the character/entity/location",
+                                    },
+                                    "genderAndSexualOrientation": {
+                                        "type": "string",
+                                        "description": "The gender and sexual orientation of the character/entity/location",
+                                    },
+                                    "relationships": {
+                                        "type": "object",
+                                        "description": "The relationships of the character/entity/location",
+                                        "additionalProperties": {
+                                            "type": "string",
+                                            "description": "The relationship description",
+                                        },
+                                    },
+                                    "likesAndDislikes": {
+                                        "type": "object",
+                                        "description": "The likes and dislikes of the character/entity/location",
+                                        "properties": {
+                                            "Likes": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "List of likes",
+                                            },
+                                            "Dislikes": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "List of dislikes",
+                                            },
+                                        },
+                                        "required": ["Likes", "Dislikes"],
+                                    },
+                                },
+                                "required": [
+                                    "name",
+                                    "type",
+                                    "role",
+                                    "physicalAppearance",
+                                    "behavioralPatterns",
+                                    "genderAndSexualOrientation",
+                                    "relationships",
+                                    "likesAndDislikes",
+                                ],
+                                "additionalProperties": False,
+                            },
+                        },
+                    },
+                )
+                if not isinstance(response, dict) or "choices" not in response:
+                    logger.error("Invalid model response")
+                    return
+
+                try:
+                    raw_text = response["choices"][0]["text"]
+                    updates = await self.extract_parse_json(raw_text)
+
+                    if not updates or not isinstance(updates, list) or len(updates) == 0:
+                        raise ValueError("Failed to parse valid JSON updates")
+
+                    update_data = updates[0]  # Extract the first (and only) update
+                    # After extracting update_data in _update_character_description:
+                    if update_data.get("name", "").lower() != character_name.lower():
+                        logger.error(f"Name mismatch: {update_data.get('name')} vs {character_name}")
+                        logger.error(f"Model returned incorrect name: {update_data.get('name')} for {character_name}")
+                        return
+                    # Inside _update_character_description after parsing updates:
+                    if update_data["name"].lower() != character_name.lower():
+                        logger.error(f"Generated name '{update_data['name']}' does not match '{character_name}'")
+                        return
+                    
+                    character_name = update_data.get("name")
+                    if not character_name:
+                        raise ValueError("Update data missing 'name' field")
+
+                    # Find the character in the story's characters list
+                    character = next(
+                        (c for c in story["characters"] if c["name"].lower() == character_name.lower()),
+                        None,
+                    )
+                    if character:
+                        # Update the character locally
+                        story["characters"] = [
+                            update_data if c["name"].lower() == character_name.lower() else c
+                            for c in story["characters"]
+                        ]
+
+                        # Update the character in the database
+                        await stories.update_one(
+                            {
+                                "story_id": ObjectId(self.story_id),
+                                "characters.name": {
+                                    "$regex": f"^{character_name}$",
+                                    "$options": "i",
+                                },
+                            },
+                            {"$set": {"characters.$": update_data}},
+                        )
+                        logger.info(f"Successfully updated character: {character_name}")
+                    else:
+                        logger.error(f"Character {character_name} not found in story")
+                except Exception as e:
+                    logger.error(f"Error processing character update: {e}")
+                    
+            except Exception as e:
+                logger.error(f"Failed to update character description: {e}")
+            
     async def _get_outline_characters(self, outline_point: Dict) -> List[Dict]:
         """Get character details for characters mentioned in the outline point"""
         try:
@@ -1358,3 +1286,166 @@ class DraftGenerator:
         # We normalize to a score between 0 and 1.
         coherence = max(0.0, 1.0 - (std_dev / mean_length))
         return coherence
+
+    def _validate_character_details(self, response, expected_name):
+            """Ensure response matches expected character"""
+            try:
+                details = response[0]
+                behavioralPatterns = details.get("behavioralPatterns", [])   
+                if isinstance(behavioralPatterns, list):
+                    behavioralPattern_str = "\n".join([f"{pattern}" for pattern in behavioralPatterns])
+                else:
+                    behavioralPattern_str = str(behavioralPatterns)
+
+                    
+                return (
+                    details.get("physicalAppearance", ""),
+                    behavioralPattern_str,
+                    details.get("genderAndSexualOrientation", ""),
+                    details.get("relationships", {}),
+                    details.get("likesAndDislikes", {"Likes": [], "Dislikes": []})
+                )
+            except Exception as e:
+                logger.error(f"Validation failed: {str(e)}")
+                return (
+                    "",
+                    "N/A",
+                    "N/A",
+                    {},
+                    {"Likes": [], "Dislikes": []}
+                )
+       
+    async def _generate_character_role(self, name, content):
+        """Generate role description with context"""
+        prompt = f"""<|im_start|>system
+        Determine {name}'s role based on:
+        {content[:1000]}
+        Return 1-2 words role description.<|im_end|>
+        <|im_start|>user
+        Describe {name}'s role<|im_end|>
+        <|im_start|>assistant
+        """
+        response_format = {"type": "json", "schema": {"role_description": "string"}}
+        result = await model._json(prompt, response_format=response_format, max_tokens=100)
+        # Assuming the model returns a JSON object with a key "role_description"
+        role_description = result["choices"][0]["text"].strip()
+        return role_description
+
+    async def _batch_generate_characters(self, entities, content, context, classified_types):
+        """Batch generate characters with enhanced logging"""
+        generated = []
+
+        def normalize_name(name: str) -> str:
+                """Normalize entity names for consistent comparison."""
+                name = re.sub(r'^\s*the\s+', '', name, flags=re.IGNORECASE)
+                name = re.sub(r'\s+(of|in|at|on|by|for|with)\s*$', '', name, flags=re.IGNORECASE)
+                return name.strip().lower()
+        
+        for entity in entities:
+            try:
+                start_time = time.time()
+                entity_type = classified_types.get(entity)
+                logger.info(f"---Classified Types---{classified_types}")
+                
+                logger.info(f"Generating base profile for: {entity} ({entity_type})")
+                rol = await self._generate_character_role(entity, content)
+                logger.info(f"✅  Role generated : {rol}")
+                # Base character structure
+                char_data = {
+                    "name": entity,
+                    "type": entity_type,
+                    "role": rol,
+                    "physicalAppearance": "",
+                    "behavioralPatterns": "",
+                    "genderAndSexualOrientation": "",
+                    "relationships": {},
+                    "likesAndDislikes": {"Likes": [], "Dislikes": []}
+                }
+
+                # Type-specific generation
+                if entity_type == "character":
+                    response = await self._generate_character_details(entity, content)
+                elif entity_type in ("location", "entity"):
+                    logger.info(f"Generating non-character details for {entity}")
+                    response = await self._generate_entity_details(entity, content)
+
+                if response:                
+                    # Update with validated details
+                    char_data.update(zip([
+                        "physicalAppearance", "behavioralPatterns",
+                        "genderAndSexualOrientation", "relationships",
+                        "likesAndDislikes"
+                    ], response))
+                logger.info(f"Generating {entity_type} details for {entity} with data \n\n{char_data}")
+                generated.append(char_data)
+                logger.info(f"Generated {entity_type} profile for {entity} in {time.time()-start_time:.2f}s")
+
+            except Exception as e:
+                logger.error(f"Batch generation failed for {entity}: {str(e)}")
+                logger.info(f"Failed entity context: {content[:200]}")
+        logger.info(f"✅  Generated characters List:{generated}")
+        return generated                
+
+    async def _generate_entity_details(self, name, content):
+        """Generate details for non-character entities."""
+        prompt = f"""<|im_start|>system
+        Describe {name} with:
+        - PhysicalDescription: 1-2 sentences
+        - Significance: Story importance
+        - KeyFeatures: 3-5 points in string form
+        Return JSON format.<|im_end|>
+        <|im_start|>user
+        Describe {name} based on: {content[:500]}<|im_end|>
+        <|im_start|>assistant
+        """
+        
+        response = await model._json(prompt, response_format={"type": "json_object"})
+        raw_text = response["choices"][0]["text"]
+        details = await self.extract_parse_json(raw_text)
+        
+        return self._validate_entity_details(details, name)
+
+    def _validate_entity_details(self, response, expected_name):
+        """Validate entity details structure and format to match character schema."""
+        try:
+            details = response[0]
+            
+            # Format physical appearance with sections separated by newlines
+            physical_description = details.get("PhysicalDescription", "")
+            significance = details.get("Significance", "")
+            key_features = details.get("KeyFeatures", [])
+
+            if isinstance(key_features, list):
+                key_features_str = "\n".join([f"• {feature}" for feature in key_features])
+            else:
+                key_features_str = str(key_features)
+            
+            # Combine all descriptions with double newlines
+            physical_appearance = (
+                f"Physical Description: {physical_description}\n"
+                f"Significance: {significance}\n"
+                f"Key Features: {key_features_str}"
+            )
+            # Return with all required fields to match character schema
+            return (
+                physical_appearance,  # For "physicalAppearance"
+                "NA",         # For "behavioralPatterns"
+                "NA",     # For "genderAndSexualOrientation"
+                details.get("relationships", {"The Archivist": "Astrid has a fascinating connection to the Archivist"}),
+                details.get("likesAndDislikes", {"Likes": ["Navigating the complexities of the timestream"],
+                                                "Dislikes": ["exploiting the power"]})
+            )
+        
+        # except Exception as e:
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"JSON5 parse error: {str(e)}")
+            logger.error(f"Invalid entity details: {str(e)}")
+            # Return default values for all required fields
+            return (
+                "",
+                "N/A",
+                "N/A",
+                {},
+                {"Likes": [], "Dislikes": []}
+            )   
+ 

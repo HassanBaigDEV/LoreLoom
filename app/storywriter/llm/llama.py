@@ -33,6 +33,7 @@ class LLMClient:
                 messages=messages,
                 **kwargs,
             )
+            
             return {"choices": [{"text": completion.choices[0].message.content}]}
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
