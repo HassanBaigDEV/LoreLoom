@@ -878,7 +878,7 @@ class DraftGenerator:
             return None
 
         except (json.JSONDecodeError, ValueError) as je:
-            logger.error(f"JSON error at line {je.lineno}: {je.msg}")
+            logger.error(f"JSON error at line {je.lineno}: {je.msg}") #type: ignore
             logger.info(f"Invalid JSON content: {json_str}")
             logger.error(f"JSON decode error: {str(je)}")
             logger.info(f"Problem content: {json_str}")
