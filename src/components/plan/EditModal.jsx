@@ -8,14 +8,8 @@ import {
   TextField 
 } from '@mui/material';
 
-interface EditPassageModalProps {
-  open: boolean;
-  onClose: () => void;
-  initialContent: string;
-  onSave: (content: string) => void;
-}
 
-const EditPassageModal: React.FC<EditPassageModalProps> = ({
+const EditPassageModal = ({
   open, 
   onClose, 
   initialContent, 

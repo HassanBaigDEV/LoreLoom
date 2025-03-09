@@ -260,19 +260,33 @@ export default function StoryElement({
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
+      if (isOutline) {
+        const newPoint = {
+          //length of array + 1,
+          number: content.length + 1,
+          title: "",
+          description: "",
+          purpose: "",
+          setting: "",
+          characters_involved: [],
+          estimated_duration: "",
+        };
+        setEditedContent(newPoint);
+        setIsEditing(true);
+      } else if (isCharacters) {
+        const newCharacter = {
+          name: "",
+          type: "character",
+          role: "",
+          physicalAppearance: "",
+          behavioralPatterns: "",
+          genderAndSexualOrientation: "",
+          relationships: {},
+          likesAndDislikes: { Likes: [], Dislikes: [] },
+        };
+        setEditedContent(newCharacter);
+      }
 
-      const newCharacter = {
-        name: "",
-        type: "character",
-        role: "",
-        physicalAppearance: "",
-        behavioralPatterns: "",
-        genderAndSexualOrientation: "",
-        relationships: {},
-        likesAndDislikes: { Likes: [], Dislikes: [] },
-      };
-
-      setEditedContent(newCharacter);
       setIsEditing(true);
     } catch (error) {
       console.error("Error adding new character:", error);
@@ -395,24 +409,45 @@ export default function StoryElement({
       handleAddNew();
       setShowOptions(false);
     } else if (option === "generateOne") {
-      handleGenerateMultipleCharacters(1);
+      if (isCharacters) {
+        // handleGenerate();
+        handleGenerateMultipleCharacters(1);
+      } else if (isOutline) {
+        handleGenerateMultiplePoints(1, true);
+      }
       setShowOptions(false);
     }
   };
 
   const handleGenerateMany = () => {
-    handleGenerateMultipleCharacters(count);
+    if (isCharacters) handleGenerateMultipleCharacters(count);
+    else if (isOutline) handleGenerateMultiplePoints(pointCount, true);
+    // set count to 1
+    setCount(1);
+    setPointCount(1);
     setShowOptions(false);
     setSelectedOption(null);
   };
 
   const renderCharacterContent = () => {
     if (isEditing) {
-      return (
+      isCharacters ? (
         <CharacterForm
           initialData={editedContent}
           onSubmit={(updatedCharacter) => {
             handleSave(updatedCharacter);
+          }}
+        />
+      ) : (
+        <OutlineForm
+          initialData={editedContent}
+          onSubmit={(formData) => {
+            handleSave(formData);
+          }}
+          onCancel={() => {
+            setIsEditing(false);
+            setEditedContent(null);
+            setShowOptions(false);
           }}
         />
       );
@@ -565,7 +600,9 @@ export default function StoryElement({
             <Button
               variant="outlined"
               className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-50"
-              onClick={() => setShowOptions(true)}
+              onClick={() => {
+                setShowOptions(true);
+              }}
               startIcon={<AddIcon />}
             >
               ADD NEW CHARACTER
@@ -615,7 +652,7 @@ export default function StoryElement({
                   startIcon={<EditIcon />}
                   className={
                     selectedOption === "manual"
-                      ? "bg-purple-500 hover:bg-purple-600"
+                      ? "bg-green-500 hover:bg-green-600"
                       : ""
                   }
                 >
@@ -629,7 +666,7 @@ export default function StoryElement({
                   startIcon={<AutoFixHighIcon />}
                   className={
                     selectedOption === "generateOne"
-                      ? "bg-purple-500 hover:bg-purple-600"
+                      ? "bg-green-500 hover:bg-green-600"
                       : ""
                   }
                 >
@@ -643,7 +680,7 @@ export default function StoryElement({
                   startIcon={<AutoFixHighIcon />}
                   className={
                     selectedOption === "generateMany"
-                      ? "bg-purple-500 hover:bg-purple-600"
+                      ? "bg-green-500 hover:bg-green-600"
                       : ""
                   }
                 >
@@ -706,7 +743,11 @@ export default function StoryElement({
     };
 
     const handleGenerateMany = () => {
-      handleGenerateMultiplePoints(pointCount, true);
+      if (isOutline) {
+        handleGenerateMultiplePoints(pointCount, true);
+      } else if (isCharacters) {
+        handleGenerateMultipleCharacters(count);
+      }
       setShowOptions(false);
       setSelectedOption(null);
     };
@@ -840,7 +881,9 @@ export default function StoryElement({
             <Button
               variant="outlined"
               className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-50"
-              onClick={() => setShowOptions(true)}
+              onClick={() => {
+                setShowOptions(true);
+              }}
               startIcon={<AddIcon />}
             >
               ADD NEW OUTLINE POINT
@@ -1376,7 +1419,7 @@ export default function StoryElement({
       const response = await storyApiClient.post(
         `/plan/generate-characters/${storyId}`,
         {
-          character_count: count,
+          num_characters: count,
         },
         { params: { user_id: user.id } }
       );
