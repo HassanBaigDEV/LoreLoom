@@ -6,7 +6,6 @@ from pydantic import BaseModel
 # from llama_cpp import Llama
 import uuid
 from pgvector.psycopg2 import register_vector
-from sentence_transformers import SentenceTransformer, models
 
 # sentence transformers
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding

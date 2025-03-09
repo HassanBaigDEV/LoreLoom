@@ -29,7 +29,7 @@ router = APIRouter()
 
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -58,6 +58,10 @@ class OutlinePointUpdate(BaseModel):
 
 class NewCharacter(BaseModel):
     new_character: Dict
+
+
+class GenerateCharactersRequest(BaseModel):
+    num_characters: int
 
 
 class OutlinePoint(BaseModel):
@@ -91,6 +95,11 @@ class CharacterRegenerate(BaseModel):
     character_name: str
 
 
+class OutlineRequest(BaseModel):
+    max_depth: int = 2
+    continue_from_previous: bool = False
+
+
 @router.get("/generate-title/{story_id}")
 async def get_title(story_id: str, user_id: str):
     try:
@@ -105,17 +114,17 @@ async def get_title(story_id: str, user_id: str):
         if not story:
             # raise HTTPException(status_code=404, detail="Story not found")
             logging.error("Story not found")
-            return HTTPException(status_code=404, detail="Story not found")
+            raise HTTPException(status_code=404, detail="Story not found")
 
         title = await generate_title(story_id)
         return title
     except ValueError as ve:
         logger.error(f"ValueError: {ve}")
         # raise HTTPException(status_code=400, detail="Invalid ID format")
-        return HTTPException(status_code=400, detail="Invalid ID format")
+        raise HTTPException(status_code=400, detail="Invalid ID format")
     except Exception as e:
         logger.error(f"Exception: {e}")
-        return HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
         # raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -172,39 +181,91 @@ async def get_setting(story_id: str, user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/generate-characters/{story_id}")
-async def get_characters(story_id: str, user_id: str):
-    logging.info("Generating characters")
+@router.post("/add-character/{story_id}")
+async def add_character(story_id: str, user_id: str, data: NewCharacter):
     try:
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
         if not story:
-            # raise HTTPException(status_code=404, detail="Story not found")
-            logging.error("Story not found")
             return HTTPException(status_code=404, detail="Story not found")
 
-        if not story.get("premise") or not story.get("setting"):
-            # raise HTTPException(
-            #     status_code=400, detail="Premise and setting must be generated first"
-            # )
-            logging.error("Premise and setting must be generated first")
-            return HTTPException(
-                status_code=400, detail="Premise and setting must be generated first"
-            )
+        # Validate the new character data
+        character = Character(**data.new_character)
 
-        characters = await generate_characters(
-            story_id, story["premise"], story["setting"]
+        # Add the new character to the characters array
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {
+                "$push": {"characters": character.model_dump()},
+                "$set": {"updated_at": datetime.utcnow()},
+            },
         )
-        return characters
-    except ValueError:
-        # raise HTTPException(status_code=400, detail="Invalid ID format")
-        logging.error("Invalid ID format")
-        return HTTPException(status_code=400, detail="Invalid ID format")
+        return {
+            "message": "Character added successfully",
+            "character": character.model_dump(),
+        }
     except Exception as e:
-        # raise HTTPException(status_code=500, detail=str(e))
-        logging.error(f"Exception: {e}")
+        logger.error(f"Error adding character: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
+
+# @router.get("/generate-characters/{story_id}")
+# async def generate_multiple_character(story_id: str, user_id: str ):
+#     logging.info("Generating characters")
+#     try:
+#         story = await stories.find_one(
+#             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+#         )
+#         if not story:
+#             # raise HTTPException(status_code=404, detail="Story not found")
+#             logging.error("Story not found")
+#             return HTTPException(status_code=404, detail="Story not found")
+
+#         if not story.get("premise") or not story.get("setting"):
+#             # raise HTTPException(
+#             #     status_code=400, detail="Premise and setting must be generated first"
+#             # )
+#             logging.error("Premise and setting must be generated first")
+#             return HTTPException(
+#                 status_code=400, detail="Premise and setting must be generated first"
+#             )
+
+#         # use generate_character
+
+#         return characters
+#     except ValueError:
+#         # raise HTTPException(status_code=400, detail="Invalid ID format")
+#         logging.error("Invalid ID format")
+#         return HTTPException(status_code=400, detail="Invalid ID format")
+#     except Exception as e:
+#         # raise HTTPException(status_code=500, detail=str(e))
+#         logging.error(f"Exception: {e}")
+#         return HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-characters/{story_id}")
+async def generate_multiple_characters(
+    story_id: str, user_id: str, request: GenerateCharactersRequest
+):
+    try:
+        characters = []
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+        
+        for _ in range(request.num_characters):
+            character = await generate_character(story_id)
+            characters.append(character)
+
+        logger.debug(f"Generated {len(characters)} characters", characters)
+        return {"characters": characters}
+    except Exception as e:
+        logging.error(f"Error generating characters: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/generate-character/{story_id}")
 async def get_character(story_id: str, user_id: str):
@@ -230,12 +291,8 @@ async def get_character(story_id: str, user_id: str):
         logging.error(f"Exception: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
-class OutlineRequest(BaseModel):
-    max_depth: int = 2
-    continue_from_previous: bool = False
 
-
-@router.post("/generate-full-outline/{story_id}")
+@router.post("/generate-outline/{story_id}")
 async def get_full_outline(
     story_id: str, user_id: str, outline_request: OutlineRequest = Body(...)
 ):
@@ -370,6 +427,7 @@ async def edit_character(story_id: str, user_id: str, data: CharacterUpdate):
 @router.put("/edit-outline-point/{story_id}")
 async def edit_outline_point(story_id: str, user_id: str, data: OutlinePointUpdate):
     try:
+        logger.info(f"Editing outline point: {data}")
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
@@ -392,35 +450,6 @@ async def edit_outline_point(story_id: str, user_id: str, data: OutlinePointUpda
         }
     except Exception as e:
         logger.error(f"Error updating outline point: {e}")
-        return HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/add-character/{story_id}")
-async def add_character(story_id: str, user_id: str, data: NewCharacter):
-    try:
-        story = await stories.find_one(
-            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
-        )
-        if not story:
-            return HTTPException(status_code=404, detail="Story not found")
-
-        # Validate the new character data
-        character = Character(**data.new_character)
-
-        # Add the new character to the characters array
-        await stories.update_one(
-            {"story_id": ObjectId(story_id)},
-            {
-                "$push": {"characters": character.model_dump()},
-                "$set": {"updated_at": datetime.utcnow()},
-            },
-        )
-        return {
-            "message": "Character added successfully",
-            "character": character.model_dump(),
-        }
-    except Exception as e:
-        logger.error(f"Error adding character: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 
@@ -489,7 +518,7 @@ async def delete_character(story_id: str, user_id: str, data: CharacterDelete):
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/delete-outline-point/{story_id}")
+@router.delete("/delete-outline/{story_id}")
 async def delete_outline_point(story_id: str, user_id: str, data: OutlinePointDelete):
     try:
         story = await stories.find_one(
@@ -688,9 +717,7 @@ async def regenerate_outline_point(
         #     num_events=1,
         #     continue_from_previous=True,  # This will help maintain narrative flow
         # )
-        new_point = await regenerate_numbered_outline(
-            story_id, point_index
-        )
+        new_point = await regenerate_numbered_outline(story_id, point_index)
 
         if not new_point:
             return HTTPException(
@@ -745,7 +772,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
             (
                 i
                 for i, char in enumerate(characters)
-                if char["name"] == data.character_name
+                if char["name"].lower() == data.character_name.lower()
             ),
             None,
         )
@@ -758,7 +785,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
         try:
             # Generate new character using the single character regeneration function
             new_character = await regenerate_single_character(
-                story_id, story["premise"], story["setting"], data.character_name
+                story_id, data.character_name
             )
 
             # Update the characters list with the new character
@@ -777,7 +804,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
 
             return {
                 "message": "Character regenerated successfully",
-                "character": new_character,
+                "characters": characters,
             }
         except ValueError as ve:
             return HTTPException(status_code=500, detail=str(ve))

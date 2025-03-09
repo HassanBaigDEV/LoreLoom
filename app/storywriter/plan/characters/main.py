@@ -7,9 +7,12 @@ from datetime import datetime
 from uuid import UUID
 from bson import ObjectId
 
+from app.utils.text_validation import extract_and_parse_json
+
 from ...llm.llama import model
 from .schema import Character, character_schema
 from app.config.mongo import db, stories
+from jsonschema import validate, ValidationError
 
 
 # Generate characters based on premise and setting
@@ -24,7 +27,7 @@ from app.config.mongo import db, stories
 #     chatML_template = f"""
 #     <|im_start|>system
 #     You are tasked with generating detailed character and entity descriptions for a {genre} story based on the given premise and setting. The output should be structured in a strict JSON format. Ensure that the descriptions are unique, creative, and fit well within the context of the provided premise and setting, while adhering to common character archetypes and tropes found in {genre} stories.
-    
+
 #     Example of a correctly formatted response:
 #     ```json
 #     [
@@ -83,7 +86,9 @@ from app.config.mongo import db, stories
 #         {"$set": {"characters": characters_list, "updated_at": datetime.utcnow()}},
 #     )
 #     return characters_list
-async def generate_characters(story_id: str, premise: str, setting: str) -> List[Dict]:
+
+
+async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
     """Generate characters/entities with strict schema validation and efficient updates."""
     # Fetch story to get genre
     story = await stories.find_one({"story_id": ObjectId(story_id)})
@@ -91,13 +96,15 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
         raise ValueError("Story not found")
 
     genre = story.get("genre", "")
+    premise = story.get("premise", "")
+    setting = story.get("setting", "")
+    existing_characters = story.get("characters", [])
 
     chatML_template = f"""
     <|im_start|>system
     You are an AI designed to generate character descriptions for {genre} stories.
     Ensure output adheres to this **strict JSON schema**:
 
-    ```json
     {{
       "type": "array",
       "items": {{
@@ -129,7 +136,6 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
     ```
 
     Example valid response:
-    ```json
     [
       {{
         "name": "The Archivist",
@@ -147,11 +153,11 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
         }}
       }}
     ]
-    ```
 
-    Generate at least **5** characters/entities based on:
+    Generate exactly {num_characters} characters/entities based on:
     Premise: {premise}
     Setting: {setting}
+    Existing Characters: {existing_characters}
     <|im_end|>
     <|im_start|>assistant
     """
@@ -168,33 +174,53 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "type": {"type": "string", "enum": ["character", "entity", "location"]},
+                            "type": {
+                                "type": "string",
+                                "enum": ["character", "entity", "location"],
+                            },
                             "role": {"type": "string"},
                             "physicalAppearance": {"type": "string"},
                             "behavioralPatterns": {"type": "string"},
                             "genderAndSexualOrientation": {"type": "string"},
                             "relationships": {
                                 "type": "object",
-                                "additionalProperties": {"type": "string"}
+                                "additionalProperties": {"type": "string"},
                             },
                             "likesAndDislikes": {
                                 "type": "object",
                                 "properties": {
-                                    "Likes": {"type": "array", "items": {"type": "string"}},
-                                    "Dislikes": {"type": "array", "items": {"type": "string"}}
+                                    "Likes": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                    },
+                                    "Dislikes": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                    },
                                 },
-                                "required": ["Likes", "Dislikes"]
-                            }
+                                "required": ["Likes", "Dislikes"],
+                            },
                         },
-                        "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
-                                     "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
-                    }
-                }
+                        "required": [
+                            "name",
+                            "type",
+                            "role",
+                            "physicalAppearance",
+                            "behavioralPatterns",
+                            "genderAndSexualOrientation",
+                            "relationships",
+                            "likesAndDislikes",
+                        ],
+                    },
+                },
             },
         )
 
         # Validate response format
-        if not isinstance(characters_response, dict) or "choices" not in characters_response:
+        if (
+            not isinstance(characters_response, dict)
+            or "choices" not in characters_response
+        ):
             logging.error("Invalid AI model response")
             raise ValueError("Invalid AI response format")
 
@@ -221,6 +247,7 @@ async def generate_characters(story_id: str, premise: str, setting: str) -> List
         logging.error(f"Error generating characters: {e}")
         raise
 
+
 # Process characters JSON stringapp/storywriter/plan/characters/main.py
 def process_characters_json(characters_json: str) -> List[Dict]:
     try:
@@ -235,22 +262,37 @@ def process_characters_json(characters_json: str) -> List[Dict]:
         logging.error(f"Error decoding JSON: {e}")
         return []
 
-async def regenerate_single_character(
-    story_id: str, premise: str, setting: str, character_name: str
-) -> Dict:
+
+async def regenerate_single_character(story_id: str, character_name: str) -> Dict:
     # Get story for genre
     story = await stories.find_one({"story_id": ObjectId(story_id)})
     if not story:
         raise ValueError("Story not found")
 
     genre = story.get("genre", "")
+    premise = story.get("premise", "")
+    setting = story.get("setting", "")
+    existing_characters = story.get("characters", [])
+    # find the character by name
+    character_schema = None
+    character = next(
+        (
+            char
+            for char in existing_characters
+            if char.get("name").lower() == character_name.lower()
+        ),
+        None,
+    )
+    if not character:
+        return {"error": "Character not found"}
+    else:
+        character_schema = json.dumps(character, indent=4)
 
     chatML_template = f"""
     <|im_start|>system
     You are tasked with regenerating a single character for a {genre} story while maintaining their original name. The output should be a single character description in JSON format that fits well within the context of the provided premise and setting.
     
     Example of a correctly formatted response:
-    ```json
     {{
         "name": "{character_name}",
         "type": "character",
@@ -268,20 +310,83 @@ async def regenerate_single_character(
             "Dislikes": ["Confinement", "Dishonesty", "Large crowds"]
         }}
     }}
-    ```
     <|im_end|>
     <|im_start|>user
-    Based on the premise: {premise} and the setting: {setting}, regenerate the character named "{character_name}" with new traits and characteristics while maintaining their name. Use this JSON schema:\n<schema>\n{character_schema}\n</schema>.
+    Based on the ###premise: {premise} and the 
+    ###setting: {setting},
+    ###Existing Character Data: {character_schema},
+    ###Character Name: {character_name},
+    ###Already existing data on the character: {character},
+    Instruction: Regenerate the character named "{character_name}" with new traits and characteristics while maintaining their name. Use this JSON schema:\n<schema>\n{character_schema}\n</schema>.
     <|im_end|>
     <|im_start|>assistant
     """
 
-    response = model(chatML_template, max_tokens=2000)
-    character_str = response["choices"][0]["text"].strip()  # type: ignore
-    logging.debug(f"Regenerated Character: {character_str}")
+    try:
+        response = await model._json(
+            chatML_template,
+            max_tokens=2000,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "type": {
+                                "type": "string",
+                                "enum": ["character", "entity", "location"],
+                            },
+                            "role": {"type": "string"},
+                            "physicalAppearance": {"type": "string"},
+                            "behavioralPatterns": {"type": "string"},
+                            "genderAndSexualOrientation": {"type": "string"},
+                            "relationships": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                            },
+                            "likesAndDislikes": {
+                                "type": "object",
+                                "properties": {
+                                    "Likes": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                    },
+                                    "Dislikes": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                    },
+                                },
+                                "required": ["Likes", "Dislikes"],
+                            },
+                        },
+                        "required": [
+                            "name",
+                            "type",
+                            "role",
+                            "physicalAppearance",
+                            "",
+                            "",
+                            "relationships",
+                            "",
+                        ],
+                    },
+                },
+            },
+        )
+        character_str = response["choices"][0]["text"].strip()  # type: ignore
+        logging.debug(f"Regenerated Character: {character_str}")
+    except Exception as e:
+        logging.error(f"Error regenerating character: {e}")
+        raise ValueError("Failed to regenerate character")
 
     try:
-        character_dict = json.loads(character_str)
+        character_dict = extract_and_parse_json(character_str)
+        if not character_dict:
+            raise ValueError("Failed to extract and parse JSON response")
+        # make sure the name is the same as the original character
+        character_dict["name"] = character_name
         character = Character(**character_dict)
         return character.model_dump()
     except json.JSONDecodeError as e:
@@ -290,6 +395,7 @@ async def regenerate_single_character(
     except Exception as e:
         logging.error(f"Error validating character: {e}")
         raise ValueError("Failed to validate generated character")
+
 
 # Generate single character based on premise and setting
 async def generate_character(story_id: str) -> Dict:
@@ -303,43 +409,39 @@ async def generate_character(story_id: str) -> Dict:
     genre = story.get("genre", "")
     premise = story.get("premise", "")
     setting = story.get("setting", "")
+    outline = story.get("outline", None)
+
+    # fetch existing character data
+    character_data = story.get("character", None)
 
     chatML_template = f"""
     <|im_start|>system
     You are an AI designed to generate a single character description for a {genre} story.
-    Ensure the output adheres to this **strict JSON schema**:
-
-    ```json
+    Ensure the output adheres to this **strict JSON schema** and make sure to not have any mismatched brackets specially around  or quotes:
+    ###Example of a correctly formatted response:
     {{
-      "type": "object",
-      "properties": {{
-        "name": {{"type": "string"}},
-        "type": {{"type": "string", "enum": ["character", "entity", "location"]}},
-        "role": {{"type": "string"}},
-        "physicalAppearance": {{"type": "string"}},
-        "behavioralPatterns": {{"type": "string"}},
-        "genderAndSexualOrientation": {{"type": "string"}},
+        "name": "Kaelin Storm",
+        "type": "character",
+        "role": "Protagonist",
+        "physicalAppearance": "A lithe woman with sun-kissed skin, braided auburn hair, and piercing green eyes. She has a crescent-shaped scar on her left cheek.",
+        "behavioralPatterns": "Fiercely independent but deeply loyal to her close friends. She often acts impulsively but has a knack for thinking on her feet.",
+        "genderAndSexualOrientation": "Female, Straight",
         "relationships": {{
-          "type": "object",
-          "additionalProperties": {{"type": "string"}}
+            "Alaric Frost": "Childhood friend and rival",
+            "Ancient Temple": "Sacred place she guards",
+            "Magic Staff": "Her trusted weapon and tool"
         }},
         "likesAndDislikes": {{
-          "type": "object",
-          "properties": {{
-            "Likes": {{"type": "array", "items": {{"type": "string"}}}},
-            "Dislikes": {{"type": "array", "items": {{"type": "string"}}}}
-          }},
-          "required": ["Likes", "Dislikes"]
+            "Likes": {["Exploring the unknown", "Playing the lute", "Collecting rare artifacts"]},
+            "Dislikes": {["Confinement", "Dishonesty", "Large crowds"]}
         }}
-      }},
-      "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
-                   "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
     }}
-    ```
 
-    Generate a single character/entity based on:
-    Premise: {premise}
-    Setting: {setting}
+    Generate a completely new single character/entity/location based on:
+    ###Premise: {premise}
+    ###Setting: {setting}
+    ###Outline: {outline}
+    ###Existing Character/entitylocation Data: {character_data}
     <|im_end|>
     <|im_start|>assistant
     """
@@ -352,30 +454,44 @@ async def generate_character(story_id: str) -> Dict:
                 "type": "json_schema",
                 "json_schema": {
                     "type": "object",
+                    "strict": True,
                     "properties": {
                         "name": {"type": "string"},
-                        "type": {"type": "string", "enum": ["character", "entity", "location"]},
+                        "type": {
+                            "type": "string",
+                            "enum": ["character", "entity", "location"],
+                        },
                         "role": {"type": "string"},
                         "physicalAppearance": {"type": "string"},
                         "behavioralPatterns": {"type": "string"},
                         "genderAndSexualOrientation": {"type": "string"},
                         "relationships": {
                             "type": "object",
-                            "additionalProperties": {"type": "string"}
+                            "additionalProperties": {"type": "string"},
                         },
                         "likesAndDislikes": {
                             "type": "object",
                             "properties": {
                                 "Likes": {"type": "array", "items": {"type": "string"}},
-                                "Dislikes": {"type": "array", "items": {"type": "string"}}
+                                "Dislikes": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                },
                             },
-                            "required": ["Likes", "Dislikes"]
-                        }
+                            "required": ["Likes", "Dislikes"],
+                        },
                     },
-                    "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
-                                 "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
-                }
+                    "required": [
+                        "name",
+                        "type",
+                        "role",
+                        "physicalAppearance",
+                        "relationships",
+                        "likesAndDislikes",
+                    ],
+                },
             },
+            temperature=0.5,
         )
 
         # ✅ Validate AI response
@@ -384,13 +500,64 @@ async def generate_character(story_id: str) -> Dict:
             raise ValueError("Invalid AI response format")
 
         # ✅ Use response directly if it's already a dictionary
-        character_data = character_response
+        # character_data = character_response
+        response = character_response["choices"][0]["text"].strip()  # type: ignore
+        character_data = extract_and_parse_json(text=response)
+
+        schema = {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "type": {"type": "string", "enum": ["character", "entity", "location"]},
+                "role": {"type": "string"},
+                "physicalAppearance": {"type": "string"},
+                "behavioralPatterns": {"type": "string"},
+                "genderAndSexualOrientation": {"type": "string"},
+                "relationships": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+                "likesAndDislikes": {
+                    "type": "object",
+                    "properties": {
+                        "Likes": {"type": "array", "items": {"type": "string"}},
+                        "Dislikes": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "required": ["Likes", "Dislikes"],
+                },
+            },
+            "required": [
+                "name",
+                "type",
+                "role",
+                "physicalAppearance",
+                "relationships",
+            ],
+        }
+
+        if not character_data:
+            raise ValueError("Failed to extract and parse JSON response")
+        try:
+            validate(instance=character_data, schema=schema)
+        except ValidationError as e:
+            logging.error(f"JSON schema validation error: {e}")
+            raise
+
+        new_character = character_data
 
         # ✅ Update database safely
+        # appeand the new character to the existing list
+
+        existing_characters = story.get("characters", [])
+        existing_characters.append(new_character)
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"character": character_data, "updated_at": datetime.utcnow()}},
+            {"$set": {"characters": existing_characters, "updated_at": datetime.now()}},
         )
+        # await stories.update_one(
+        #     {"story_id": ObjectId(story_id)},
+        #     {"$set": {"character": character_data, "updated_at": datetime.utcnow()}},
+        # )
 
         return character_data
 

@@ -88,25 +88,29 @@ def extract_and_parse_json(text: str) -> Optional[dict]:
     try:
         # Attempt to extract JSON content from a markdown code block.
         # This regex looks for code fences with optional "json" after the backticks.
-        code_block_match = re.search(
-            r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.DOTALL | re.IGNORECASE
-        )
-        if code_block_match:
-            json_str = code_block_match.group(1)
-        else:
+        # code_block_match = re.search(
+        #     r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.DOTALL | re.IGNORECASE
+        # )
+        # if code_block_match:
+        #     json_str = code_block_match.group(1)
+        # else:
             # Fallback: locate the first JSON object in the text.
-            start = text.find("{")
-            end = text.rfind("}")
-            logger.debug(text)
-            logger.debug(f"JSON start: {start}, end: {end}")
-            if start == -1 or end == -1 or start >= end:
-                logger.error("No JSON structure found in the text.")
-                return None
-            json_str = text[start : end + 1]
+        start = text.find("{")
+        end = text.rfind("}")
+        logger.debug(text)
+        logger.debug(f"JSON start: {start}, end: {end}")
+        if start == -1 or end == -1 or start >= end:
+            logger.error("No JSON structure found in the text.")
+            return None
+        json_str = text[start : end + 1]
+        
 
         # Clean up the extracted JSON string.
         json_str = json_str.strip()
         logger.debug(f"Extracted JSON string: {json_str}")
+        if json_str.count("{") != json_str.count("}") or json_str.count("[") != json_str.count("]"):
+            logger.error("Mismatched brackets detected in JSON string.")
+            return None
 
         # Parse the JSON string using JSON5 for added flexibility.
         parsed = json5.loads(json_str)
@@ -114,5 +118,5 @@ def extract_and_parse_json(text: str) -> Optional[dict]:
 
     except Exception as e:
         logger.error(f"JSON parse error: {str(e)}")
-        logger.debug(f"Problematic content: {text}")
+        # logger.debug(f"Problematic content: {json_str}")
         return None

@@ -14,7 +14,7 @@ class Character(BaseModel):
     physicalAppearance: str
     behavioralPatterns: str
     genderAndSexualOrientation: str
-    relationships: dict
+    relationships: Dict
     likesAndDislikes: Dict[str, List[str]] = {"Likes": [], "Dislikes": []}
 
     # class Config:

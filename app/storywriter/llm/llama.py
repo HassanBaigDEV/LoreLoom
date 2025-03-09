@@ -22,7 +22,7 @@ class LLMClient:
             "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
             "X-Title": os.getenv("SITE_NAME", "StoryWriter"),
         }
-        self.model = "meta-llama/llama-3.3-70b-instruct:free"
+        self.model = "deepseek/deepseek-r1:free"
 
     def __call__(self, prompt: str, **kwargs) -> dict:
         try:
@@ -49,9 +49,10 @@ class LLMClient:
                 response_format=response_format,  # type: ignore
                 **kwargs,
             )
-            # print(completion)
+            print(completion)
             # print(completion.choices[0].message.content)
             return {"choices": [{"text": completion.choices[0].message.content}]}
+            # return {"choices": [{"text": completion.choices[0].message.content}]}
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
             raise
