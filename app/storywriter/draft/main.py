@@ -526,7 +526,6 @@ class DraftGenerator:
                     "top_p": 0.9,
                     "frequency_penalty": 0.3,
                 }
-                logger.info(f"Generation task {i}: kwargs = {kwargs}")
 
                 task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
                 generation_tasks.append(task)
@@ -535,8 +534,6 @@ class DraftGenerator:
 
             raw_passages_results = await asyncio.gather(*generation_tasks)
             raw_passages = [p for p in raw_passages_results if p]
-
-            logger.info(f"Raw passages generated: {raw_passages}")
 
             if not raw_passages:
                 logger.error("Failed to generate valid passages after retries")
@@ -681,11 +678,9 @@ class DraftGenerator:
                 return re.sub(r'(?i)^\s*the\s+', '', name)
 
             raw_entities = passage.mentioned_entities
-            logger.info(f"Found {len(raw_entities)} raw entities to process Raw entities: {raw_entities}")
             deduped_entities = deduplicate_entities(raw_entities)
             logger.info(f"Found {len(deduped_entities)}  entities to process Deduped entities: {deduped_entities}")
             normalized_entities = [normalize_name(e) for e in deduped_entities]
-            logger.info(f"Normalized entities: {normalized_entities}")
 
             # Get existing character names
             existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
@@ -703,9 +698,14 @@ class DraftGenerator:
                 for orig_name in deduped_entities
                 if (typ := normalized_entity_types.get(normalize_name(orig_name))) and typ in ('character', 'location', 'entity')
             }
-            logger.info(f"Found {len(valid_entities)} valid entities to process \n Valid entities: {valid_entities} ")
+            # Prepare validated entity list and update passage in DB.
+            validated_entities = list(valid_entities.keys())
+            await passage_collection.update_one(
+                {"passage_id": passage.passage_id},
+                {"$set": {"mentioned_entities": validated_entities}}
+            )
+            logger.info(f"Found {len(valid_entities)} valid entities to process")
             new_entities = [e for e in valid_entities if normalize_name(e) not in existing_chars]
-            logger.info(f"Found {len(new_entities)} new entities to process \n New entities: {new_entities} ")
             
             if new_entities:
                 await self._process_new_characters(new_entities, passage.content, context, story, entity_types)
@@ -736,7 +736,6 @@ class DraftGenerator:
 
             for char in generated:
                 try:
-                    logger.info(f"🔄 RAW CHARACTER DATA:\n{json.dumps(char, indent=2)} 🔄")   
                     # Clean and validate name
                     clean_name = re.sub(r'^\s*the\s+', '', char["name"], flags=re.IGNORECASE).strip()
                     if not clean_name:
@@ -779,9 +778,8 @@ class DraftGenerator:
                 {"story_id": ObjectId(self.story_id)},
                 {"$push": {"characters": {"$each": validated}}}
             )
-            logger.info(f"Database updated with {len(validated)} new characters")
+            logger.info(f"--- Database updated with {len(validated)} new characters ---")
             logger.info(f"📥 DATABASE: Added {len(validated)} new characters")
-            logger.info(f"Inserted documents:\n{json.dumps(validated, indent=2)}")
 
         except Exception as e:
             logger.error(f"Character processing pipeline failed: {str(e)}", exc_info=True)
@@ -794,7 +792,6 @@ class DraftGenerator:
                 self._update_character_description(entity, content)
                 for entity in entities
             ])
-            logger.info(f"Updated {len([u for u in updates if u])} characters")
         except Exception as e:
             logger.error(f"Character update failed: {str(e)}")
             
@@ -1345,11 +1342,9 @@ class DraftGenerator:
             try:
                 start_time = time.time()
                 entity_type = classified_types.get(entity)
-                logger.info(f"---Classified Types---{classified_types}")
                 
                 logger.info(f"Generating base profile for: {entity} ({entity_type})")
                 rol = await self._generate_character_role(entity, content)
-                logger.info(f"✅  Role generated : {rol}")
                 # Base character structure
                 char_data = {
                     "name": entity,
@@ -1376,14 +1371,13 @@ class DraftGenerator:
                         "genderAndSexualOrientation", "relationships",
                         "likesAndDislikes"
                     ], response))
-                logger.info(f"Generating {entity_type} details for {entity} with data \n\n{char_data}")
+                logger.info(f"Generating {entity_type} details for {entity} with data ")
                 generated.append(char_data)
-                logger.info(f"Generated {entity_type} profile for {entity} in {time.time()-start_time:.2f}s")
 
             except Exception as e:
                 logger.error(f"Batch generation failed for {entity}: {str(e)}")
                 logger.info(f"Failed entity context: {content[:200]}")
-        logger.info(f"✅  Generated characters List:{generated}")
+        
         return generated                
 
     async def _generate_entity_details(self, name, content):
