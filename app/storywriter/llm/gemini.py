@@ -16,7 +16,7 @@ class GeminiClient:
     def __init__(self):
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
-            api_key="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",
+            api_key=os.getenv("OPENROUTER_API_KEY"),
         )
         self.extra_headers = {
             "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
