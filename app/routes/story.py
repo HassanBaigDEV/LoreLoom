@@ -40,15 +40,15 @@ class Character(BaseModel):
     physicalAppearance: str
     behavioralPatterns: str
     genderAndSexualOrientation: str
-    relationships: Optional[dict]
-    likesAndDislikes: Optional[dict]
+    relationships: Optional[dict] = {}  # default to an empty dict
+    likesAndDislikes: Optional[dict] = {}  # default to an empty dict
     relevance: Optional[float] = 0.0
 
 
 # Main schemas
 class StoryBase(BaseModel):
     author: ObjectIdStr
-    story_id: ObjectIdStr
+    story_id: Optional[ObjectIdStr] = None  # default to None if missing
     title: str
     premise: Optional[str]
     setting: Optional[str]
@@ -57,6 +57,8 @@ class StoryBase(BaseModel):
     genre: str
     privacy: str
     author_name: Optional[str] = ""
+
+    # ...
 
     class Config:
         populate_by_name = True
@@ -76,7 +78,7 @@ class StoryResponse(StoryBase):
     """Schema for story response."""
 
     id: ObjectIdStr = Field(alias="_id")
-    created_at: datetime
+    created_at: Optional[datetime]
     updated_at: Optional[datetime]
 
 
@@ -101,8 +103,8 @@ async def get_stories(author: Optional[str] = None, genre: Optional[str] = None)
     query = {}
     if author:
         query["author"] = ObjectId(author)
-    if genre:
-        query["genre"] = genre
+    # if genre:
+    #     query["genre"] = genre
 
     stories = await stories_collection.find(query).to_list(length=100)
 
