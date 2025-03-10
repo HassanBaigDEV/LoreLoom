@@ -17,6 +17,7 @@ from typing import Literal
 from ..plan.db.vector import store_story_part, find_similar_parts
 from ..llm.llama import model
 from ..llm.gemini import model as gemini_model
+from ..llm.deepseek import model as deepseek_model
 from .schema import PassageContext, GeneratedPassage
 from app.config.mongo import db, stories
 from ..plan.characters.schema import character_schema
@@ -642,7 +643,7 @@ class DraftGenerator:
         """
 
         try:
-            response = model(prompt, max_tokens=128, temperature=0.5)
+            response = deepseek_model(prompt, max_tokens=128, temperature=0.5)
             if not isinstance(response, dict) or "choices" not in response:
                 return None
             return response["choices"][0]["text"].strip()  # type: ignore
