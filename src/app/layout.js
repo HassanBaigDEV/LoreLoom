@@ -4,6 +4,7 @@ import StyledJsxRegistry from "@/lib/registry";
 import Header from "@/components/common/header";
 import Footer from "@/components/common/footer";
 import { Box } from "@mui/material";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }) {
         <StyledJsxRegistry>
           <ClientLayout isAdminRoute={isAdminRoute}>{children}</ClientLayout>
         </StyledJsxRegistry>
+        <Toaster position="top-right" richColors expand={true} />
       </body>
     </html>
   );

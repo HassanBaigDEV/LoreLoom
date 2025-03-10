@@ -59,11 +59,20 @@ const SignUpForm = React.memo(() => {
     () =>
       Yup.object({
         email: Yup.string()
-          .email("Please enter a valid email address.")
-          .required("Email is required."),
+          .required("Email is required.")
+          .matches(
+            /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+            "Please enter a valid email address (e.g. example@domain.com)"
+          )
+          .max(100, "Email must be less than 100 characters"),
         password: Yup.string()
           .required("Password is required.")
-          .min(8, "Password should be of minimum 8 characters length"),
+          .min(8, "Password must be at least 8 characters")
+          .max(50, "Password must be less than 50 characters")
+          .matches(
+            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+            "Must contain at least one uppercase, lowercase, number, and special character"
+          ),
         username: Yup.string()
           .required("Username is required.")
           .min(5, "Username should be of minimum 5 characters length"),
@@ -100,7 +109,7 @@ const SignUpForm = React.memo(() => {
       if (response.status === 200) {
         const data = await response.json();
         console.log("Login successful:", data);
-        // router.push("/dashboard");
+        router.push("/dashboard");
       } else {
         const errorData = await response.json();
         setError(errorData.message || "Sign Up failed. Please try again.");
