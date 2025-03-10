@@ -643,7 +643,7 @@ class DraftGenerator:
         """
 
         try:
-            response = deepseek_model(prompt, max_tokens=128, temperature=0.5)
+            response = deepseek_model(prompt, temperature=0.5)
             if not isinstance(response, dict) or "choices" not in response:
                 return None
             return response["choices"][0]["text"].strip()  # type: ignore
@@ -707,7 +707,7 @@ class DraftGenerator:
             logger.info(f"=== Batch INPUT Test ===  \n{new_entities}\n{entity_types}")
             
             if new_entities:
-                await self._process_new_characters(normalized_entities, passage.content, context, story, entity_types)
+                await self._process_new_characters(normalized_entities, passage.content, context, story, entity_types, valid_entities)
             existing_updates = [e for e in valid_entities if normalize_name(e) in existing_chars]
 
             await self._update_existing_characters(existing_updates, passage.content)
@@ -715,7 +715,7 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"Error processing entities: {str(e)}", exc_info=True)
 
-    async def _process_new_characters(self, entities, content, context, story, classified_types):
+    async def _process_new_characters(self, entities, content, context, story, classified_types, valid):
         """Enhanced character processing with validation and logging"""
         try:
             def normalize_name(name: str) -> str:
@@ -726,7 +726,7 @@ class DraftGenerator:
             
             logger.info(f"⏳ Processing {len(entities)} new character candidates ⏳")
             logger.info(f"=== Batch PARAMS Test ===  \n{entities}\n{classified_types}")
-            generated = await self._batch_generate_characters(entities, content, context, classified_types)
+            generated = await self._batch_generate_characters(entities, content, context, classified_types, valid)
             
             if not generated:
                 logger.warning("No characters generated in batch process")
@@ -893,16 +893,105 @@ class DraftGenerator:
             """Generate detailed character attributes with validation"""
             prompt = f"""<|im_start|>system
             Generate details for {name} based on {content} if nothing in content then based on {name}
+            - role: Return 1-2 words role description.
             - physicalAppearance: 1-2 sentences, f"A distinct look unique to {name}."
             - behavioralPatterns: 2-3 traits, f"Typical behaviors associated with {name}."
             - genderAndSexualOrientation: f"Female, heterosexual"
             - relationships: Key connections
             - likesAndDislikes: 3 likes/dislikes
+            ###Example of a correctly formatted response:
+                {{
+                "role": "Protagonist",
+                "physicalAppearance": "A striking figure with piercing blue eyes, shoulder-length chestnut hair, and a lean, athletic build. Alex's face is marked by a small scar above the left eyebrow, a memento from a past adventure.",
+                "behavioralPatterns": "Inquisitive and determined, Alex is not afraid to dig deep to uncover the truth. They are empathetic and fiercely loyal to those they care about, but can be impulsive and headstrong at times.",
+                "genderAndSexualOrientation": "Female, bisexual",
+                "relationships": {{
+                    "Lila Blackwood": "Local librarian and confidante",
+                    "Samuel Gray": "Enigmatic antique shop owner",
+                    "Whispers of Millfield": "Mysterious forces driving Alex's quest"
+                }},
+                "likesAndDislikes": {{
+                    "Likes": [
+                    "Unsolved mysteries",
+                    "Old books and artifacts",
+                    "Long walks in nature"
+                    ],
+                    "Dislikes": [
+                    "Deception",
+                    "People who shy away from the truth",
+                    "Crowded places"
+                    ]
+                }}
+                }},            
             
             Context: {content[:1000]}
             Return JSON only.<|im_end|>
             """
-            response = await model._json(prompt, response_format={"type": "json_object"})
+            response = await model._json(
+                    prompt,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "Character",
+                            "strict": True,
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "role": {
+                                        "type": "string",
+                                        "description": "The role or function in the story",
+                                    },
+                                    "physicalAppearance": {
+                                        "type": "string",
+                                        "description": "The physical appearance of the character/entity/location",
+                                    },
+                                    "behavioralPatterns": {
+                                        "type": "string",
+                                        "description": "The behavioral patterns of the character/entity/location",
+                                    },
+                                    "genderAndSexualOrientation": {
+                                        "type": "string",
+                                        "description": "The gender and sexual orientation of the character/entity/location",
+                                    },
+                                    "relationships": {
+                                        "type": "object",
+                                        "description": "The relationships of the character/entity/location",
+                                        "additionalProperties": {
+                                            "type": "string",
+                                            "description": "The relationship description",
+                                        },
+                                    },
+                                    "likesAndDislikes": {
+                                        "type": "object",
+                                        "description": "The likes and dislikes of the character/entity/location",
+                                        "properties": {
+                                            "Likes": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "List of likes",
+                                            },
+                                            "Dislikes": {
+                                                "type": "array",
+                                                "items": {"type": "string"},
+                                                "description": "List of dislikes",
+                                            },
+                                        },
+                                        "required": ["Likes", "Dislikes"],
+                                    },
+                                },
+                                "required": [
+                                    "role",
+                                    "physicalAppearance",
+                                    "behavioralPatterns",
+                                    "genderAndSexualOrientation",
+                                    "relationships",
+                                    "likesAndDislikes",
+                                ],
+                                "additionalProperties": False,
+                            },
+                        },
+                    },
+                )
             raw_text = response["choices"][0]["text"]
             details  = await self.extract_parse_json(raw_text)
             
@@ -927,6 +1016,7 @@ class DraftGenerator:
                 2. Only update fields with new information from this passage: {passage_text}
                 Return only the entire json object following the schema below. Update the required fields only and keep the rest as is.
                 the json object should be valid and follow the schema.
+                Ensure that all fields, especially "likesAndDislikes", are present in the response.
                 ###Example of a correctly formatted response:
                   {{
                     "name": {character_name},
@@ -942,14 +1032,14 @@ class DraftGenerator:
                     }},
                     "likesAndDislikes": {{
                         "Likes": [
-                        "Unsolved mysteries",
-                        "Old books and artifacts",
-                        "Long walks in nature"
+                            "Unsolved mysteries",
+                            "Old books and artifacts",
+                            "Long walks in nature"
                         ],
                         "Dislikes": [
-                        "Deception",
-                        "People who shy away from the truth",
-                        "Crowded places"
+                            "Deception",
+                            "People who shy away from the truth",
+                            "Crowded places"
                         ]
                     }}
                     }},
@@ -958,7 +1048,8 @@ class DraftGenerator:
                 Character: {character_name}
                 Recent events: {passage_text}
                 ###Instructions:
-                response should only include json object that can directly be parsed.
+                ###Instructions:
+                The response should include only a JSON array containing one JSON object that can be directly parsed.   
                 ###Schema:
                 \n<schema>\n{character_schema}\n</schema>
 
@@ -1049,8 +1140,9 @@ class DraftGenerator:
 
                 try:
                     raw_text = response["choices"][0]["text"]
-                    updates = await self.extract_parse_json(raw_text)
-
+                    updates = extract_and_parse_json(raw_text)
+                    if isinstance(updates, dict):
+                        updates = [updates]
                     if not updates or not isinstance(updates, list) or len(updates) == 0:
                         raise ValueError("Failed to parse valid JSON updates")
 
@@ -1298,6 +1390,7 @@ class DraftGenerator:
 
                     
                 return (
+                    details.get("role", ""),
                     details.get("physicalAppearance", ""),
                     behavioralPattern_str,
                     details.get("genderAndSexualOrientation", ""),
@@ -1325,12 +1418,12 @@ class DraftGenerator:
         <|im_start|>assistant
         """
         response_format = {"type": "json", "schema": {"role_description": "string"}}
-        result = await model._json(prompt, response_format=response_format, max_tokens=100)
+        result = await model._json(prompt, response_format=response_format)
         # Assuming the model returns a JSON object with a key "role_description"
         role_description = result["choices"][0]["text"].strip()
         return role_description
 
-    async def _batch_generate_characters(self, entities, content, context, classified_types):
+    async def _batch_generate_characters(self, entities, content, context, classified_types, valid):
         """Batch generate characters with enhanced logging"""
         generated = []
 
@@ -1340,18 +1433,22 @@ class DraftGenerator:
                 name = re.sub(r'\s+(of|in|at|on|by|for|with)\s*$', '', name, flags=re.IGNORECASE)
                 return name.strip().lower()
         
+        def get_entity_names_by_type(entities, entity_type):
+            return [name for name, typ in entities.items() if typ == entity_type]
+        
         for entity in entities:
             try:
                 start_time = time.time()
                 entity_type = classified_types.get(entity)
+                names = get_entity_names_by_type(valid, entity_type)
+                name = next((n for n in names if n.lower() == entity.lower()), None)
                 
                 logger.info(f"Generating base profile for: {entity} ({entity_type})")
-                rol = await self._generate_character_role(entity, content)
                 # Base character structure
                 char_data = {
-                    "name": entity,
+                    "name": name,
                     "type": entity_type,
-                    "role": rol,
+                    "role": "",
                     "physicalAppearance": "",
                     "behavioralPatterns": "",
                     "genderAndSexualOrientation": "",
@@ -1369,6 +1466,7 @@ class DraftGenerator:
                 if response:                
                     # Update with validated details
                     char_data.update(zip([
+                        "role",
                         "physicalAppearance", "behavioralPatterns",
                         "genderAndSexualOrientation", "relationships",
                         "likesAndDislikes"
@@ -1386,6 +1484,7 @@ class DraftGenerator:
         """Generate details for non-character entities."""
         prompt = f"""<|im_start|>system
         Describe {name} with:
+        - role: Return 1-2 words role description.
         - PhysicalDescription: 1-2 sentences
         - Significance: Story importance
         - KeyFeatures: 3-5 points in string form
@@ -1424,6 +1523,7 @@ class DraftGenerator:
             )
             # Return with all required fields to match character schema
             return (
+                details.get("role", ""),
                 physical_appearance,  # For "physicalAppearance"
                 "NA",         # For "behavioralPatterns"
                 "NA",     # For "genderAndSexualOrientation"
