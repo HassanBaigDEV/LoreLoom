@@ -37,6 +37,7 @@ export default function CreatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [generationMode, setGenerationMode] = useState(null);
+  const [manualPrivacy, setManualPrivacy] = useState("private");
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -50,14 +51,26 @@ export default function CreatePage() {
         throw new Error("User not found");
       }
 
-      const response = await storyApiClient.post("/stories", null, {
-        params: {
-          user_id: user.id,
-          title: generatedContent?.title || "Untitled Story",
-          genre: generatedContent?.genre || "Other",
-          privacy: "private",
-        },
-      });
+      let response;
+      if (generationMode === "manual") {
+        response = await storyApiClient.post("/stories", null, {
+          params: {
+            user_id: user.id,
+            title: generatedContent?.title || "Untitled Story",
+            genre: generatedContent?.genre || "Other",
+            privacy: manualPrivacy,
+          },
+        });
+      } else {
+        response = await storyApiClient.post(`/plan/create-story/${user.id}`, {
+          privacy: generatedContent.privacy,
+          genre: generatedContent.genre,
+          tone: generatedContent.tone,
+          story_complexity: generatedContent.complexity,
+          keywords: generatedContent.keywords,
+          user_prompt: generatedContent.prompt,
+        });
+      }
 
       const { story_id } = response.data;
       localStorage.setItem("current_story_id", story_id);
@@ -113,6 +126,31 @@ export default function CreatePage() {
                   <Typography color="text.secondary">
                     Begin with a blank canvas and craft your story step by step
                   </Typography>
+                  <Box
+                    sx={{
+                      mt: 2,
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2">Privacy:</Typography>
+                    <select
+                      value={manualPrivacy}
+                      onChange={(e) => setManualPrivacy(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        backgroundColor: "transparent",
+                        color: "white",
+                        border: "1px solid rgba(255, 255, 255, 0.23)",
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                      }}
+                    >
+                      <option value="private">Private</option>
+                      <option value="public">Public</option>
+                    </select>
+                  </Box>
                 </Box>
               </Paper>
 

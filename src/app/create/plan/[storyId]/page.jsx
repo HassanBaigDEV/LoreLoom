@@ -45,6 +45,7 @@ export default function PlanStory({ params }) {
   const [progress, setProgress] = useState(0);
   const [storyData, setStoryData] = useState({
     title: "",
+    genre: "",
     premise: "",
     setting: "",
     characters: [],
@@ -52,7 +53,14 @@ export default function PlanStory({ params }) {
   });
 
   const calculateProgress = useCallback((data) => {
-    const elements = ["title", "premise", "setting", "characters", "outline"];
+    const elements = [
+      "title",
+      "genre",
+      "premise",
+      "setting",
+      "characters",
+      "outline",
+    ];
     const completed = elements.filter((elem) =>
       Array.isArray(data[elem]) ? data[elem].length > 0 : Boolean(data[elem])
     ).length;
@@ -101,6 +109,29 @@ export default function PlanStory({ params }) {
     }
   };
 
+  const handleGenreUpdate = async (newGenre) => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
+
+      await storyApiClient.post(
+        `/add-genre/${storyId}`,
+        {
+          genre: newGenre,
+        },
+        {
+          params: { user_id: user.id },
+        }
+      );
+
+      setStoryData((prev) => ({ ...prev, genre: newGenre }));
+      toast.success("Genre updated successfully");
+    } catch (error) {
+      console.error("Error updating genre:", error);
+      toast.error("Failed to update genre");
+    }
+  };
+
   const handleProceedP = () => {
     router.push(`/create/passage/${storyId}`);
   };
@@ -128,15 +159,23 @@ export default function PlanStory({ params }) {
             <AnimatePresence mode="wait">
               <motion.div className="space-y-8">
                 <StoryElement
+                  title="Genre"
+                  description="Select the primary genre for your story"
+                  content={storyData?.genre}
+                  storyId={storyId}
+                  isFirst={true}
+                  onUpdate={handleGenreUpdate}
+                />
+
+                <StoryElement
                   title="Title"
                   description="Create a captivating title for your story"
                   content={storyData?.title}
-                  isFirst={true}
                   storyId={storyId}
                   onUpdate={handleElementUpdate}
                 />
 
-                {storyData?.title && (
+                {storyData?.genre && (
                   <StoryElement
                     title="Premise"
                     description="Define the core concept of your story"

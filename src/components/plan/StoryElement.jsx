@@ -34,6 +34,13 @@ import { useAtom } from "jotai";
 import { storyDataAtom, storyLoadingAtom, storyErrorAtom } from "@/store/atoms";
 import AddIcon from "@mui/icons-material/Add";
 import CheckIcon from "@mui/icons-material/Check";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function StoryElement({
   title,
@@ -464,16 +471,16 @@ export default function StoryElement({
               >
                 <div className="flex items-start justify-between">
                   <Typography variant="h6" className="mb-2 text-gray-800">
-                    {character.name}
+                    {character?.name}
                   </Typography>
                   <div className="flex space-x-1">
                     <IconButton
                       size="small"
-                      onClick={() => handleCharacterRegenerate(character.name)}
+                      onClick={() => handleCharacterRegenerate(character?.name)}
                       className="text-gray-600"
-                      disabled={loadingId === `character-${character.name}`}
+                      disabled={loadingId === `character-${character?.name}`}
                     >
-                      {loadingId === `character-${character.name}` ? (
+                      {loadingId === `character-${character?.name}` ? (
                         <CircularProgress size={20} />
                       ) : (
                         <RefreshIcon fontSize="small" />
@@ -491,8 +498,8 @@ export default function StoryElement({
                       onClick={() =>
                         handleDeleteClick(
                           "character",
-                          character.name,
-                          character.name
+                          character?.name,
+                          character?.name
                         )
                       }
                       className="text-red-500"
@@ -507,7 +514,7 @@ export default function StoryElement({
                   color="textSecondary"
                   className="mb-2"
                 >
-                  {character.type} • {character.role}
+                  {character?.type} • {character?.role}
                 </Typography>
 
                 <Divider className="my-2" />
@@ -516,21 +523,21 @@ export default function StoryElement({
                   Physical Appearance
                 </Typography>
                 <Typography variant="body2" className="mb-2 text-gray-600">
-                  {character.physicalAppearance}
+                  {character?.physicalAppearance}
                 </Typography>
 
                 <Typography variant="subtitle2" className="mt-2 text-gray-700">
                   Behavioral Patterns
                 </Typography>
                 <Typography variant="body2" className="mb-2 text-gray-600">
-                  {character.behavioralPatterns}
+                  {character?.behavioralPatterns}
                 </Typography>
 
                 <Typography variant="subtitle2" className="mt-2 text-gray-700">
                   Gender & Orientation
                 </Typography>
                 <Typography variant="body2" className="mb-2 text-gray-600">
-                  {character.genderAndSexualOrientation}
+                  {character?.genderAndSexualOrientation}
                 </Typography>
 
                 <Divider className="my-2" />
@@ -542,7 +549,7 @@ export default function StoryElement({
                   Likes
                 </Typography>
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {character.likesAndDislikes.Likes.map((like, i) => (
+                  {character?.likesAndDislikes?.Likes?.map((like, i) => (
                     <Chip
                       key={i}
                       label={like}
@@ -559,7 +566,7 @@ export default function StoryElement({
                   Dislikes
                 </Typography>
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {character.likesAndDislikes.Dislikes.map((dislike, i) => (
+                  {character?.likesAndDislikes?.Dislikes?.map((dislike, i) => (
                     <Chip
                       key={i}
                       label={dislike}
@@ -576,7 +583,7 @@ export default function StoryElement({
                   Relationships
                 </Typography>
                 <div className="space-y-1">
-                  {Object.entries(character.relationships).map(
+                  {Object.entries(character?.relationships).map(
                     ([name, relation]) => (
                       <Typography
                         key={name}
@@ -987,7 +994,153 @@ export default function StoryElement({
     );
   };
 
-  const renderGenerateOptions = () => {
+  const renderCharacterGenerateOptions = () => {
+    const [count, setCount] = useState(1);
+    const hasExistingCharacters = Array.isArray(content) && content.length > 0;
+
+    const handleCountChange = (e) => {
+      const value = parseInt(e.target.value, 10);
+      if (!isNaN(value) && value >= 1 && value <= 5) {
+        setCount(value);
+      }
+      // else show a toast warning
+      else {
+        toast.error("Please enter a number between 1 and 5");
+      }
+    };
+    const options = [
+      {
+        label: "Generate with AI",
+        handler: () => handleGenerateMultipleCharacters(count),
+      },
+      { label: "Add Manually", handler: () => setIsEditing(true) },
+    ];
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col space-y-4 p-5 bg-gray-50 rounded-lg shadow-sm">
+          <Typography variant="subtitle1" className="text-gray-800 font-medium">
+            Generate Character Points
+          </Typography>
+
+          <div className="flex flex-col space-y-3">
+            <div>
+              <Typography variant="body2" className="text-gray-600 mb-2">
+                Number of characters to generate:
+              </Typography>
+
+              <div className="flex items-center">
+                <Button
+                  size="small"
+                  variant="outlined"
+                  className="min-w-8 h-8"
+                  disabled={count <= 1}
+                  onClick={() => setCount(Math.max(1, count - 1))}
+                >
+                  -
+                </Button>
+                <TextField
+                  type="number"
+                  size="small"
+                  value={count}
+                  onChange={handleCountChange}
+                  inputProps={{
+                    min: 1,
+                    max: 5,
+                    style: { textAlign: "center" },
+                  }}
+                  className="mx-2 w-16"
+                  InputProps={{
+                    sx: { height: "32px" },
+                  }}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  className="min-w-8 h-8"
+                  disabled={count >= 5}
+                  onClick={() => setCount(Math.min(5, count + 1))}
+                >
+                  +
+                </Button>
+                <Typography variant="caption" className="ml-3 text-gray-500">
+                  (Max: 5)
+                </Typography>
+              </div>
+            </div>
+            {/* {
+            hasExistingCharacters && (
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    checked={continueFromExisting}
+                    onChange={(e) => setContinueFromExisting(e.target.checked)}
+                    color="success"
+                    size="small"
+                  />
+                  <Typography variant="body2" className="text-gray-700">
+                    Continue from existing outline
+                    {content?.length > 0 && (
+                      <span className="text-gray-500">
+                        {" "}
+                        (currently {content.length} point
+                        {content.length !== 1 ? "s" : ""})
+                      </span>
+                    )}
+                  </Typography>
+                </div>
+
+                <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-100">
+                  <Typography variant="body2" className="text-blue-700">
+                    {continueFromExisting ? (
+                      <>
+                        <span className="font-semibold">
+                          Continuing from existing outline:
+                        </span>{" "}
+                        Points will be added after point #
+                        {content[content.length - 1].number}.
+                      </>
+                    ) : (
+                      <>
+                        <span className="font-semibold">
+                          Starting a new outline:
+                        </span>{" "}
+                        This will replace your existing outline points.
+                      </>
+                    )}
+                  </Typography>
+                </div>
+              </div>
+              
+            )} */}
+          </div>
+
+          <Button
+            variant="contained"
+            onClick={options[0].handler}
+            className="bg-green-500 hover:bg-green-600 h-10 self-end mt-2"
+            startIcon={<AutoFixHighIcon />}
+          >
+            Generate
+          </Button>
+        </div>
+        <div className="flex justify-between items-center">
+          <Typography variant="body2" className="text-gray-600">
+            Or add a single character manually:
+          </Typography>
+          <Button
+            variant="outlined"
+            onClick={options[1].handler}
+            className="border-green-500 text-green-500 hover:bg-green-50"
+            startIcon={<AddIcon />}
+          >
+            Add Manually
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderOutlineGenerateOptions = () => {
     const [pointCount, setPointCount] = useState(1);
     const [continueFromExisting, setContinueFromExisting] = useState(true);
     const hasExistingPoints = Array.isArray(content) && content.length > 0;
@@ -1133,6 +1286,10 @@ export default function StoryElement({
       </div>
     );
   };
+  const renderGenerateOptions = () => {
+    if (isCharacters) return renderCharacterGenerateOptions();
+    else if (isOutline) return renderOutlineGenerateOptions();
+  };
 
   const renderRegenerateButton = () => (
     <Button
@@ -1178,6 +1335,39 @@ export default function StoryElement({
   };
 
   const renderContent = () => {
+    if (title === "Genre") {
+      return (
+        <div className="space-y-4">
+          <Select
+            value={content || ""}
+            onValueChange={(value) => handleSave(value)}
+          >
+            <SelectTrigger className="w-[300px] bg-gray-100 border-gray-300">
+              <SelectValue placeholder="Select genre" />
+            </SelectTrigger>
+            <SelectContent>
+              {[
+                "Fantasy",
+                "Science Fiction",
+                "Mystery",
+                "Romance",
+                "Horror",
+                "Adventure",
+                "Historical Fiction",
+                "Contemporary",
+                "Thriller",
+                "Other",
+              ].map((genre) => (
+                <SelectItem key={genre} value={genre}>
+                  {genre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      );
+    }
+
     if (loading && loadingId === title.toLowerCase()) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
