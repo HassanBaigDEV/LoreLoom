@@ -1,40 +1,26 @@
 "use client";
 import { useState, useEffect } from "react";
-import {
-  Box,
-  Container,
-  Grid,
-  Typography,
-  TextField,
-  Button,
-  Avatar,
-  Card,
-  CardContent,
-  Divider,
-  IconButton,
-  Stack,
-  Alert,
-  Paper,
-} from "@mui/material";
-import {
-  PhotoCamera,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-} from "@mui/icons-material";
 import { useAuth } from "@/hooks/useAuth";
 import { userService } from "@/lib/userService";
 import { subscriptionService } from "@/lib/subscriptionService";
 import { formatDate } from "@/utils/dateUtils";
 import { motion } from "framer-motion";
-import { toast } from "react-hot-toast";
+import { Toaster, toast } from "sonner";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ProfilePage() {
   const { user, checkAuth } = useAuth();
   const [formData, setFormData] = useState({
     username: "",
-    firstName: "",
-    lastName: "",
+    first_name: "",
+    last_name: "",
     email: "",
     bio: "",
   });
@@ -53,8 +39,8 @@ export default function ProfilePage() {
     if (user) {
       setFormData({
         username: user.username || "",
-        firstName: user.first_name || "",
-        lastName: user.last_name || "",
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
         email: user.email || "",
         bio: user.bio || "",
       });
@@ -86,7 +72,7 @@ export default function ProfilePage() {
     try {
       await userService.updateProfile(formData);
       await checkAuth();
-      toast.success("Profile updated successfully!");
+      toast.success("Profile updated successfully");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to update profile");
     } finally {
@@ -102,7 +88,7 @@ export default function ProfilePage() {
     try {
       await userService.uploadProfilePhoto(file);
       await checkAuth();
-      toast.success("Profile photo updated successfully!");
+      toast.success("Profile photo updated");
     } catch (err) {
       toast.error(err.message || "Failed to upload photo");
     } finally {
@@ -159,403 +145,271 @@ export default function ProfilePage() {
     }
   };
 
-  const inputStyles = {
-    input: { color: 'white' },
-    label: { color: 'grey.400' },
-    '& .MuiOutlinedInput-root': {
-      '& fieldset': {
-        borderColor: 'rgba(255, 255, 255, 0.23)',
-      },
-      '&:hover fieldset': {
-        borderColor: 'rgba(255, 255, 255, 0.4)',
-      },
-      '&.Mui-focused fieldset': {
-        borderColor: 'rgb(34 197 94)',
-      },
-    },
-    '& .MuiFormHelperText-root': {
-      color: 'grey.400',
-    },
-  };
-
   return (
-    <>
-      <Box
-        sx={{
-          minHeight: "100vh",
-          bgcolor: "grey.50",
-          pt: { xs: 8, sm: 12 },
-          pb: { xs: 6, sm: 8 },
-        }}
-      >
-        <Container maxWidth="lg">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Grid container spacing={4}>
-              {/* Profile Section */}
-              <Grid item xs={12} md={8}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    bgcolor: "rgb(24 31 46)",
-                    color: "white",
-                    borderRadius: 2,
-                  }}
-                >
-                  <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
-                    {/* Profile Photo Section */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        mb: 4,
-                        flexDirection: { xs: "column", sm: "row" },
-                        gap: { xs: 2, sm: 3 },
-                      }}
-                    >
-                      <Avatar
-                        src={user?.photo}
-                        sx={{
-                          width: { xs: 80, sm: 100 },
-                          height: { xs: 80, sm: 100 },
-                          border: "4px solid",
-                          borderColor: "rgb(34 197 94)",
-                        }}
-                      >
-                        {user?.username?.[0]?.toUpperCase()}
+    <div className="min-h-screen bg-gray-50 p-8">
+      <Toaster position="top-right" richColors />
+      <div className="max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Profile Section */}
+            <div className="lg:col-span-2 space-y-8">
+              <Card className="bg-gray-800 text-white border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-2xl">Profile Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
+                    <div className="relative group">
+                      <Avatar className="w-24 h-24 border-4 border-green-500">
+                        <AvatarImage src={user?.photo} />
+                        <AvatarFallback>
+                          {user?.username?.[0]?.toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="h5" gutterBottom>
-                          {formData.firstName
-                            ? `${formData.firstName} ${formData.lastName}`
-                            : formData.username}
-                        </Typography>
-                        <Stack direction="row" spacing={2}>
-                          <Button
-                            variant="outlined"
-                            component="label"
-                            startIcon={<PhotoCamera />}
-                            disabled={photoLoading}
-                            sx={{
-                              color: "rgb(34 197 94)",
-                              borderColor: "rgb(34 197 94)",
-                              "&:hover": {
-                                borderColor: "rgb(22 163 74)",
-                                bgcolor: "rgba(34, 197, 94, 0.1)",
-                              },
-                            }}
-                          >
-                            Update Photo
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            className="hidden"
+                          />
+                          <span className="text-sm text-white">Upload</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <h2 className="text-2xl font-semibold">
+                        {formData.first_name
+                          ? `${formData.first_name} ${formData.last_name}`
+                          : formData.username}
+                      </h2>
+                      <div className="flex gap-4">
+                        <Button
+                          variant="outline"
+                          className="text-green-500 border-green-500 hover:bg-green-500/10"
+                          asChild
+                        >
+                          <label className="cursor-pointer">
                             <input
-                              hidden
                               type="file"
                               accept="image/*"
                               onChange={handlePhotoUpload}
+                              className="hidden"
                             />
+                            Update Photo
+                          </label>
+                        </Button>
+                        {user?.photo && (
+                          <Button
+                            variant="outline"
+                            className="text-red-500 border-red-500 hover:bg-red-500/10"
+                            onClick={handleRemovePhoto}
+                          >
+                            Remove Photo
                           </Button>
-                          {user?.photo && (
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              onClick={handleRemovePhoto}
-                              disabled={photoLoading}
-                            >
-                              Remove Photo
-                            </Button>
-                          )}
-                        </Stack>
-                      </Box>
-                    </Box>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                    <Divider
-                      sx={{ borderColor: "rgba(255, 255, 255, 0.1)", mb: 4 }}
-                    />
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Username</Label>
+                        <Input
+                          value={formData.username}
+                          onChange={handleChange}
+                          name="username"
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">First Name</Label>
+                        <Input
+                          value={formData.first_name}
+                          onChange={handleChange}
+                          name="first_name"
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Last Name</Label>
+                        <Input
+                          value={formData.last_name}
+                          onChange={handleChange}
+                          name="last_name"
+                          className="bg-gray-700 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Email</Label>
+                        <Input
+                          value={formData.email}
+                          disabled
+                          className="bg-gray-700 border-gray-600 text-gray-400"
+                        />
+                        <p className="text-sm text-gray-400">
+                          Email cannot be changed
+                        </p>
+                      </div>
+                    </div>
 
-                    {/* Profile Form */}
-                    <form onSubmit={handleSubmit}>
-                      <Grid container spacing={3}>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Username"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleChange}
-                            sx={inputStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="First Name"
-                            name="firstName"
-                            value={formData.firstName}
-                            onChange={handleChange}
-                            sx={inputStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12} sm={6}>
-                          <TextField
-                            fullWidth
-                            label="Last Name"
-                            name="lastName"
-                            value={formData.lastName}
-                            onChange={handleChange}
-                            sx={inputStyles}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Email"
-                            name="email"
-                            value={formData.email}
-                            disabled
-                            helperText="Email cannot be changed"
-                            sx={{
-                              ...inputStyles,
-                              '& .MuiInputBase-input.Mui-disabled': {
-                                WebkitTextFillColor: 'rgba(255, 255, 255, 0.7)',
-                              },
-                            }}
-                          />
-                        </Grid>
-                        <Grid item xs={12}>
-                          <TextField
-                            fullWidth
-                            label="Bio"
-                            name="bio"
-                            value={formData.bio}
-                            onChange={handleChange}
-                            multiline
-                            rows={4}
-                            sx={{
-                              ...inputStyles,
-                              '& .MuiOutlinedInput-root': {
-                                ...inputStyles['& .MuiOutlinedInput-root'],
-                                '& textarea': {
-                                  color: 'white',
-                                },
-                              },
-                            }}
-                          />
-                        </Grid>
-                      </Grid>
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">Bio</Label>
+                      <Textarea
+                        value={formData.bio}
+                        onChange={handleChange}
+                        name="bio"
+                        className="bg-gray-700 border-gray-600 text-white h-32"
+                      />
+                    </div>
 
-                      <Box
-                        sx={{
-                          mt: 4,
-                          display: "flex",
-                          justifyContent: "flex-end",
-                        }}
+                    <div className="flex justify-end">
+                      <Button
+                        type="submit"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        disabled={loading}
                       >
+                        {loading ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* Password Change Section */}
+                  <div className="mt-12 space-y-6">
+                    <h3 className="text-xl font-semibold">Change Password</h3>
+                    {passwordError && (
+                      <div className="p-4 bg-red-500/10 text-red-500 rounded-lg">
+                        {passwordError}
+                      </div>
+                    )}
+                    <form onSubmit={handlePasswordChange} className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">
+                            Current Password
+                          </Label>
+                          <Input
+                            type="password"
+                            value={passwordData.current_password}
+                            onChange={(e) =>
+                              setPasswordData((prev) => ({
+                                ...prev,
+                                current_password: e.target.value,
+                              }))
+                            }
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">New Password</Label>
+                          <Input
+                            type="password"
+                            value={passwordData.new_password}
+                            onChange={(e) =>
+                              setPasswordData((prev) => ({
+                                ...prev,
+                                new_password: e.target.value,
+                              }))
+                            }
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-gray-300">
+                            Confirm Password
+                          </Label>
+                          <Input
+                            type="password"
+                            value={passwordData.confirm_password}
+                            onChange={(e) =>
+                              setPasswordData((prev) => ({
+                                ...prev,
+                                confirm_password: e.target.value,
+                              }))
+                            }
+                            className="bg-gray-700 border-gray-600 text-white"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
                         <Button
                           type="submit"
-                          variant="contained"
-                          disabled={loading}
-                          sx={{
-                            bgcolor: "rgb(34 197 94)",
-                            "&:hover": {
-                              bgcolor: "rgb(22 163 74)",
-                            },
-                          }}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          disabled={passwordLoading}
                         >
-                          {loading ? "Saving..." : "Save Changes"}
+                          {passwordLoading ? "Updating..." : "Change Password"}
                         </Button>
-                      </Box>
+                      </div>
                     </form>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                    <Divider
-                      sx={{ borderColor: "rgba(255, 255, 255, 0.1)", my: 4 }}
-                    />
+            {/* Subscription Section */}
+            <div className="space-y-8">
+              <Card className="bg-gray-900 text-white border-gray-700">
+                <CardHeader>
+                  <CardTitle className="text-2xl">Subscription</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Current Plan</Label>
+                    <div className="text-2xl font-bold text-green-500">
+                      {subscription?.tier === "premium"
+                        ? "Premium"
+                        : subscription?.tier === "basic"
+                        ? "Basic"
+                        : "Free"}
+                    </div>
+                  </div>
 
-                    {/* Password Change Section */}
-                    <Box>
-                      <Typography variant="h6" gutterBottom>
-                        Change Password
-                      </Typography>
-                      {passwordError && (
-                        <Alert severity="error" sx={{ mb: 3 }}>
-                          {passwordError}
-                        </Alert>
-                      )}
-                      <form onSubmit={handlePasswordChange}>
-                        <Grid container spacing={3}>
-                          <Grid item xs={12}>
-                            <TextField
-                              fullWidth
-                              type="password"
-                              label="Current Password"
-                              value={passwordData.current_password}
-                              onChange={(e) =>
-                                setPasswordData((prev) => ({
-                                  ...prev,
-                                  current_password: e.target.value,
-                                }))
-                              }
-                              required
-                              sx={inputStyles}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              type="password"
-                              label="New Password"
-                              value={passwordData.new_password}
-                              onChange={(e) =>
-                                setPasswordData((prev) => ({
-                                  ...prev,
-                                  new_password: e.target.value,
-                                }))
-                              }
-                              required
-                              sx={inputStyles}
-                            />
-                          </Grid>
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              type="password"
-                              label="Confirm New Password"
-                              value={passwordData.confirm_password}
-                              onChange={(e) =>
-                                setPasswordData((prev) => ({
-                                  ...prev,
-                                  confirm_password: e.target.value,
-                                }))
-                              }
-                              required
-                              sx={inputStyles}
-                            />
-                          </Grid>
-                        </Grid>
-                        <Box
-                          sx={{
-                            mt: 3,
-                            display: "flex",
-                            justifyContent: "flex-end",
-                          }}
-                        >
-                          <Button
-                            type="submit"
-                            variant="contained"
-                            disabled={passwordLoading}
-                            sx={{
-                              bgcolor: "rgb(34 197 94)",
-                              "&:hover": {
-                                bgcolor: "rgb(22 163 74)",
-                              },
-                            }}
-                          >
-                            {passwordLoading
-                              ? "Changing..."
-                              : "Change Password"}
-                          </Button>
-                        </Box>
-                      </form>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Status</span>
+                      <span>{subscription?.status || "Active"}</span>
+                    </div>
+                    {subscription?.start_date && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Started</span>
+                        <span>{formatDate(subscription.start_date)}</span>
+                      </div>
+                    )}
+                    {subscription?.end_date && subscription.tier !== "free" && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Renews</span>
+                        <span>{formatDate(subscription.end_date)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Stories Created</span>
+                      <span>{subscription?.story_count || 0}</span>
+                    </div>
+                  </div>
 
-              {/* Subscription Info Section */}
-              <Grid item xs={12} md={4}>
-                <Card
-                  elevation={0}
-                  sx={{
-                    bgcolor: "rgb(17 24 39)",
-                    color: "white",
-                    borderRadius: 2,
-                  }}
-                >
-                  <CardContent sx={{ p: { xs: 2, sm: 4 } }}>
-                    <Typography variant="h6" gutterBottom>
-                      Subscription Details
-                    </Typography>
-                    <Stack spacing={2}>
-                      <Box>
-                        <Typography variant="subtitle2" color="grey.400">
-                          Current Plan
-                        </Typography>
-                        <Typography
-                          variant="h5"
-                          sx={{ color: "rgb(34 197 94)" }}
-                        >
-                          {subscription?.tier === "premium"
-                            ? "Premium"
-                            : subscription?.tier === "basic"
-                            ? "Basic"
-                            : "Free"}
-                        </Typography>
-                      </Box>
-                      <Box>
-                        <Typography variant="subtitle2" color="grey.400">
-                          Status
-                        </Typography>
-                        <Typography>
-                          {subscription?.status || "Active"}
-                        </Typography>
-                      </Box>
-                      {subscription?.start_date && (
-                        <Box>
-                          <Typography variant="subtitle2" color="grey.400">
-                            Started
-                          </Typography>
-                          <Typography>
-                            {formatDate(subscription.start_date)}
-                          </Typography>
-                        </Box>
-                      )}
-                      {subscription?.end_date &&
-                        subscription.tier !== "free" && (
-                          <Box>
-                            <Typography variant="subtitle2" color="grey.400">
-                              Renews
-                            </Typography>
-                            <Typography>
-                              {formatDate(subscription.end_date)}
-                            </Typography>
-                          </Box>
-                        )}
-                      <Box>
-                        <Typography variant="subtitle2" color="grey.400">
-                          Stories Created
-                        </Typography>
-                        <Typography>
-                          {subscription?.story_count || 0}
-                        </Typography>
-                      </Box>
-
-                      <Button
-                        variant="outlined"
-                        fullWidth
-                        href="/subscription"
-                        sx={{
-                          mt: 2,
-                          color: "rgb(34 197 94)",
-                          borderColor: "rgb(34 197 94)",
-                          "&:hover": {
-                            borderColor: "rgb(22 163 74)",
-                            bgcolor: "rgba(34, 197, 94, 0.1)",
-                          },
-                        }}
-                      >
-                        {subscription?.tier === "free"
-                          ? "Upgrade Plan"
-                          : "Manage Subscription"}
-                      </Button>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          </motion.div>
-        </Container>
-      </Box>
-    </>
+                  <Button
+                    variant="outline"
+                    className="w-full text-green-500 border-green-500 hover:bg-green-500/10"
+                    asChild
+                  >
+                    <a href="/subscription">
+                      {subscription?.tier === "free"
+                        ? "Upgrade Plan"
+                        : "Manage Subscription"}
+                    </a>
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </div>
   );
 }

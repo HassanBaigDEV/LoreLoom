@@ -1,70 +1,67 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Grid, Card, CardContent } from "@mui/material";
 import { useStories } from "@/hooks/useStories";
 import { useAtom } from "jotai";
 import { userAtom } from "@/store/atoms";
 import Image from "next/image";
 import cover from "@/assets/images/seilala-cover.webp";
-import StoriesIcon from "@/assets/images/story.svg";
-import { BookOpen as StoryIcon } from "lucide-react";
-import { Edit as EditIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { BookOpen, Loader2 } from "lucide-react";
 import {
-  IconButton,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-} from "@mui/material";
-import { MoreVert as MoreVertIcon } from "@mui/icons-material";
-import { useRouter } from 'next/navigation';
-import { Tooltip } from '@mui/material';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Stories() {
   const [user] = useAtom(userAtom);
   const { stories, fetchStories } = useStories();
   const router = useRouter();
-
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedStory, setSelectedStory] = useState(null);
-
-  const handleMenuClick = (event, story) => {
-    event.stopPropagation();
-    setAnchorEl(event.currentTarget);
-    setSelectedStory(story);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedStory(null);
-  };
-
-  const handleEditStory = (story) => {
-    if (!story?.story_id) {
-      console.log('Invalid story data',story);
-      return;
-    }
-    handleMenuClose();
-    router.push(`/create/plan/${story.story_id}`);
-  };
 
   useEffect(() => {
     if (user?.id) {
-      fetchStories(user.id);
+      fetchStories(user.id).finally(() => setIsLoading(false));
     }
   }, [user]);
+
+  const handleEditStory = (story) => {
+    if (!story?.story_id) return;
+    router.push(`/create/plan/${story.story_id}`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="mt-8 mb-48">
+        <div className="flex items-center gap-2 mb-8">
+          <BookOpen className="w-6 h-6 text-green-500" />
+          <h2 className="text-2xl font-semibold">Your Stories</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-4">
+              <Skeleton className="h-[200px] w-full rounded-2xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-[200px]" />
+                <Skeleton className="h-3 w-[150px]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!stories?.length) {
     return (
       <div className="mt-8 mb-48">
-        <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
-          <StoryIcon
-            className="w-8 h-8 mb-4 mr-2 text-green-500"
-            strokeWidth={1.5}
-          />
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-            Your Stories
-          </Typography>
+        <div className="flex items-center gap-2 mb-8">
+          <BookOpen className="w-6 h-6 text-green-500" />
+          <h2 className="text-2xl font-semibold">Your Stories</h2>
         </div>
         <div className="flex items-center justify-center w-full h-64">
           <p className="text-gray-500">No stories found</p>
@@ -72,82 +69,69 @@ export default function Stories() {
       </div>
     );
   }
+
   return (
-    <main className="flex flex-col min-h-screen">
-      <div className="flex items-center text-lg font-medium leading-6 text-gray-900">
-        <StoryIcon
-          className="w-8 h-8 mb-4 mr-2 text-blue-950"
-          strokeWidth={1.5}
-        />
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-          Your Stories
-        </Typography>
+    <div className="mt-8 mb-48">
+      <div className="flex items-center gap-2 mb-8">
+        <BookOpen className="w-6 h-6 text-green-500" />
+        <h2 className="text-2xl font-semibold">Your Stories</h2>
       </div>
+
       <section className="m-8">
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {stories.map((story, index) => (
-            <div key={story.id || index} className="relative block w-full">
+            <div
+              key={story.id || index}
+              className="relative block w-full group"
+            >
               <Image
                 src={cover}
-                className="w-full h-auto mx-auto rounded-3xl brightness-50"
+                className="w-full h-auto mx-auto rounded-2xl brightness-50"
                 alt={story.title}
               />
-              <div className="absolute p-2 bg-blue-900 bg-opacity-50 top-2 left-4 rounded-xl">
-                <p className="text-xs">{story.genre}</p>
+
+              <div className="absolute top-2 left-4">
+                <span className="px-2 py-1 text-xs bg-green-600/80 backdrop-blur-sm rounded-lg text-green-100 transition-colors hover:bg-green-700/90">
+                  {story.genre}
+                </span>
               </div>
-              <div className="absolute p-2 bg-blue-900 bg-opacity-50 top-2 right-4 rounded-xl">
-                <IconButton
-                  size="small"
-                  onClick={(event) => handleMenuClick(event, story)}
-                  sx={{ color: "primary.main"}}
-                >
-                  <MoreVertIcon sx={{ color: "#fff", padding: '2px' }}/>
-                </IconButton>
-                <Menu
-                  anchorEl={anchorEl}
-                  open={Boolean(anchorEl) && selectedStory?.id === story.id}
-                  onClose={handleMenuClose}
-                  className="bg-opacity-50"
-                >
-                  <MenuItem
-                    onClick={() => {
-                      if (selectedStory) {
-                        handleEditStory(selectedStory);
-                      }
-                    }}
-                  >
-                    <ListItemIcon>
-                      <EditIcon fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>Edit</ListItemText>
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      if (selectedStory) {
-                        handleDelete(selectedStory.id);
-                      }
-                      handleMenuClose();
-                    }}
-                  >
-                    <ListItemIcon>
-                      <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
-                    </ListItemIcon>
-                    <ListItemText>Delete</ListItemText>
-                  </MenuItem>
-                </Menu>
+
+              <div className="absolute top-2 right-4">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-green-200 hover:bg-green-800/30 backdrop-blur-sm transition-all"
+                    >
+                      •••
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="min-w-[120px]">
+                    <DropdownMenuItem onClick={() => handleEditStory(story)}>
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-red-500">
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <div className="absolute flex justify-between p-2 text-white bg-opacity-50 rounded-xl bottom-2 left-2 right-2">
-                <button className="px-3 py-1 text-sm text-white bg-opacity-50 bg-blue-950 rounded-xl">
-                  <h1 className="font-bold">
+
+              <div className="absolute bottom-2 left-2 right-2">
+                <div className="p-2 bg-gray-900/90 backdrop-blur-sm rounded-lg transition-colors hover:bg-gray-800/90">
+                  <h3 className="font-bold truncate text-green-50">
                     {story.title.split(":")[0].replace(/^"|"$/g, "")}
-                  </h1>
-                  <p className="text-xs">Read story by {user.last_name}</p>
-                </button>
+                  </h3>
+                  <p className="text-xs text-green-200/80">
+                    Read story by {user.last_name}
+                  </p>
+                </div>
               </div>
             </div>
           ))}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

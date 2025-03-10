@@ -9,7 +9,7 @@ export default function StepsSection() {
   return (
     <div className="grid grid-cols-2 gap-4 pl-20 pr-20 mt-8 mb-8">
       <Step
-        text="Select the type of story you want to create. Whether you want a comic book format or a children’s storybook, we've got you covered."
+        text="Select the type of story you want to create. Whether you want a comic book format or a children’s StoryWeaver, we've got you covered."
         image={typeS}
         altText="Select type of story"
       />

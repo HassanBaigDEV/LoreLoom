@@ -51,11 +51,20 @@ export default function LoginForm() {
 
   const validationSchema = Yup.object({
     email: Yup.string()
-      .email("Please enter a valid email address.")
-      .required("Email is required."),
+      .required("Email is required.")
+      .matches(
+        /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}$/i,
+        "Please enter a valid email address (e.g. example@domain.com)"
+      )
+      .max(100, "Email must be less than 100 characters"),
     password: Yup.string()
       .required("Password is required.")
-      .min(8, "Password should be of minimum 8 characters length"),
+      .min(8, "Password must be at least 8 characters")
+      .max(50, "Password must be less than 50 characters"),
+    // .matches(
+    //   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    //   "Must contain at least one uppercase, lowercase, number, and special character"
+    // ),
   });
 
   const fetchUserProfile = async () => {
@@ -319,7 +328,7 @@ export default function LoginForm() {
       </Formik>
 
       <Text textAlign="center">
-        Don’t have an account?{"     "}
+        Don't have an account?{"     "}
         <Link
           href="/register"
           underline="disable"
