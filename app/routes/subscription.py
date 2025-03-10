@@ -9,6 +9,9 @@ from app.config.stripe_config import stripe
 from app.config.settings import settings
 from bson import ObjectId
 from stripe.error import StripeError, SignatureVerificationError
+import logging 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 subscription_router = APIRouter()
 subscriptions_collection = db["subscriptions"]
@@ -21,9 +24,11 @@ async def get_subscription_plans():
 @subscription_router.get("/my-subscription")
 async def get_my_subscription(current_user: dict = Depends(get_current_user)):
     """Get current user's subscription"""
+    logger.info(f"Current user: {current_user}")  # Debug log
     subscription = await subscriptions_collection.find_one(
         {"user_id": str(current_user["sub"])}
     )
+    
     
     if not subscription:
         # Create free subscription for new users

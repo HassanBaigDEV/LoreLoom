@@ -39,6 +39,7 @@ class CreateUser(User):
 class UpdateUserRequest(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
     username: Optional[str] = None
     bio: Optional[str] = None
     photo: Optional[str] = None

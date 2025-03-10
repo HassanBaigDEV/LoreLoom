@@ -13,6 +13,7 @@ from app.auth.jwt_handler import create_access_token, create_refresh_token
 from app.models.story import StoryResponse
 from app.models.subscription import Subscription
 import logging
+from app.routes.story import objectid_to_str
 
 
 admin_router = APIRouter()
@@ -170,19 +171,50 @@ async def get_all_stories(payload: dict = Depends(get_current_admin)):
     await verify_admin(payload)
     stories = await stories_collection.find().to_list(length=None)
 
-    if not stories:
-        return []
+    response = []
+    for story in stories:
+        # Convert MongoDB document to dictionary first
+        story_dict = dict(story)
+        # Apply ObjectId conversions
+        story_dict = objectid_to_str(story_dict)
+        response.append(story_dict)
 
-    return [
-        {
-            **dict(story),
-            "id": str(story["_id"]),
-            "author_id": str(story.get("author")) if story.get("author") else None,
-            "created_at": story.get("created_at"),
-            "updated_at": story.get("updated_at"),
-        }
-        for story in stories
-    ]
+    return response
+
+
+@admin_router.get("/pStories", response_model=List[StoryResponse])
+async def get_pstories():
+    """
+    Retrieve a list of public stories with author's name.
+    """
+    query = {"privacy": "public"}
+
+    # Fetch stories from the database
+    stories = await stories_collection.find(query).to_list(length=100)
+
+    stories_with_author = []
+    for story in stories:
+        # Convert to dict first for easier manipulation
+        story_dict = dict(story)
+
+        # Convert ObjectIds to strings using helper
+        story_dict = objectid_to_str(story_dict)
+
+        # Get author ID from already converted string
+        author_id = story_dict.get("author")
+
+        if author_id:
+            # Now we can query with string ID
+            author = await users_collection.find_one({"_id": author_id})
+            story_dict["author_name"] = (
+                author.get("username", "Unknown Author") if author else "Unknown Author"
+            )
+        else:
+            story_dict["author_name"] = "Unknown Author"
+
+        stories_with_author.append(story_dict)
+
+    return stories_with_author
 
 
 # get subscription plans
@@ -222,3 +254,33 @@ async def get_feedback(feedback_id: str, payload: dict = Depends(get_current_adm
 async def get_unread_feedback_count(payload: dict = Depends(get_current_admin)):
     count = await feedback_collection.count_documents({"status": FeedbackStatus.UNREAD})
     return {"unread_count": count}
+
+
+# Add new endpoint for public stories in admin router
+@admin_router.get("/pStories", response_model=List[StoryResponse])
+async def get_admin_pstories(payload: dict = Depends(get_current_admin)):
+    """
+    Retrieve public stories with author names (admin version)
+    """
+    await verify_admin(payload)
+    query = {"privacy": "public"}
+
+    stories = await stories_collection.find(query).to_list(length=100)
+
+    stories_with_author = []
+    for story in stories:
+        story_dict = dict(story)
+        story_dict = objectid_to_str(story_dict)
+
+        author_id = story_dict.get("author")
+        if author_id:
+            author = await users_collection.find_one({"_id": author_id})
+            story_dict["author_name"] = (
+                author.get("username", "Unknown Author") if author else "Unknown Author"
+            )
+        else:
+            story_dict["author_name"] = "Unknown Author"
+
+        stories_with_author.append(story_dict)
+
+    return stories_with_author

@@ -106,24 +106,15 @@ async def get_stories(author: Optional[str] = None, genre: Optional[str] = None)
 
     stories = await stories_collection.find(query).to_list(length=100)
 
-    return [
-        {
-            "_id": str(story["_id"]),
-            "id": str(story["_id"]),
-            "story_id": str(story["story_id"]),
-            "author": str(story["author"]),
-            "title": story.get("title"),
-            "genre": story.get("genre"),
-            "privacy": story.get("privacy"),
-            "premise": story.get("premise"),
-            "setting": story.get("setting"),
-            "characters": story.get("characters"),
-            "outline": story.get("outline"),
-            "created_at": story.get("created_at"),
-            "updated_at": story.get("updated_at"),
-        }
-        for story in stories
-    ]
+    response = []
+    for story in stories:
+        # Convert MongoDB document to dictionary first
+        story_dict = dict(story)
+        # Apply ObjectId conversions
+        story_dict = objectid_to_str(story_dict)
+        response.append(story_dict)
+
+    return response
 
 
 @story_router.get("/pStories", response_model=List[StoryResponse])
@@ -135,27 +126,28 @@ async def get_pstories():
 
     # Fetch stories from the database
     stories = await stories_collection.find(query).to_list(length=100)
-    # print(stories)
 
-    # Add author's name to each story
     stories_with_author = []
     for story in stories:
-        author_id = str(story.get("author"))
-        # print(author_id)
+        # Convert to dict first for easier manipulation
+        story_dict = dict(story)
+
+        # Convert ObjectIds to strings using helper
+        story_dict = objectid_to_str(story_dict)
+
+        # Get author ID from already converted string
+        author_id = story_dict.get("author")
 
         if author_id:
-            # Fetch the author's first and last name from the users collection
-            author = await users_collection.find_one({"_id": str(author_id)})
-            # print(author)
-            if author:
-                story["author_name"] = author.get("username", "Unknown Author")
-            else:
-                story["author_name"] = "Unknown Author"
+            # Now we can query with string ID
+            author = await users_collection.find_one({"_id": author_id})
+            story_dict["author_name"] = (
+                author.get("username", "Unknown Author") if author else "Unknown Author"
+            )
         else:
-            story["author_name"] = "Unknown Author"
+            story_dict["author_name"] = "Unknown Author"
 
-        # Convert ObjectId to string and append the modified story to the result list
-        stories_with_author.append(objectid_to_str(story))
+        stories_with_author.append(story_dict)
 
     return stories_with_author
 

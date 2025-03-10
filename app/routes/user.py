@@ -57,6 +57,18 @@ async def update_my_profile(
                     status_code=400,
                     detail="Username already taken"
                 )
+        # Check if email is being updated and is unique
+        if update_data.email:
+            existing_user = await users_collection.find_one({
+                "email": update_data.email,
+                "_id": {"$ne": user_id}
+            })
+            if existing_user:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already taken"
+                )
+        
 
         # Prepare update data
         update_dict = update_data.model_dump(exclude_unset=True)

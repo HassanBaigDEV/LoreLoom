@@ -2,6 +2,8 @@
 from fastapi import APIRouter, Depends, Response, HTTPException, status, Request
 from datetime import datetime
 from pydantic import BaseModel, EmailStr
+from app.utils.dependencies import get_current_user
+
 
 from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.jwt_handler import (
@@ -234,13 +236,13 @@ class ChangePasswordRequest(BaseModel):
 
 
 @auth_router.post("/change-password")
-async def change_password(request: ChangePasswordRequest, token: str):
+async def change_password(
+    request: ChangePasswordRequest, current_user: dict = Depends(get_current_user)
+):
     try:
         # Decode token directly
-        decoded_token = decode_token(token)
-        if not decoded_token:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user_id = decoded_token.get("sub")
+        # decoded_token = decode_token(token)
+        user_id = str(current_user["sub"])
 
         # Get user from database
         user = await users_collection.find_one({"_id": user_id})
@@ -261,4 +263,3 @@ async def change_password(request: ChangePasswordRequest, token: str):
         return {"message": "Password successfully changed"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
