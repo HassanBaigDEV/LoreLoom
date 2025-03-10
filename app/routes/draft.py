@@ -41,40 +41,6 @@ def custom_jsonable_encoder(obj):
     return jsonable_encoder(obj)
 
 
-@router.post("/generate-passage/{story_id}")
-async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
-    """Generate a new passage for a specific outline point"""
-    try:
-        # Validate story ownership
-        story = await stories.find_one(
-            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
-        )
-        if not story:
-            logger.error(f"Story {story_id} not found or unauthorized")
-            return HTTPException(
-                status_code=404, detail="Story not found or unauthorized"
-            )
-
-        # Check if outline point exists
-        if "outline" not in story or not story["outline"]:
-            logger.error(f"No outline found for story {story_id}")
-            return HTTPException(status_code=400, detail="Story outline not found")
-
-        # Initialize draft generator
-        draft_gen = DraftGenerator(story_id)
-
-        # Generate passage
-        passage = await draft_gen.generate_passage(outline_point_id)
-
-        return passage
-    except ValueError as ve:
-        logger.error(f"ValueError: {ve}")
-        return HTTPException(status_code=400, detail=str(ve))
-    except Exception as e:
-        logger.error(f"Error generating passage: {e}")
-        return HTTPException(status_code=500, detail=str(e))
-
-
 # get passage count
 @router.get("/passages/{story_id}/count")
 async def get_passage_count(story_id: str, user_id: str):
@@ -268,9 +234,7 @@ async def test_llm():
 
 
 @router.post("/generate-passages/{story_id}")
-async def generate_passages(
-    story_id: str, outline_point_id: str, user_id: str, num_variations: int = 3
-):
+async def generate_passages(story_id: str, outline_point_id: str, user_id: str, num_variations: int = 3):
     """Generate multiple passage variations for a specific outline point"""
     try:
         # Validate story ownership
@@ -288,11 +252,12 @@ async def generate_passages(
 
         # Generate passages
         passages = await draft_gen.generate_passages(outline_point_id, num_variations)
-
-        return {
-            "passages": [p.model_dump() for p in passages],
-            "message": "Multiple passages generated successfully",
-        }
+        
+        return passages
+        # return {
+        #     "passages": [p.model_dump() for p in passages],
+        #     "message": "Multiple passages generated successfully",
+        # }
     except ValueError as ve:
         logger.error(f"ValueError: {ve}")
         return HTTPException(status_code=400, detail=str(ve))
@@ -300,6 +265,39 @@ async def generate_passages(
         logger.error(f"Error generating passages: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/generate-passage/{story_id}")
+async def generate_passage(story_id: str, outline_point_id: str, user_id: str):
+    """Generate a new passage for a specific outline point"""
+    try:
+        # Validate story ownership
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            logger.error(f"Story {story_id} not found or unauthorized")
+            return HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
+
+        # Check if outline point exists
+        if "outline" not in story or not story["outline"]:
+            logger.error(f"No outline found for story {story_id}")
+            return HTTPException(status_code=400, detail="Story outline not found")
+
+        # Initialize draft generator
+        draft_gen = DraftGenerator(story_id)
+
+        # Generate passage
+        passage = await draft_gen.generate_passage(outline_point_id)
+
+        return passage
+    except ValueError as ve:
+        logger.error(f"ValueError: {ve}")
+        return HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating passage: {e}")
+        return HTTPException(status_code=500, detail=str(e))
 
 # Add these new models
 class PassageUpdateRequest(BaseModel):

@@ -314,8 +314,8 @@ class DraftGenerator:
             entities_task = self._extract_entities(passage_text)
             summary, entities = await asyncio.gather(summary_task, entities_task)
 
-            # if not summary:
-            #     summary = await retry_generation(_generate_summary)
+            if not summary:
+                summary = await retry_generation(self._generate_summary(passage_text))
             # if not entities:
             #     entities = await retry_generation(self._extract_entities(passage_text))
 
@@ -504,7 +504,7 @@ class DraftGenerator:
             logger.error(f"LLM test failed: {e}")
             return False
 
-    async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> List[GeneratedPassage]:
+    async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> GeneratedPassage:
         """Generate multiple variations of a passage efficiently"""
         try:
             logger.info(f"Starting passage generation for outline point {outline_point_id}")
@@ -576,7 +576,7 @@ class DraftGenerator:
             await asyncio.gather(*update_tasks)
             logger.info("Finished updating character relevance")
 
-            return passages
+            return best_passage
 
         except Exception as e:
             logger.error(f"Error generating passages: {e}", exc_info=True)  # Log traceback
@@ -635,7 +635,7 @@ class DraftGenerator:
         """Generate a summary for a passage"""
         prompt = f"""
         <|im_start|>system
-        Summarize in one complete sentence:
+        Summarize the text in one complete sentence:
         {text[:500]}
         <|im_end|>
         <|im_start|>assistant
@@ -679,19 +679,15 @@ class DraftGenerator:
 
             raw_entities = passage.mentioned_entities
             deduped_entities = deduplicate_entities(raw_entities)
-            logger.info(f"Found {len(deduped_entities)}  entities to process Deduped entities: {deduped_entities}")
-            normalized_entities = [normalize_name(e) for e in deduped_entities]
-
             # Get existing character names
             existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
-            logger.info(f"Found {len(existing_chars)} existing entities to process Existing: {existing_chars}")
             # Classify entities
             entity_types = await self._batch_classify_entities(
                 {normalize_name(e) for e in deduped_entities}, 
                 passage.content
             )
             normalized_entity_types = {normalize_name(key): typ for key, typ in entity_types.items()}
-
+            logger.info(f"--- Normalized Entity list--- {normalized_entity_types}")
             # Filter valid entities (characters & locations)
             valid_entities = {
                 strip_leading_article(orig_name): typ
@@ -699,17 +695,20 @@ class DraftGenerator:
                 if (typ := normalized_entity_types.get(normalize_name(orig_name))) and typ in ('character', 'location', 'entity')
             }
             # Prepare validated entity list and update passage in DB.
+            logger.info(f"Found {len(valid_entities)}  entities to process Valid entities: {valid_entities}")
             validated_entities = list(valid_entities.keys())
             await passage_collection.update_one(
                 {"passage_id": passage.passage_id},
                 {"$set": {"mentioned_entities": validated_entities}}
             )
-            logger.info(f"Found {len(valid_entities)} valid entities to process")
             new_entities = [e for e in valid_entities if normalize_name(e) not in existing_chars]
+            normalized_entities = [normalize_name(entity) for entity in new_entities]
+            logger.info(f"=== Batch INPUT Test ===  \n{new_entities}\n{entity_types}")
             
             if new_entities:
-                await self._process_new_characters(new_entities, passage.content, context, story, entity_types)
-            existing_updates = [e for e in deduped_entities if normalize_name(e) in existing_chars]
+                await self._process_new_characters(normalized_entities, passage.content, context, story, entity_types)
+            existing_updates = [e for e in valid_entities if normalize_name(e) in existing_chars]
+
             await self._update_existing_characters(existing_updates, passage.content)
 
         except Exception as e:
@@ -725,6 +724,7 @@ class DraftGenerator:
                 return name.strip().lower()
             
             logger.info(f"⏳ Processing {len(entities)} new character candidates ⏳")
+            logger.info(f"=== Batch PARAMS Test ===  \n{entities}\n{classified_types}")
             generated = await self._batch_generate_characters(entities, content, context, classified_types)
             
             if not generated:
@@ -759,6 +759,7 @@ class DraftGenerator:
                     logger.info(f"✅ CREATED {char['type'].upper()}: {clean_name} ✅")
                     logger.info(f"""📝 CHARACTER DETAILS 📝 :
                         {json.dumps({
+                            "Name": clean_name,
                             "Role": char.get('role'),
                             "Type": char.get('type'),
                             "Appearance": char.get('physicalAppearance'),
