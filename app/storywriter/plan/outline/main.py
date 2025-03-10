@@ -4,6 +4,7 @@ import re
 from collections import deque
 from typing import List, Dict
 from datetime import datetime
+from venv import logger
 from bson import ObjectId
 
 from ...llm.llama import model
@@ -13,6 +14,9 @@ from app.config.mongo import stories
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, ValidationError
 from ....utils.text_validation import extract_and_parse_json
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Define the schema templates for prompts
 OUTLINE_NODE_EXAMPLE = """
@@ -228,17 +232,17 @@ class NUMBERED_OUTLINE(BaseModel):
 
 NUMBERED_OUTLINE_SCHEMA = json.dumps(NumberedEvent.model_json_schema())
 
+
 async def regenerate_numbered_outline(
     story_id: str,
     point_index: int,
 ) -> List[Dict]:
     """Regenerate a specific numbered outline pobject and only replave the matching point["number"] object with newly generated one."the prompt will include past events as well as any events preceding the point_index(id any)"""
     try:
-        story = await stories.find_one({"story_id": ObjectId
-        (story_id)})
+        story = await stories.find_one({"story_id": ObjectId(story_id)})
         if not story:
             raise ValueError("Story not found")
-        
+
         existing_outline = story.get("outline", [])
         if not isinstance(existing_outline, list):
             existing_outline = []
@@ -278,7 +282,7 @@ async def regenerate_numbered_outline(
             <|im_end|>
             <|im_start|>assistant
             """
-        
+
         try:
             response = await model._json(
                 event_prompt,
@@ -355,7 +359,7 @@ async def regenerate_numbered_outline(
 
             try:
                 event_data = extract_and_parse_json(response_text)
-               # Maintain the original point number and position
+                # Maintain the original point number and position
 
                 if event_data is not None:
                     event_data["number"] = str(point_index)
@@ -366,29 +370,29 @@ async def regenerate_numbered_outline(
 
                         # event_data["number"] = str(point_index)
 
-                    # replace the existing event with the new one in the mongo db 
+                    # replace the existing event with the new one in the mongo db
                     # to keep the order of the events same as the one in the original outline we create a copy of all the existing outline and replace the event with the same number as the one in the new event and then update the outline in the db with the new list
                     new_outline = existing_outline.copy()
-                    
 
-       
                     for i, event in enumerate(new_outline):
                         if event["number"] == str(point_index):
                             new_outline[i] = event_data
                             break
 
                     await stories.update_one(
-                        {"story_id": ObjectId
-                        (story_id)},
+                        {"story_id": ObjectId(story_id)},
                         {
-                            "$set": {"outline": new_outline, "updated_at": datetime.utcnow()},
+                            "$set": {
+                                "outline": new_outline,
+                                "updated_at": datetime.utcnow(),
+                            },
                         },
                     )
-            
+
             except json.JSONDecodeError as e:
                 logging.error(f"Failed to parse event JSON: {e}")
                 raise ValueError(f"Invalid event data format: {response_text}")
-    
+
         except Exception as e:
             logging.error(f"Skipping invalid event {point_index}: {e}")
             raise
@@ -397,7 +401,7 @@ async def regenerate_numbered_outline(
     except Exception as e:
         logging.error(f"Error creating numbered outline: {e}")
         raise
-            
+
 
 async def create_numbered_outline(
     story_id: str,
@@ -419,15 +423,20 @@ async def create_numbered_outline(
         new_events = []
         start_index = len(existing_outline) + 1
         end_index = start_index + num_events - 1
+        logger.info(f"Creating numbered outline from {start_index} to {end_index}")
 
         for i in range(start_index, end_index + 1):
             event_prompt = f"""
             <|im_start|>system
+            You are a powerful AI that can generate creative and unique story events.
+            You only write json data based on the given schema.
+            You only output valid structered json data.
+            You don't need to include the title, premise, setting, or characters in your response.
             You are an AI assistant helping a writer create a story outline. The writer has requested your help to generate a numbered outline for their story. Your task is to generate a specific event for the story based on the given premise, setting, and characters. Each event should be unique, engaging, and contribute to the overall narrative. You only write json data based on the given schema.
-            The output should be structured in a strict JSON format.
+            The output should be structured in a strict JSON format. Only include the json object that can directly be parsed, and nothing else.
             <|im_end|>
             <|im_start|>user
-            Generate event {i+1} for the story based on:
+            Generate event {i} for the story based on:
             Title: {story.get('title', '')}
             Premise: {story.get('premise', '')}
             Setting: {story.get('setting', '')}
@@ -457,6 +466,13 @@ async def create_numbered_outline(
             ###Schema:
             \n<schema>\n{NUMBERED_OUTLINE_SCHEMA}\n</schema>.
             <|im_end|>
+            <|im_start|>user
+            Generate event {i+1} for the story based on:
+            ###Title: {story.get('title', '')}
+            ###Premise: {story.get('premise', '')}
+            ###Setting: {story.get('setting', '')}
+            ###Characters: {json.dumps(story.get('characters', []), indent=2)}
+            Only include the json object that can directly be parsed, and nothing else.
             <|im_start|>assistant
             """
 
@@ -480,7 +496,7 @@ async def create_numbered_outline(
                                             "properties": {
                                                 "number": {
                                                     "type": "string",
-                                                    "description": "Event number +1 the number of the last event.",
+                                                    "description": "Event number.",
                                                 },
                                                 "title": {
                                                     "type": "string",
@@ -531,16 +547,17 @@ async def create_numbered_outline(
                             },
                         },
                     },
+                    temperature=0.5,
                 )
                 response_text = response["choices"][0]["text"]  # type:ignore
-                print(f"Generated event {i+1}: {response_text}")
+                print(f"Generated event {i}: {response_text}")
 
                 try:
                     event_data = extract_and_parse_json(response_text)
                     if event_data is not None:
-                        if event_data.get("number") != str(i + 1):
+                        if event_data.get("number") != str(i):
                             logging.warning(
-                                f"Event number mismatch. Expected {i+1}, got {event_data.get('number')}"
+                                f"Event number mismatch. Expected {i}, got {event_data.get('number')}"
                             )
                             event_data["number"] = str(i)
 
@@ -554,11 +571,22 @@ async def create_numbered_outline(
                 continue
 
         if new_events:
+            # await stories.update_one(
+            #     {"story_id": ObjectId(story_id)},
+            #     {
+            #         "$push": {"outline": {"$each": new_events}},
+            #         "$set": {"updated_at": datetime.now()},
+            #     },
+            # )
+            # fetych the existing outline if its none then fetch and empty array
+            existing_outline = story.get("outline") or []
+            # append the new events to the existing outline
+            new_outline = existing_outline + new_events
+            # update the outline in the database
             await stories.update_one(
                 {"story_id": ObjectId(story_id)},
                 {
-                    "$push": {"outline": {"$each": new_events}},
-                    "$set": {"updated_at": datetime.utcnow()},
+                    "$set": {"outline": new_outline, "updated_at": datetime.now()},
                 },
             )
 
@@ -716,7 +744,7 @@ class OutlineNodeSchema(BaseModel):
     children: List["OutlineNodeSchema"] = []
 
 
-async def generate_full_outline(story_id: str, max_depth: int = 2) -> OutlineNodeSchema:
+async def generate_full_outline(story_id: str, max_depth: int = 2) -> OutlineNode:
     """Generate a complete story outline with schema validation and error handling."""
 
     try:

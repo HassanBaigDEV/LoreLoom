@@ -33,10 +33,8 @@ async def retry_generation(generator_func, max_attempts: int = 3) -> Optional[st
                 logger.error(f"Empty result on attempt {attempt + 1}")
                 continue
 
-            if is_complete_sentence(result):
-                return result
-            else:
-                logger.error(f"Incomplete sentence on attempt {attempt + 1}")
+            return result
+                # logger.error(f"Incomplete sentence on attempt {attempt + 1}")
 
         except Exception as e:
             logger.error(f"Generation error on attempt {attempt + 1}: {str(e)}")
@@ -64,6 +62,11 @@ def get_logit_bias() -> Dict[str, float]:
         "version 1:",
         "version 2:",
         "version 3:",
+        "setting",
+        "premise",
+        "plot",
+        "title",
+        "genre",
     ]
 
     logit_bias: Dict[str, float] = {}

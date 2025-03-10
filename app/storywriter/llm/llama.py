@@ -23,6 +23,7 @@ class LLMClient:
             "X-Title": os.getenv("SITE_NAME", "StoryWriter"),
         }
         self.model = "deepseek/deepseek-r1:free"
+        # self.model = "google/gemini-2.0-flash-thinking-exp:free"
 
     def __call__(self, prompt: str, **kwargs) -> dict:
         try:
@@ -33,7 +34,7 @@ class LLMClient:
                 messages=messages,
                 **kwargs,
             )
-            
+
             return {"choices": [{"text": completion.choices[0].message.content}]}
         except Exception as e:
             logger.error(f"LLM call failed: {e}")

@@ -229,6 +229,7 @@ async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
         # Convert string to JSON
         try:
             characters_list = json.loads(characters_list)
+            
             if not isinstance(characters_list, list):
                 raise ValueError("Generated characters must be a list.")
         except json.JSONDecodeError as e:
@@ -236,10 +237,10 @@ async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
             raise ValueError("Failed to parse JSON response from AI")
 
         # Update only necessary fields instead of replacing everything
-        await stories.update_one(
-            {"story_id": ObjectId(story_id)},
-            {"$set": {"characters": characters_list, "updated_at": datetime.utcnow()}},
-        )
+        # await stories.update_one(
+        #     {"story_id": ObjectId(story_id)},
+        #     {"$set": {"characters": characters_list, "updated_at": datetime.utcnow()}},
+        # )
 
         return characters_list
 
@@ -416,6 +417,8 @@ async def generate_character(story_id: str) -> Dict:
 
     chatML_template = f"""
     <|im_start|>system
+    You are a powerful AI that only outputs valid structured JSON data.
+    You are a powerful AI that can generate creative and unique character descriptions for a {genre} story. Your goal is to come up with an original and engaging character that fits the {genre} genre. The character must be a complete description that makes sense.
     You are an AI designed to generate a single character description for a {genre} story.
     Ensure the output adheres to this **strict JSON schema** and make sure to not have any mismatched brackets specially around  or quotes:
     ###Example of a correctly formatted response:
@@ -443,6 +446,13 @@ async def generate_character(story_id: str) -> Dict:
     ###Outline: {outline}
     ###Existing Character/entitylocation Data: {character_data}
     <|im_end|>
+    <|im_start|>user
+    Based on the premise and setting, generate a single character or entity or location in JSON format.
+    ###Premise: {premise}
+    ###Setting: {setting}
+    ###Outline: {outline}
+    ###Existing Character/entitylocation Data: {character_data}
+    Only output json data and nothing else.<|im_end|>
     <|im_start|>assistant
     """
 
@@ -548,7 +558,8 @@ async def generate_character(story_id: str) -> Dict:
         # ✅ Update database safely
         # appeand the new character to the existing list
 
-        existing_characters = story.get("characters", [])
+        existing_characters = story.get("characters") or []
+        
         existing_characters.append(new_character)
         await stories.update_one(
             {"story_id": ObjectId(story_id)},

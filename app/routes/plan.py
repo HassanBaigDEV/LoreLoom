@@ -5,14 +5,22 @@ from typing import List, Dict, Optional
 from bson import ObjectId
 from regex import P
 from app.models.story import Story
-from app.config.mongo import stories
+from app.config.mongo import *
 from datetime import datetime
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, confloat
 
 # Import the generator functions
-from app.storywriter.plan.plot.premise import generate_title, generate_premise
-from app.storywriter.plan.plot.settings import generate_setting
+from app.storywriter.plan.plot.premise import (
+    generate_title,
+    generate_premise,
+    generate_title_with_context,
+    generate_premise_with_context,
+)
+from app.storywriter.plan.plot.settings import (
+    generate_setting,
+    generate_setting_with_context,
+)
 from app.storywriter.plan.characters.main import (
     generate_characters,
     generate_character,
@@ -35,15 +43,15 @@ logger = logging.getLogger(__name__)
 
 # Add request models
 class TitleUpdate(BaseModel):
-    new_title: str
+    title: str
 
 
 class PremiseUpdate(BaseModel):
-    new_premise: str
+    premise: str
 
 
 class SettingUpdate(BaseModel):
-    new_setting: str
+    setting: str
 
 
 class CharacterUpdate(BaseModel):
@@ -100,6 +108,19 @@ class OutlineRequest(BaseModel):
     continue_from_previous: bool = False
 
 
+class NewGenre(BaseModel):
+    genre: str
+
+
+class StoryCreationRequest(BaseModel):
+    user_prompt: str = Field(..., min_length=10, max_length=1000)
+    genre: str = Field(..., min_length=3, max_length=50)
+    privacy: str = Field("private", pattern="^(private|public)$")
+    tone: str
+    story_complexity: float = 0.5
+    keywords: list[str] = []
+
+
 @router.get("/generate-title/{story_id}")
 async def get_title(story_id: str, user_id: str):
     try:
@@ -152,11 +173,11 @@ async def get_premise(story_id: str, user_id: str):
     except ValueError:
         # raise HTTPException(status_code=400, detail="Invalid ID format")
         logging.error("Invalid ID format")
-        return HTTPException(status_code=400, detail="Invalid ID format")
+        return HTTPException(status_code=500, detail="Unexpected error occoured")
     except Exception as e:
         # raise HTTPException(status_code=500, detail=str(e))
         logging.error(f"Exception: {e}")
-        return HTTPException(status_code=500, detail=str(e))
+        return HTTPException(status_code=500, detail="Unexpected error occoured")
 
 
 @router.get("/generate-setting/{story_id}")
@@ -198,7 +219,7 @@ async def add_character(story_id: str, user_id: str, data: NewCharacter):
             {"story_id": ObjectId(story_id)},
             {
                 "$push": {"characters": character.model_dump()},
-                "$set": {"updated_at": datetime.utcnow()},
+                "$set": {"updated_at": datetime.now()},
             },
         )
         return {
@@ -255,7 +276,7 @@ async def generate_multiple_characters(
         )
         if not story:
             return HTTPException(status_code=404, detail="Story not found")
-        
+
         for _ in range(request.num_characters):
             character = await generate_character(story_id)
             characters.append(character)
@@ -336,7 +357,7 @@ async def get_full_outline(
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/edit-title/{story_id}")
+@router.put("/update-title/{story_id}")
 async def edit_title(story_id: str, user_id: str, data: TitleUpdate):
     try:
         story = await stories.find_one(
@@ -347,15 +368,15 @@ async def edit_title(story_id: str, user_id: str, data: TitleUpdate):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"title": data.new_title, "updated_at": datetime.utcnow()}},
+            {"$set": {"title": data.title, "updated_at": datetime.now()}},
         )
-        return {"message": "Title updated successfully", "title": data.new_title}
+        return {"message": "Title updated successfully", "title": data.title}
     except Exception as e:
         logger.error(f"Error updating title: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/edit-premise/{story_id}")
+@router.put("/update-premise/{story_id}")
 async def edit_premise(story_id: str, user_id: str, data: PremiseUpdate):
     try:
         story = await stories.find_one(
@@ -366,15 +387,15 @@ async def edit_premise(story_id: str, user_id: str, data: PremiseUpdate):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"premise": data.new_premise, "updated_at": datetime.utcnow()}},
+            {"$set": {"premise": data.premise, "updated_at": datetime.now()}},
         )
-        return {"message": "Premise updated successfully", "premise": data.new_premise}
+        return {"message": "Premise updated successfully", "premise": data.premise}
     except Exception as e:
         logger.error(f"Error updating premise: {e}")
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/edit-setting/{story_id}")
+@router.put("/update-setting/{story_id}")
 async def edit_setting(story_id: str, user_id: str, data: SettingUpdate):
     try:
         story = await stories.find_one(
@@ -385,12 +406,12 @@ async def edit_setting(story_id: str, user_id: str, data: SettingUpdate):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"setting": data.new_setting, "updated_at": datetime.utcnow()}},
+            {"$set": {"setting": data.setting, "updated_at": datetime.now()}},
         )
-        return {"message": "Setting updated successfully", "setting": data.new_setting}
+        return {"message": "Setting updated successfully", "setting": data.setting}
     except Exception as e:
         logger.error(f"Error updating setting: {e}")
-        return HTTPException(status_code=500, detail=str(e))
+        return HTTPException(status_code=500, detail=str("Unexpected error occoured"))
 
 
 @router.put("/edit-character/{story_id}")
@@ -411,7 +432,7 @@ async def edit_character(story_id: str, user_id: str, data: CharacterUpdate):
             {
                 "$set": {
                     "characters.$": character.model_dump(),
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(),
                 }
             },
         )
@@ -440,7 +461,7 @@ async def edit_outline_point(story_id: str, user_id: str, data: OutlinePointUpda
             {
                 "$set": {
                     "outline.$": data.updated_point,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(),
                 }
             },
         )
@@ -484,7 +505,7 @@ async def add_outline_point(story_id: str, user_id: str, data: NewOutlinePoint):
         # Update the entire outline
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"outline": outline, "updated_at": datetime.utcnow()}},
+            {"$set": {"outline": outline, "updated_at": datetime.now()}},
         )
         return {
             "message": "Outline point added successfully",
@@ -509,7 +530,7 @@ async def delete_character(story_id: str, user_id: str, data: CharacterDelete):
             {"story_id": ObjectId(story_id)},
             {
                 "$pull": {"characters": {"name": data.character_name}},
-                "$set": {"updated_at": datetime.utcnow()},
+                "$set": {"updated_at": datetime.now()},
             },
         )
         return {"message": f"Character {data.character_name} deleted successfully"}
@@ -536,7 +557,7 @@ async def delete_outline_point(story_id: str, user_id: str, data: OutlinePointDe
         # Update the entire outline
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"outline": outline, "updated_at": datetime.utcnow()}},
+            {"$set": {"outline": outline, "updated_at": datetime.now()}},
         )
         return {"message": f"Outline point {data.point_number} deleted successfully"}
     except Exception as e:
@@ -669,6 +690,7 @@ async def get_all_story_elements(story_id: str, user_id: str):
             return HTTPException(status_code=404, detail="Story not found")
 
         return {
+            "genre": story.get("genre"),
             "title": story.get("title"),
             "premise": story.get("premise"),
             "setting": story.get("setting"),
@@ -736,7 +758,7 @@ async def regenerate_outline_point(
         #     {
         #         "$set": {
         #             "outline": outline,
-        #             "updated_at": datetime.utcnow(),
+        #             "updated_at": datetime.now(),
         #         }
         #     },
         # )
@@ -797,7 +819,7 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
                 {
                     "$set": {
                         "characters": characters,
-                        "updated_at": datetime.utcnow(),
+                        "updated_at": datetime.now(),
                     }
                 },
             )
@@ -812,3 +834,109 @@ async def regenerate_character(story_id: str, user_id: str, data: CharacterRegen
     except Exception as e:
         logger.error(f"Error regenerating character: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/add-genre/{story_id}")
+async def add_genre(story_id: str, user_id: str, data: NewGenre):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+        # set the genre field of the story and update the story
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"genre": data.genre, "updated_at": datetime.now()}},
+        )
+        return {"message": "Genre added successfully", "genre": data.genre}
+    except Exception as e:
+        logger.error(f"Error adding genre: {e}")
+        return HTTPException(
+            status_code=500, detail=str("An unexpected error occurred")
+        )
+
+
+@router.put("/update-genre/{story_id}")
+async def update_genre(story_id: str, user_id: str, data: NewGenre):
+    try:
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+        # set the genre field of the story and update the story
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": {"genre": data.genre, "updated_at": datetime.now()}},
+        )
+        return {"message": "Genre updated successfully", "genre": data.genre}
+    except Exception as e:
+        logger.error(f"Error updating genre: {e}")
+        return HTTPException(
+            status_code=500, detail=str("An unexpected error occurred")
+        )
+
+
+@router.post("/create-story/{user_id}")
+async def create_story(user_id: str, request: StoryCreationRequest):
+    """Create a new story with AI-generated elements"""
+    try:
+        # Validate user exists
+        if not await users.find_one({"_id": user_id}):
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Generate story elements
+        story_data = {
+            "author": ObjectId(user_id),
+            "created_at": datetime.now(),
+            "privacy": request.privacy,
+            "genre": request.genre,
+            "tone": request.tone,
+            "complexity": request.story_complexity,
+            "keywords": request.keywords,
+        }
+
+        # Generate title with genre and keywords context
+        title = await generate_title_with_context(
+            request.genre, request.keywords, request.tone, request.story_complexity
+        )
+        story_data["title"] = title
+
+        # Generate premise with complexity weighting
+        premise = await generate_premise_with_context(
+            title, request.user_prompt, request.genre, request.story_complexity
+        )
+        story_data["premise"] = premise
+
+        # Generate setting with tone consideration
+        setting = await generate_setting_with_context(
+            title, premise, request.genre, request.tone, request.keywords
+        )
+        story_data["setting"] = setting
+        story_id = ObjectId()
+
+        story = Story(
+            story_id=story_id,
+            author=ObjectId(user_id),
+            title=title,
+            premise=premise,
+            setting=setting,
+            genre=request.genre,
+            privacy=request.privacy,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        # Insert into database
+        await stories.insert_one(story.model_dump(by_alias=True))
+
+        return {
+            "story_id": str(story.story_id),
+            "title": title,
+            "premise": premise,
+            "setting": setting,
+        }
+
+    except Exception as e:
+        logger.error(f"Story creation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

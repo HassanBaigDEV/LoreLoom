@@ -38,15 +38,15 @@ users = db["users"]  # Define the users collection
 class Story(BaseModel):
     story_id: ObjectId = Field(default_factory=ObjectId)
     author: ObjectId  # Reference to users collection
-    title: Optional[str] = None
-    genre: Optional[str] = None
-    privacy: Optional[str] = None
-    premise: Optional[str] = None
-    setting: Optional[str] = None
-    characters: Optional[List[Dict]] = None
-    outline: Optional[Dict] = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    title: Optional[str] = ""
+    genre: Optional[str] = ""
+    privacy: Optional[str] = ""
+    premise: Optional[str] = ""
+    setting: Optional[str] = ""
+    characters: Optional[List[Dict]] = []
+    outline: Optional[List[Dict]] = []
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     class Config:
         arbitrary_types_allowed = True
@@ -70,11 +70,12 @@ async def create_story(
         author=ObjectId(user_id),
         title=title,
         genre=genre,
-        privacy=privacy
+        privacy=privacy,
+        
     )
 
     # Insert the story into the database
-    await stories.insert_one(story.dict(by_alias=True))
+    await stories.insert_one(story.model_dump(by_alias=True))
 
     # Add the story reference to the user's document
     await users.update_one({"_id": user_id}, {"$push": {"stories": story_id}})
@@ -85,7 +86,7 @@ async def create_story(
         "author": str(user_id),
         "title": title,
         "genre": genre,
-        "privacy": privacy
+        "privacy": privacy,
     }
 
 
