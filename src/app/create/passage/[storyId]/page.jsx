@@ -33,6 +33,7 @@ import PassageEditor from "@/components/passage/PassageEditor";
 import StoryElementsPanel from "@/components/passage/StoryElementsPanel";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Toaster, toast } from "react-hot-toast";
+import PassageCreationWizard from "@/components/generation/wizard";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -64,14 +65,14 @@ export default function PassagePage({ params }) {
   const [loading, setLoading] = useState(true);
   const [passages, setPassages] = useState([]);
   const [storyElements, setStoryElements] = useState(null);
-
-  // NEW: We'll store the entire story so we can match outline points properly
   const [story, setStory] = useState(null);
-
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedPassage, setExpandedPassage] = useState(null);
+  
+  // New state for wizard modal
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const fetchPassages = useCallback(async () => {
     setLoading(true);
@@ -134,35 +135,13 @@ export default function PassagePage({ params }) {
     setPage(value);
   };
 
-  const handleCreatePassage = async () => {
-    setLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-
-      // Example: default to the last outline point if none is selected
-      const outlinePoint =
-        storyElements?.outline?.[storyElements?.outline?.length - 1]?.number;
-      if (!outlinePoint) {
-        toast.error("Please create an outline first");
-        return;
-      }
-
-      await storyApiClient.post(`/draft/generate-passage/${storyId}`, null, {
-        params: {
-          user_id: user.id,
-          outline_point_id: outlinePoint,
-        },
-      });
-
-      toast.success("New passage created!");
-      fetchPassages();
-    } catch (error) {
-      console.error("Error creating passage:", error);
-      toast.error("Failed to create passage");
-    } finally {
-      setLoading(false);
+  // Open the wizard modal instead of directly creating a passage
+  const handleOpenWizard = () => {
+    if (!storyElements?.outline?.length) {
+      toast.error("Please create an outline first");
+      return;
     }
+    setWizardOpen(true);
   };
 
   return (
@@ -221,7 +200,7 @@ export default function PassagePage({ params }) {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={handleCreatePassage}
+                onClick={handleOpenWizard}  // Changed to open the wizard
                 disabled={loading}
                 sx={{
                   bgcolor: "rgb(34 197 94)",
@@ -272,11 +251,12 @@ export default function PassagePage({ params }) {
                           }}
                         >
                           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                            Passage {globalIndex} – Outline {passage.outline_point_id}:{" "}
+                            {/* Passage {globalIndex}  */}
+                            Outline {passage.outline_point_id}:{" "}
                             {storyElements?.outline?.find((o) => o.number === passage.outline_point_id)?.title || "Untitled"}
-                            <span style={{ marginLeft: "10px", fontSize: "0.8em" }}>
-                              ({new Date(passage.created_at).toLocaleDateString()})
-                            </span>
+                              <span style={{ marginLeft: "10px", fontSize: "0.8em" }}>
+                                ({new Date(passage.created_at).toLocaleDateString()})
+                              </span>
                           </Typography>
 
                           <PassageEditor
@@ -396,6 +376,15 @@ export default function PassagePage({ params }) {
             storyId={storyId}
           />
         </Drawer>
+
+        {/* Passage Creation Wizard Modal */}
+        <PassageCreationWizard
+          open={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          storyId={storyId}
+          storyElements={storyElements}
+          onPassageCreated={fetchPassages}
+        />
       </Box>
     </>
   );
