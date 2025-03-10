@@ -132,9 +132,9 @@ export default function PassageEditor({ passage, onUpdate }) {
               {passage.title}
             </Typography>
           )}
-          <Typography variant="caption" color="text.secondary">
+          {/* <Typography variant="caption" color="text.secondary">
             Last updated: {formatDate(passage.updated_at)}
-          </Typography>
+          </Typography> */}
         </Stack>
 
         <Stack direction="row" spacing={1}>

@@ -49,7 +49,7 @@ function DashboardContent() {
           <StoriesSection />
         </div>
       </main>
-      <Footer />
+      {/* <Footer /> */}
     </div>
   );
 }

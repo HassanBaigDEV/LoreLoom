@@ -12,7 +12,6 @@ import {
   Fab,
   Pagination,
   Stack,
-  Collapse,
   Divider,
   Tooltip,
   CircularProgress,
@@ -61,9 +60,14 @@ export default function PassagePage({ params }) {
   const { storyId } = params;
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const [loading, setLoading] = useState(true);
   const [passages, setPassages] = useState([]);
   const [storyElements, setStoryElements] = useState(null);
+
+  // NEW: We'll store the entire story so we can match outline points properly
+  const [story, setStory] = useState(null);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -88,7 +92,16 @@ export default function PassagePage({ params }) {
         }),
       ]);
 
-      setPassages(passagesResponse.data);
+      const sortedPassages = [...passagesResponse.data]
+        .sort((a, b) => {
+          const outlineDiff =
+            parseInt(a.outline_number) - parseInt(b.outline_number);
+          if (outlineDiff !== 0) return outlineDiff;
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        })
+        .reverse();
+
+      setPassages(sortedPassages);
       setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));
     } catch (error) {
       console.error("Error fetching passages:", error);
@@ -103,12 +116,9 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const response = await storyApiClient.get(
-        `/plan/story-elements/${storyId}`,
-        {
-          params: { user_id: user.id },
-        }
-      );
+      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
+        params: { user_id: user.id },
+      });
       setStoryElements(response.data);
     } catch (error) {
       console.error("Error fetching story elements:", error);
@@ -116,8 +126,8 @@ export default function PassagePage({ params }) {
   }, [storyId]);
 
   useEffect(() => {
+    fetchStoryElements(); 
     fetchPassages();
-    fetchStoryElements();
   }, [fetchPassages, fetchStoryElements]);
 
   const handlePageChange = (event, value) => {
@@ -130,7 +140,7 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      // Get the last outline point if none selected
+      // Example: default to the last outline point if none is selected
       const outlinePoint =
         storyElements?.outline?.[storyElements?.outline?.length - 1]?.number;
       if (!outlinePoint) {
@@ -138,19 +148,15 @@ export default function PassagePage({ params }) {
         return;
       }
 
-      const response = await storyApiClient.post(
-        `/draft/generate-passage/${storyId}`,
-        null,
-        {
-          params: {
-            user_id: user.id,
-            outline_point_id: outlinePoint,
-          },
-        }
-      );
+      await storyApiClient.post(`/draft/generate-passage/${storyId}`, null, {
+        params: {
+          user_id: user.id,
+          outline_point_id: outlinePoint,
+        },
+      });
 
       toast.success("New passage created!");
-      fetchPassages(); // Refresh the list
+      fetchPassages();
     } catch (error) {
       console.error("Error creating passage:", error);
       toast.error("Failed to create passage");
@@ -166,7 +172,7 @@ export default function PassagePage({ params }) {
           display: "flex",
           minHeight: "100vh",
           bgcolor: "grey.50",
-          flexDirection: { xs: "column", lg: "row" }, // Stack vertically on mobile
+          flexDirection: { xs: "column", lg: "row" },
         }}
       >
         <Toaster position="top-right" />
@@ -175,10 +181,10 @@ export default function PassagePage({ params }) {
         <Box
           sx={{
             flexGrow: 1,
-            p: { xs: 2, sm: 3 }, // Reduced padding on mobile
-            pt: { xs: 8, sm: 10, md: 12 }, // Adjusted top padding for header
-            pr: { xs: 2, sm: 3, lg: "360px" }, // Right padding only on desktop
-            width: "100%", // Full width on mobile
+            p: { xs: 2, sm: 3 },
+            pt: { xs: 8, sm: 10, md: 12 },
+            pr: { xs: 2, sm: 3, lg: "360px" },
+            width: "100%",
           }}
         >
           <Container
@@ -193,7 +199,7 @@ export default function PassagePage({ params }) {
               sx={{
                 mb: { xs: 2, sm: 4 },
                 display: "flex",
-                flexDirection: { xs: "column", sm: "row" }, // Stack vertically on mobile
+                flexDirection: { xs: "column", sm: "row" },
                 gap: { xs: 2, sm: 0 },
                 justifyContent: "space-between",
                 alignItems: { xs: "stretch", sm: "center" },
@@ -217,11 +223,10 @@ export default function PassagePage({ params }) {
                 startIcon={<AddIcon />}
                 onClick={handleCreatePassage}
                 disabled={loading}
-                fullWidth={false}
                 sx={{
                   bgcolor: "rgb(34 197 94)",
                   "&:hover": { bgcolor: "rgb(22 163 74)" },
-                  width: { xs: "100%", sm: "auto" }, // Full width on mobile
+                  width: { xs: "100%", sm: "auto" },
                 }}
               >
                 New Passage
@@ -234,33 +239,54 @@ export default function PassagePage({ params }) {
                 <LoadingOverlay />
               ) : (
                 <Stack spacing={2}>
-                  {passages.map((passage, index) => (
-                    <motion.div
-                      key={passage.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <Paper
-                        elevation={expandedPassage === passage.id ? 3 : 1}
-                        sx={{
-                          p: { xs: 2, sm: 3 }, // Reduced padding on mobile
-                          transition: "all 0.3s ease",
-                          "&:hover": {
-                            boxShadow: 3,
-                            transform: "translateY(-2px)",
-                          },
-                        }}
+                  {passages.map((passage, index) => {
+                    // Compute global index for pagination
+                    const globalIndex = (page - 1) * ITEMS_PER_PAGE + index + 1;
+
+                    // Find the outline item by matching `passage.outline_point_id`
+                    // to the `number` in the story's outline array
+                    const outlinePoint = story?.outline?.find(
+                      (o) => o.number === passage.outline_point_id
+                    );
+                    const outlineTitle = outlinePoint?.title || "Untitled";
+
+                    const formattedDate = new Date(passage.created_at).toLocaleDateString();
+
+                    return (
+                      <motion.div
+                        key={passage.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ delay: index * 0.1 }}
                       >
-                        {/* Passage content here */}
-                        <PassageEditor
-                          passage={passage}
-                          onUpdate={fetchPassages}
-                        />
-                      </Paper>
-                    </motion.div>
-                  ))}
+                        <Paper
+                          elevation={3}
+                          sx={{
+                            p: { xs: 2, sm: 3 },
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              boxShadow: 3,
+                              transform: "translateY(-2px)",
+                            },
+                          }}
+                        >
+                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Passage {globalIndex} – Outline {passage.outline_point_id}:{" "}
+                            {storyElements?.outline?.find((o) => o.number === passage.outline_point_id)?.title || "Untitled"}
+                            <span style={{ marginLeft: "10px", fontSize: "0.8em" }}>
+                              ({new Date(passage.created_at).toLocaleDateString()})
+                            </span>
+                          </Typography>
+
+                          <PassageEditor
+                            passage={passage}
+                            onUpdate={fetchPassages}
+                          />
+                        </Paper>
+                      </motion.div>
+                    );
+                  })}
                 </Stack>
               )}
             </AnimatePresence>
@@ -272,7 +298,7 @@ export default function PassagePage({ params }) {
                 display: "flex",
                 justifyContent: "center",
                 "& .MuiPagination-ul": {
-                  flexWrap: "nowrap", // Prevent pagination buttons from wrapping
+                  flexWrap: "nowrap",
                 },
               }}
             >
@@ -298,7 +324,7 @@ export default function PassagePage({ params }) {
           </Container>
         </Box>
 
-        {/* Story Elements Panel */}
+        {/* Story Elements Panel (desktop) */}
         <Drawer
           variant="permanent"
           anchor="right"
@@ -357,7 +383,7 @@ export default function PassagePage({ params }) {
           sx={{
             display: { xs: "block", lg: "none" },
             "& .MuiDrawer-paper": {
-              width: { xs: "100%", sm: 340 }, // Full width on mobile phones
+              width: { xs: "100%", sm: 340 },
               bgcolor: "rgb(17 24 39)",
               color: "white",
               pt: { xs: "64px", sm: "70px" },
