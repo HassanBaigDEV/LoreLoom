@@ -680,6 +680,7 @@ class DraftGenerator:
 
             raw_entities = passage.mentioned_entities
             deduped_entities = deduplicate_entities(raw_entities)
+            logger.info(f"--Entities--\n{raw_entities}\n{deduped_entities}")
             # Get existing character names
             existing_chars = {normalize_name(char["name"]) for char in story.get("characters", [])}
             # Classify entities
@@ -704,7 +705,6 @@ class DraftGenerator:
             )
             new_entities = [e for e in valid_entities if normalize_name(e) not in existing_chars]
             normalized_entities = [normalize_name(entity) for entity in new_entities]
-            logger.info(f"=== Batch INPUT Test ===  \n{new_entities}\n{entity_types}")
             
             if new_entities:
                 await self._process_new_characters(normalized_entities, passage.content, context, story, entity_types, valid_entities)

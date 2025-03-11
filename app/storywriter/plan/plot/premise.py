@@ -23,11 +23,17 @@ async def generate_title(story_id: str) -> str:
         genre = story.get("genre", "")
 
         title_template = f"""<|im_start|>system
-        You are tasked with generating creative and unique story titles. Your goal is to come up with an original and engaging title of just 1 line that fits the {genre} genre. The title must be a complete phrase that makes sense.<|im_end|>
+        You are tasked with generating creative and unique story titles. Your goal is to come up with an original and engaging title of just 1 line that fits the {genre} genre. The title must be a complete phrase that makes sense.
+        **Instructions:**
+        1. **Output only the title**—no explanations, labels, or extra text.
+        2. **Ensure it is a single line** and a complete phrase.
+        <|im_end|>
+        
         <|im_start|>user
-        Generate a creative and unique title for a {genre} story.<|im_end|>
+        Generate a creative and unique title for a {genre} story.
+        **Only return the title as plain text.**
+        <|im_end|>
         <|im_start|>assistant
-        Title:
         """
         title = model(title_template,
                       logit_bias=get_logit_bias())
@@ -59,7 +65,10 @@ async def generate_premise(story_id: str, title: str) -> str:
 
         chatML_template = f"""<|im_start|>system
         You are a powerful AI that can generate creative and unique story premises. Your goal is to come up with an original and engaging premise that fits the {genre} genre. The premise must be a complete sentence that makes sense.
-        You are tasked with generating creative and unique story premises for the {genre} genre. Your goal is to come up with an original and engaging premise that fits the {genre} genre. The premise must be a complete sentence that makes sense.<|im_end|>
+        You are tasked with generating creative and unique story premises for the {genre} genre. Your goal is to come up with an original and engaging premise that fits the {genre} genre. The premise must be a complete sentence that makes sense.
+        **Instructions:**
+        1. **Output only the premise**—no explanations, labels, or extra text.
+        <|im_end|>
         <|im_start|>user
         Generate a creative and unique premise of a few lines (3-4) for a {genre} story with the title "{title}".<|im_end|>
         <|im_start|>assistant
@@ -98,6 +107,8 @@ async def generate_title_with_context(
         1. Length: {'Short (2-4 words)' if complexity < 0.4 else 'Medium (4-6 words)' if complexity < 0.7 else 'Long (6-8 words)'}
         2. Style: {'Simple' if complexity < 0.3 else 'Descriptive' if complexity < 0.7 else 'Epic'}
         3. Keywords used: At least {int(len(keywords)*complexity)} from provided list
+        **Instructions:**
+        1. **Output only the title**—no explanations, labels, or extra text.
         <|im_end|>
         <|im_start|>user
         Generate a creative and unique title for a {genre} story. Only write the title and nothing else.
@@ -124,7 +135,8 @@ async def generate_premise_with_context(
         You are tasked with generating creative and unique story premises for the {genre} genre. Your goal is to come up with an original and engaging premise that fits the {genre} genre. The premise must be a complete sentence that makes sense.
         Use the user prompt for context and expand it into a full story premise keeping in mind the following requirements:
         Only write the premise for the story based on the user prompt and nothing else.
-        
+        **Instructions:**
+        1. **Output only the premise**—no explanations, labels, or extra text.
         
         Requirements:
         - Genre: {genre}

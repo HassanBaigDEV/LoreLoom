@@ -9,7 +9,7 @@ from bson import ObjectId
 
 from app.utils.text_validation import extract_and_parse_json
 
-from ...llm.llama import model
+from ...llm.deepseek import model
 from .schema import Character, character_schema
 from app.config.mongo import db, stories
 from jsonschema import validate, ValidationError
@@ -104,35 +104,41 @@ async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
     <|im_start|>system
     You are an AI designed to generate character descriptions for {genre} stories.
     Ensure output adheres to this **strict JSON schema**:
-
-    {{
-      "type": "array",
-      "items": {{
-        "type": "object",
-        "properties": {{
-          "name": {{"type": "string"}},
-          "type": {{"type": "string", "enum": ["character", "entity", "location"]}},
-          "role": {{"type": "string"}},
-          "physicalAppearance": {{"type": "string"}},
-          "behavioralPatterns": {{"type": "string"}},
-          "genderAndSexualOrientation": {{"type": "string"}},
-          "relationships": {{
-            "type": "object",
-            "additionalProperties": {{"type": "string"}}
-          }},
-          "likesAndDislikes": {{
-            "type": "object",
-            "properties": {{
-              "Likes": {{"type": "array", "items": {{"type": "string"}}}},
-              "Dislikes": {{"type": "array", "items": {{"type": "string"}}}}
-            }},
-            "required": ["Likes", "Dislikes"]
-          }}
-        }},
-        "required": ["name", "type", "role", "physicalAppearance", "behavioralPatterns",
-                     "genderAndSexualOrientation", "relationships", "likesAndDislikes"]
-      }}
-    }}
+    ###Example of a correctly formatted response:
+    [
+        {
+            "name": "string",
+            "type": "string", // Must be one of ["character", "entity", "location"]
+            "role": "string",
+            "physicalAppearance": "string",
+            "behavioralPatterns": "string",
+            "genderAndSexualOrientation": "string",
+            "relationships": {
+                "string": "string",
+                "string": "string"
+            },
+            "likesAndDislikes": {
+                "Likes": ["string", "string", ...],
+                "Dislikes": ["string", "string", ...]
+            }
+        },
+        {
+            "name": "string",
+            "type": "string",
+            "role": "string",
+            "physicalAppearance": "string",
+            "behavioralPatterns": "string",
+            "genderAndSexualOrientation": "string",
+            "relationships": {
+                "string": "string",
+                "string": "string"
+            },
+            "likesAndDislikes": {
+                "Likes": ["string", "string", ...],
+                "Dislikes": ["string", "string", ...]
+            }
+        }
+    ]
     ```
 
     Example valid response:
@@ -153,6 +159,13 @@ async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
         }}
       }}
     ]
+    **Instructions:**
+    1. **Do NOT modify or omit any schema keys.**  
+    2. **Ensure all values are contextually relevant** to the story's premise, setting, and existing character data.  
+    3. **Avoid generic or repetitive descriptions**—make each entity unique and engaging.  
+    4. **Strictly output valid JSON only.** No extra text, explanations, or formatting errors.
+
+    Now, generate a list of  new **character, entity, or location** based on the following details:
 
     Generate exactly {num_characters} characters/entities based on:
     Premise: {premise}
@@ -413,7 +426,9 @@ async def generate_character(story_id: str) -> Dict:
     outline = story.get("outline", None)
 
     # fetch existing character data
-    character_data = story.get("character", None)
+    existing_characters = story.get("characters", [])
+    character_data = existing_characters if existing_characters else None
+
 
     chatML_template = f"""
     <|im_start|>system
@@ -423,22 +438,48 @@ async def generate_character(story_id: str) -> Dict:
     Ensure the output adheres to this **strict JSON schema** and make sure to not have any mismatched brackets specially around  or quotes:
     ###Example of a correctly formatted response:
     {{
-        "name": "Kaelin Storm",
-        "type": "character",
-        "role": "Protagonist",
-        "physicalAppearance": "A lithe woman with sun-kissed skin, braided auburn hair, and piercing green eyes. She has a crescent-shaped scar on her left cheek.",
-        "behavioralPatterns": "Fiercely independent but deeply loyal to her close friends. She often acts impulsively but has a knack for thinking on her feet.",
-        "genderAndSexualOrientation": "Female, Straight",
+        "name": "string",
+        "type": "string", // Must be one of ["character", "entity", "location"]
+        "role": "string",
+        "physicalAppearance": "string",
+        "behavioralPatterns": "string",
+        "genderAndSexualOrientation": "string",
         "relationships": {{
-            "Alaric Frost": "Childhood friend and rival",
-            "Ancient Temple": "Sacred place she guards",
-            "Magic Staff": "Her trusted weapon and tool"
+            "string": "string",
+            "string": "string"
         }},
         "likesAndDislikes": {{
-            "Likes": {["Exploring the unknown", "Playing the lute", "Collecting rare artifacts"]},
-            "Dislikes": {["Confinement", "Dishonesty", "Large crowds"]}
+            "Likes": ["string", "string", ...],
+            "Dislikes": ["string", "string", ...]
         }}
     }}
+    Example valid response:
+    [
+      {{
+        "name": "The Archivist",
+        "type": "character",
+        "role": "main character",
+        "physicalAppearance": "An elderly man with piercing blue eyes and a long, white beard.",
+        "behavioralPatterns": "Methodical and patient, with an insatiable curiosity for knowledge.",
+        "genderAndSexualOrientation": "Male, heterosexual",
+        "relationships": {{
+          "The Scribe": "Long-time partner and confidant"
+        }},
+        "likesAndDislikes": {{
+          "Likes": ["Ancient texts", "Tea made from rare herbs"],
+          "Dislikes": ["Distractions", "Impulsive actions"]
+        }}
+      }}
+    ]
+    **Instructions:**
+    1. **Do NOT modify or omit any schema keys.**  
+    2. **Ensure all values are contextually relevant** to the story's premise, setting, and existing character data.  
+    3. **Avoid generic or repetitive descriptions**—make each entity unique and engaging.  
+    4. **Strictly output valid JSON only.** No extra text, explanations, or formatting errors.
+    5. Ensure this character is completely different from any existing characters/entities/locations listed above. Avoid repeating names, descriptions, or traits.
+
+
+    Now, generate a single new **character, entity, or location** based on the following details:
 
     Generate a completely new single character/entity/location based on:
     ###Premise: {premise}
@@ -447,7 +488,7 @@ async def generate_character(story_id: str) -> Dict:
     ###Existing Character/entitylocation Data: {character_data}
     <|im_end|>
     <|im_start|>user
-    Based on the premise and setting, generate a single character or entity or location in JSON format.
+    Based on the premise and setting, generate a single new (should not match existing one in name and data should be unique) character or entity or location in JSON format.
     ###Premise: {premise}
     ###Setting: {setting}
     ###Outline: {outline}
