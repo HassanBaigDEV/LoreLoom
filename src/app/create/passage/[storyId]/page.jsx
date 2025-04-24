@@ -70,7 +70,7 @@ export default function PassagePage({ params }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [expandedPassage, setExpandedPassage] = useState(null);
-  
+
   // New state for wizard modal
   const [wizardOpen, setWizardOpen] = useState(false);
 
@@ -83,13 +83,13 @@ export default function PassagePage({ params }) {
       const [passagesResponse, countResponse] = await Promise.all([
         storyApiClient.get(`/draft/passages/${storyId}`, {
           params: {
-            user_id: user.id,
+            user_id: user?.id,
             limit: ITEMS_PER_PAGE,
             skip: (page - 1) * ITEMS_PER_PAGE,
           },
         }),
         storyApiClient.get(`/draft/passages/${storyId}/count`, {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }),
       ]);
 
@@ -98,7 +98,9 @@ export default function PassagePage({ params }) {
           const outlineDiff =
             parseInt(a.outline_number) - parseInt(b.outline_number);
           if (outlineDiff !== 0) return outlineDiff;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         })
         .reverse();
 
@@ -117,9 +119,12 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
-        params: { user_id: user.id },
-      });
+      const response = await storyApiClient.get(
+        `/plan/story-elements/${storyId}`,
+        {
+          params: { user_id: user?.id },
+        }
+      );
       setStoryElements(response.data);
     } catch (error) {
       console.error("Error fetching story elements:", error);
@@ -127,7 +132,7 @@ export default function PassagePage({ params }) {
   }, [storyId]);
 
   useEffect(() => {
-    fetchStoryElements(); 
+    fetchStoryElements();
     fetchPassages();
   }, [fetchPassages, fetchStoryElements]);
 
@@ -200,7 +205,7 @@ export default function PassagePage({ params }) {
               <Button
                 variant="contained"
                 startIcon={<AddIcon />}
-                onClick={handleOpenWizard}  // Changed to open the wizard
+                onClick={handleOpenWizard} // Changed to open the wizard
                 disabled={loading}
                 sx={{
                   bgcolor: "rgb(34 197 94)",
@@ -229,7 +234,9 @@ export default function PassagePage({ params }) {
                     );
                     const outlineTitle = outlinePoint?.title || "Untitled";
 
-                    const formattedDate = new Date(passage.created_at).toLocaleDateString();
+                    const formattedDate = new Date(
+                      passage.created_at
+                    ).toLocaleDateString();
 
                     return (
                       <motion.div
@@ -250,13 +257,25 @@ export default function PassagePage({ params }) {
                             },
                           }}
                         >
-                          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                          <Typography
+                            variant="subtitle2"
+                            color="text.secondary"
+                            gutterBottom
+                          >
                             {/* Passage {globalIndex}  */}
                             Outline {passage.outline_point_id}:{" "}
-                            {storyElements?.outline?.find((o) => o.number === passage.outline_point_id)?.title || "Untitled"}
-                              <span style={{ marginLeft: "10px", fontSize: "0.8em" }}>
-                                ({new Date(passage.created_at).toLocaleDateString()})
-                              </span>
+                            {storyElements?.outline?.find(
+                              (o) => o.number === passage.outline_point_id
+                            )?.title || "Untitled"}
+                            <span
+                              style={{ marginLeft: "10px", fontSize: "0.8em" }}
+                            >
+                              (
+                              {new Date(
+                                passage.created_at
+                              ).toLocaleDateString()}
+                              )
+                            </span>
                           </Typography>
 
                           <PassageEditor

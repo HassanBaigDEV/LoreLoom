@@ -77,7 +77,7 @@ export default function PlanStory({ params }) {
         `/plan/story-elements/${storyId}`,
         {
           params: {
-            user_id: user.id,
+            user_id: user?.id,
           },
         }
       );
@@ -120,7 +120,7 @@ export default function PlanStory({ params }) {
           genre: newGenre,
         },
         {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }
       );
 

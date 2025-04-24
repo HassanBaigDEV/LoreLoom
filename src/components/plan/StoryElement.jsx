@@ -104,7 +104,7 @@ export default function StoryElement({
             {
               new_character: formData,
             },
-            { params: { user_id: user.id } }
+            { params: { user_id: user?.id } }
           );
           updatedItem = response.data.character;
 
@@ -121,7 +121,7 @@ export default function StoryElement({
               character_name: formData.name,
               updated_character: formData,
             },
-            { params: { user_id: user.id } }
+            { params: { user_id: user?.id } }
           );
           updatedItem = response.data.character;
 
@@ -157,7 +157,7 @@ export default function StoryElement({
               },
               position: content?.length || 0,
             },
-            { params: { user_id: user.id } }
+            { params: { user_id: user?.id } }
           );
 
           updatedItem = response.data.outline_point;
@@ -180,7 +180,7 @@ export default function StoryElement({
                 number: String(formData.number),
               },
             },
-            { params: { user_id: user.id } }
+            { params: { user_id: user?.id } }
           );
           updatedItem = response.data.outline_point;
 
@@ -201,7 +201,7 @@ export default function StoryElement({
           {
             [field]: formData,
           },
-          { params: { user_id: user.id } }
+          { params: { user_id: user?.id } }
         );
 
         setStoryData((prev) => ({
@@ -233,7 +233,7 @@ export default function StoryElement({
       const response = await storyApiClient.get(
         `/plan/generate-${title.toLowerCase()}/${storyId}`,
         {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }
       );
 
@@ -316,7 +316,7 @@ export default function StoryElement({
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const params = { user_id: user.id };
+      const params = { user_id: user?.id };
       const data =
         itemType === "character"
           ? { character_name: itemId }
@@ -364,7 +364,7 @@ export default function StoryElement({
           [`new_${fieldName}`]: manualInput,
         },
         {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }
       );
 
@@ -392,7 +392,7 @@ export default function StoryElement({
         {
           character_name: characterName,
         },
-        { params: { user_id: user.id } }
+        { params: { user_id: user?.id } }
       );
 
       setStoryData((prev) => ({
@@ -728,7 +728,7 @@ export default function StoryElement({
             point_number: pointNumber,
           },
           {
-            params: { user_id: user.id },
+            params: { user_id: user?.id },
           }
         );
 
@@ -1563,7 +1563,7 @@ export default function StoryElement({
           continue_from_previous: continueFromPrevious,
         },
         {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }
       );
 
@@ -1611,7 +1611,7 @@ export default function StoryElement({
         {
           num_characters: count,
         },
-        { params: { user_id: user.id } }
+        { params: { user_id: user?.id } }
       );
 
       setStoryData((prev) => ({

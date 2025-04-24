@@ -49,7 +49,7 @@ export default function PassageEditor({ passage, onUpdate }) {
       if (!user?.id) throw new Error("User not found");
 
       await storyApiClient.put(`/draft/passage/${passage.passage_id}`, {
-        user_id: user.id,
+        user_id: user?.id,
         content,
       });
 
@@ -78,7 +78,7 @@ export default function PassageEditor({ passage, onUpdate }) {
         `/draft/passage/${passage.passage_id}`,
 
         {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }
       );
 

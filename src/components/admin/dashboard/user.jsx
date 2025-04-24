@@ -38,14 +38,16 @@ export default function UsersPage({ users = [], onUpdateRole }) {
           </TableHead>
           <TableBody>
             {users.map((user) => (
-              <TableRow key={user.id} hover>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.email}</TableCell>
+              <TableRow key={user?.id} hover>
+                <TableCell>{user?.username}</TableCell>
+                <TableCell>{user?.email}</TableCell>
                 <TableCell>
                   <FormControl size="small">
                     <Select
-                      value={user.role || 'user'}
-                      onChange={(e) => handleRoleChange(user.id, e.target.value)}
+                      value={user?.role || "user"}
+                      onChange={(e) =>
+                        handleRoleChange(user?.id, e.target.value)
+                      }
                       variant="outlined"
                       sx={{ minWidth: 120 }}
                     >
@@ -54,9 +56,9 @@ export default function UsersPage({ users = [], onUpdateRole }) {
                     </Select>
                   </FormControl>
                 </TableCell>
-                <TableCell>{user.stories?.length || 0}</TableCell>
+                <TableCell>{user?.stories?.length || 0}</TableCell>
                 <TableCell>
-                  {new Date(user.created_at).toLocaleDateString()}
+                  {new Date(user?.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <IconButton>

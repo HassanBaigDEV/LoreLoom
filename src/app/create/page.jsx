@@ -62,7 +62,7 @@ export default function CreatePage() {
           },
         });
       } else {
-        response = await storyApiClient.post(`/plan/create-story/${user.id}`, {
+        response = await storyApiClient.post(`/plan/create-story/${user?.id}`, {
           privacy: generatedContent.privacy,
           genre: generatedContent.genre,
           tone: generatedContent.tone,
