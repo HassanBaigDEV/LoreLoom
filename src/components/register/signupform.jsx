@@ -69,10 +69,11 @@ const SignUpForm = React.memo(() => {
           .required("Password is required.")
           .min(8, "Password must be at least 8 characters")
           .max(50, "Password must be less than 50 characters")
-          .matches(
-            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-            "Must contain at least one uppercase, lowercase, number, and special character"
-          ),
+          // .matches(
+          //   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+          //   "Must contain at least one uppercase, lowercase, number, and special character"
+          // ),
+          ,
         username: Yup.string()
           .required("Username is required.")
           .min(5, "Username should be of minimum 5 characters length"),
