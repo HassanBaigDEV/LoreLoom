@@ -6,6 +6,7 @@ from typing import Union
 from jose import JWTError, jwt
 from app.config.settings import settings, oauth2_scheme
 from app.config.database import db
+from bson import ObjectId
 
 
 password_resets_collection = db["password_resets"]
@@ -15,6 +16,9 @@ users_collection = db["users"]
 
 def create_access_token(data: dict):
     to_encode = data.copy()
+    # Convert ObjectId to string if it exists in the data
+    if "sub" in to_encode and isinstance(to_encode["sub"], ObjectId):
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
@@ -25,6 +29,9 @@ def create_access_token(data: dict):
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
+    # Convert ObjectId to string if it exists in the data
+    if "sub" in to_encode and isinstance(to_encode["sub"], ObjectId):
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.now() + timedelta(days=7)  # Refresh token valid for 7 days
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
@@ -53,10 +60,15 @@ async def verify_token(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Token has been blacklisted")
     # Proceed with other checks (e.g., user existence, expiration)
     user_id = payload["sub"]
-    user = await users_collection.find_one({"_id": user_id})
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return payload
+    try:
+        # Convert string user_id to ObjectId for MongoDB query
+        user_id_obj = ObjectId(user_id)
+        user = await users_collection.find_one({"_id": user_id_obj})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return payload
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid user ID format")
 
 
 def verify_refresh_token(refresh_token: str):
@@ -71,6 +83,9 @@ def verify_refresh_token(refresh_token: str):
 
 def create_verification_token(data: dict) -> str:
     to_encode = data.copy()
+    # Convert ObjectId to string if it exists in the data
+    if "sub" in to_encode and isinstance(to_encode["sub"], ObjectId):
+        to_encode["sub"] = str(to_encode["sub"])
     expire = datetime.now() + timedelta(minutes=20)  # Token valid for 24 hours
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

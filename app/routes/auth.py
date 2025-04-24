@@ -58,11 +58,13 @@ async def register(user: CreateUser, request: Request):
     user.password = hash_password(user.password)
     # user.role = "user"
     new_user = user.model_dump()
-    new_user["_id"] = ObjectId()
+
     new_user["created_at"] = datetime.now()
     new_user["updated_at"] = datetime.now()
 
-    await users_collection.insert_one(new_user)
+    # await users_collection.insert_one(new_user)
+    result = await users_collection.insert_one(new_user)
+    new_user["_id"] = str(result.inserted_id)  # Convert ObjectId to string if needed
 
     access_token = create_access_token(data={"sub": new_user["_id"]})
     refresh_token = create_refresh_token(data={"sub": new_user["_id"]})
@@ -167,17 +169,27 @@ async def verify_email(token: str):
         )
 
     user_id = payload.get("sub")
-    user = await users_collection.find_one({"_id": user_id})
-    if not user or user.get("is_verified"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User not found or already verified",
+    # Convert string user_id back to ObjectId for MongoDB query
+    try:
+        user_id_obj = ObjectId(user_id)
+        user = await users_collection.find_one({"_id": user_id_obj})
+        if not user or user.get("is_verified"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User not found or already verified",
+            )
+
+        # Mark the user as verified
+        await users_collection.update_one(
+            {"_id": user_id_obj}, {"$set": {"is_verified": True}}
         )
 
-    # Mark the user as verified
-    await users_collection.update_one({"_id": user_id}, {"$set": {"is_verified": True}})
-
-    return {"message": "Email successfully verified!"}
+        return {"message": "Email successfully verified!"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid user ID format: {str(e)}",
+        )
 
 
 @auth_router.post("/request-password-reset")
@@ -242,10 +254,21 @@ async def change_password(
     try:
         # Decode token directly
         # decoded_token = decode_token(token)
-        user_id = str(current_user["sub"])
+        user_id = current_user["sub"]
+
+        # Convert string user_id to ObjectId if needed
+        try:
+            if not isinstance(user_id, ObjectId):
+                user_id_obj = ObjectId(user_id)
+            else:
+                user_id_obj = user_id
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid user ID format: {str(e)}"
+            )
 
         # Get user from database
-        user = await users_collection.find_one({"_id": user_id})
+        user = await users_collection.find_one({"_id": user_id_obj})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
@@ -256,7 +279,7 @@ async def change_password(
         # Hash and update new password
         hashed_password = hash_password(request.new_password)
         await users_collection.update_one(
-            {"_id": user_id},
+            {"_id": user_id_obj},
             {"$set": {"password": hashed_password, "updated_at": datetime.now()}},
         )
 

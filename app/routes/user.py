@@ -24,7 +24,7 @@ users_collection = db["users"]
 @user_router.get("/me", response_model=UserResponse)
 async def get_my_profile(payload: dict = Depends(get_current_user)):
     try:
-        user_id = payload["sub"]
+        user_id = ObjectId(payload["sub"])
         user = await users_collection.find_one({"_id": user_id})
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -44,7 +44,7 @@ async def update_my_profile(
     payload: dict = Depends(get_current_user)
 ):
     try:
-        user_id = payload["sub"]
+        user_id = ObjectId(payload["sub"])
         
         # Check if username is being updated and is unique
         if update_data.username:
@@ -106,7 +106,7 @@ async def delete_my_account(
     payload: dict = Depends(get_current_user)
 ):
     try:
-        user_id = payload["sub"]
+        user_id = ObjectId(payload["sub"])
         result = await users_collection.delete_one({"_id": user_id})
         
         if result.deleted_count == 0:
@@ -139,7 +139,7 @@ async def update_profile_photo(
     payload: dict = Depends(get_current_user)
 ):
     try:
-        user_id = payload["sub"]
+        user_id = ObjectId(payload["sub"])
         
         # Read and encode the image
         contents = await photo.read()
@@ -184,7 +184,7 @@ async def remove_profile_photo(
     payload: dict = Depends(get_current_user)
 ):
     try:
-        user_id = payload["sub"]
+        user_id = ObjectId(payload["sub"])
         
         result = await users_collection.update_one(
             {"_id": user_id},
