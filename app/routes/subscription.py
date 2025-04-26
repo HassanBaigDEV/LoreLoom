@@ -18,38 +18,51 @@ subscriptions_collection = db["subscriptions"]
 
 
 def clean_subscription_data(subscription: dict) -> dict:
-    """Convert ObjectId and datetime fields to JSON-serializable types."""
     return {
         "_id": str(subscription.get("_id")) if subscription.get("_id") else None,
-        "user_id": str(subscription.get("user_id")) if subscription.get("user_id") else None,
+        "user_id": (
+            str(subscription.get("user_id")) if subscription.get("user_id") else None
+        ),
         "tier": subscription.get("tier"),
         "status": subscription.get("status"),
-        "start_date": subscription.get("start_date") if subscription.get("start_date") else None,
-        "end_date": subscription.get("end_date") if subscription.get("end_date") else None,
+        "start_date": (
+            subscription.get("start_date")
+            if subscription.get("start_date")
+            else None
+        ),
+        "end_date": (
+            subscription.get("end_date")
+            if subscription.get("end_date")
+            else None
+        ),
         "story_count": subscription.get("story_count"),
         "stripe_subscription_id": subscription.get("stripe_subscription_id"),
         "stripe_customer_id": subscription.get("stripe_customer_id"),
         "price_id": subscription.get("price_id"),
-        "created_at": subscription.get("created_at") if subscription.get("created_at") else None,
-        "updated_at": subscription.get("updated_at") if subscription.get("updated_at") else None,
+        "created_at": (
+            subscription.get("created_at")
+            if subscription.get("created_at")
+            else None
+        ),
+        "updated_at": (
+            subscription.get("updated_at")
+            if subscription.get("updated_at")
+            else None
+        ),
     }
 
 
 @subscription_router.get("/plans")
 async def get_subscription_plans():
-    """Get all available subscription plans"""
     return SUBSCRIPTION_PLANS
 
 
 @subscription_router.get("/my-subscription")
 async def get_my_subscription(current_user: dict = Depends(get_current_user)):
-    """Get current user's subscription"""
-    logger.info(f"Current user: {current_user}")
     user_oid = ObjectId(current_user["sub"])
     subscription = await subscriptions_collection.find_one({"user_id": user_oid})
 
     if not subscription:
-        # Create free subscription for new users
         subscription_data = {
             "user_id": user_oid,
             "tier": SubscriptionTier.FREE,
@@ -57,7 +70,7 @@ async def get_my_subscription(current_user: dict = Depends(get_current_user)):
             "start_date": datetime.now(),
             "story_count": 0,
             "created_at": datetime.now(),
-            "updated_at": datetime.now()
+            "updated_at": datetime.now(),
         }
         result = await subscriptions_collection.insert_one(subscription_data)
         subscription_data["_id"] = result.inserted_id
@@ -66,109 +79,61 @@ async def get_my_subscription(current_user: dict = Depends(get_current_user)):
     return clean_subscription_data(subscription)
 
 
-@subscription_router.post("/upgrade/{tier}")
-async def upgrade_subscription(
-    tier: SubscriptionTier,
-    current_user: dict = Depends(get_current_user)
-):
-    """Upgrade subscription to a new tier"""
-    if tier not in [SubscriptionTier.BASIC, SubscriptionTier.PREMIUM]:
-        raise HTTPException(status_code=400, detail="Invalid subscription tier")
-    user_oid = ObjectId(current_user["sub"])
-    new_subscription = {
-        "user_id": user_oid,
-        "tier": tier,
-        "status": SubscriptionStatus.ACTIVE,
-        "start_date": datetime.now(),
-        "end_date": datetime.now() + timedelta(days=30),
-        "story_count": 0,
-        "updated_at": datetime.now()
-    }
-    await subscriptions_collection.update_one(
-        {"user_id": user_oid},
-        {"$set": new_subscription},
-        upsert=True
-    )
-    return {"message": f"Successfully upgraded to {tier} plan"}
-
-
-@subscription_router.get("/check-limits")
-async def check_subscription_limits(current_user: dict = Depends(get_current_user)):
-    """Check current subscription limits"""
-    user_oid = ObjectId(current_user["sub"])
-    subscription = await subscriptions_collection.find_one({"user_id": user_oid})
-
-    if not subscription:
-        free_plan = SUBSCRIPTION_PLANS[SubscriptionTier.FREE]
-        return {
-            "can_generate": True,
-            "remaining_stories": free_plan["stories_per_month"],
-            "tier": SubscriptionTier.FREE
-        }
-
-    plan = SUBSCRIPTION_PLANS[subscription["tier"]]
-    remaining = plan["stories_per_month"] - subscription.get("story_count", 0)
-    return {
-        "can_generate": remaining > 0,
-        "remaining_stories": remaining,
-        "tier": subscription["tier"]
-    }
-
-
-@subscription_router.post("/increment-story-count")
-async def increment_story_count(current_user: dict = Depends(get_current_user)):
-    """Increment the story count for the current month"""
-    user_oid = ObjectId(current_user["sub"])
-    result = await subscriptions_collection.update_one(
-        {"user_id": user_oid},
-        {"$inc": {"story_count": 1}}
-    )
-    
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    return {"message": "Story count incremented"}
-
-
 @subscription_router.post("/create-checkout-session/{tier}")
 async def create_checkout_session(
-    tier: SubscriptionTier,
-    current_user: dict = Depends(get_current_user)
+    tier: SubscriptionTier, current_user: dict = Depends(get_current_user)
 ):
     """Create a Stripe checkout session for subscription"""
     if tier == SubscriptionTier.FREE:
-        raise HTTPException(status_code=400, detail="Cannot create checkout session for free tier")
+        raise HTTPException(
+            status_code=400, detail="Cannot create checkout session for free tier"
+        )
 
     user_oid = ObjectId(current_user["sub"])
     user = await db["users"].find_one({"_id": user_oid})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Create or retrieve Stripe customer
     stripe_customer_id = user.get("stripe_customer_id")
     if not stripe_customer_id:
         try:
             customer = stripe.Customer.create(
-                email=user["email"],
-                metadata={"user_id": current_user["sub"]}
+                email=user["email"], metadata={"user_id": current_user["sub"]}
             )
             await db["users"].update_one(
-                {"_id": user_oid},
-                {"$set": {"stripe_customer_id": customer.id}}
+                {"_id": user_oid}, {"$set": {"stripe_customer_id": customer.id}}
             )
             stripe_customer_id = customer.id
         except Exception as e:
             logger.error(f"Error creating Stripe customer: {e}")
-            raise HTTPException(status_code=500, detail="Failed to create Stripe customer")
+            raise HTTPException(
+                status_code=500, detail="Failed to create Stripe customer"
+            )
+
+    # 👇 NEW LOGIC: Cancel existing subscription if there is one
+    existing_subscription = await subscriptions_collection.find_one(
+        {"user_id": user_oid}
+    )
+
+    if existing_subscription and existing_subscription.get("stripe_subscription_id"):
+        try:
+            stripe.Subscription.modify(
+                existing_subscription["stripe_subscription_id"],
+                cancel_at_period_end=True,
+            )
+            logger.info(
+                f"Scheduled cancellation for subscription {existing_subscription['stripe_subscription_id']}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to cancel existing subscription: {e}")
 
     try:
         checkout_session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
             payment_method_types=["card"],
-            line_items=[{
-                "price": SUBSCRIPTION_PLANS[tier]["stripe_price_id"],
-                "quantity": 1,
-            }],
+            line_items=[
+                {"price": SUBSCRIPTION_PLANS[tier]["stripe_price_id"], "quantity": 1}
+            ],
             mode="subscription",
             success_url=f"{settings.FRONTEND_URL}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{settings.FRONTEND_URL}/subscription/cancel",
@@ -181,7 +146,6 @@ async def create_checkout_session(
 
 @subscription_router.post("/webhook")
 async def stripe_webhook(request: Request):
-    """Handle Stripe webhooks"""
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     if not sig_header:
@@ -192,75 +156,121 @@ async def stripe_webhook(request: Request):
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except SignatureVerificationError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid signature: {e}")
+        logger.error(f"Invalid Stripe signature: {e}")
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
 
-    # Dispatch event
-    if event.type == "checkout.session.completed":
-        session = event.data.object
-        await handle_successful_subscription(session)
-    elif event.type == "customer.subscription.created":
-        # Optionally handle subscription created
-        pass
-    elif event.type == "invoice.paid":
-        # Optionally handle invoice paid
-        pass
+    event_type = event["type"]
+    logger.info(f"Received Stripe event: {event_type}")
+
+    if event_type == "checkout.session.completed":
+        session = event["data"]["object"]
+        subscription_id = session.get("subscription")
+        if subscription_id:
+            await handle_successful_subscription(sub_id=subscription_id)
+
+    elif event_type == "customer.subscription.created":
+        subscription_obj = event["data"]["object"]
+        await handle_successful_subscription(stripe_obj=subscription_obj)
 
     return {"status": "success"}
 
 
-async def handle_successful_subscription(session):
-    """Handle successful subscription payment"""
-    customer_id = session.customer
-    subscription_id = session.subscription
+async def handle_successful_subscription(*, sub_id: str = "", stripe_obj=None):
+    if stripe_obj is None:
+        stripe_sub = stripe.Subscription.retrieve(sub_id)
+    else:
+        stripe_sub = stripe_obj
 
-    # Retrieve Stripe subscription details
-    stripe_sub = stripe.Subscription.retrieve(subscription_id)
-    price_id = stripe_sub.items.data[0].price.id
+    try:
+        price_id = stripe_sub["items"]["data"][0]["price"]["id"]
+    except Exception as e:
+        logger.error(f"Error extracting price id: {e}")
+        return
 
-    # Determine tier
+    tier = None
     if price_id == settings.STRIPE_BASIC_PRICE_ID:
         tier = SubscriptionTier.BASIC
     elif price_id == settings.STRIPE_PREMIUM_PRICE_ID:
         tier = SubscriptionTier.PREMIUM
     else:
-        raise HTTPException(status_code=400, detail="Unknown subscription tier")
+        logger.error(f"Unknown price_id: {price_id}")
+        return
 
-    # Find user by Stripe customer
+    customer_id = stripe_sub["customer"]
     user = await db["users"].find_one({"stripe_customer_id": customer_id})
     if not user:
-        raise HTTPException(status_code=404, detail="User not found for Stripe customer")
+        logger.error(f"User not found for customer {customer_id}")
+        return
     user_oid = user["_id"]
 
-    # Prepare subscription record
     subscription_data = {
         "user_id": user_oid,
         "tier": tier,
         "status": SubscriptionStatus.ACTIVE,
-        "stripe_subscription_id": subscription_id,
+        "stripe_subscription_id": stripe_sub["id"],
         "stripe_customer_id": customer_id,
-        "start_date": datetime.now(),
-        "end_date": datetime.fromtimestamp(stripe_sub.current_period_end),
+        "start_date": datetime.fromtimestamp(stripe_sub["current_period_start"]),
+        "end_date": datetime.fromtimestamp(stripe_sub["current_period_end"]),
         "story_count": 0,
         "price_id": price_id,
         "created_at": datetime.now(),
         "updated_at": datetime.now(),
     }
 
-    # Upsert subscription in DB
+    logger.info(f"Saving subscription: {subscription_data}")
     await subscriptions_collection.update_one(
-        {"user_id": user_oid},
-        {"$set": subscription_data},
-        upsert=True
+        {"user_id": user_oid}, {"$set": subscription_data}, upsert=True
     )
 
-    # Update user profile
     await db["users"].update_one(
         {"_id": user_oid},
-        {"$set": {
-            "subscription_tier": tier,
-            "subscription_status": SubscriptionStatus.ACTIVE,
-            "stripe_subscription_id": subscription_id
-        }}
+        {
+            "$set": {
+                "subscription_tier": tier,
+                "subscription_status": SubscriptionStatus.ACTIVE,
+                "stripe_subscription_id": stripe_sub["id"],
+            }
+        },
     )
 
-    return subscription_data
+
+# ✅ New: Cancel subscription
+@subscription_router.post("/cancel-subscription")
+async def cancel_subscription(current_user: dict = Depends(get_current_user)):
+    user_oid = ObjectId(current_user["sub"])
+    subscription = await subscriptions_collection.find_one({"user_id": user_oid})
+    if not subscription:
+        raise HTTPException(status_code=404, detail="No active subscription found")
+
+    stripe_subscription_id = subscription.get("stripe_subscription_id")
+    if stripe_subscription_id:
+        try:
+            stripe.Subscription.delete(stripe_subscription_id)
+        except Exception as e:
+            logger.error(f"Error canceling Stripe subscription: {e}")
+            raise HTTPException(
+                status_code=400, detail="Failed to cancel Stripe subscription"
+            )
+
+    # Update local DB
+    await subscriptions_collection.update_one(
+        {"user_id": user_oid},
+        {
+            "$set": {
+                "tier": SubscriptionTier.FREE,
+                "status": SubscriptionStatus.EXPIRED,
+                "updated_at": datetime.now(),
+            }
+        },
+    )
+    await db["users"].update_one(
+        {"_id": user_oid},
+        {
+            "$set": {
+                "subscription_tier": SubscriptionTier.FREE,
+                "subscription_status": SubscriptionStatus.EXPIRED,
+            }
+        },
+    )
+
+    return {"message": "Subscription cancelled and downgraded to Free plan."}
