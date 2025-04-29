@@ -1,7 +1,7 @@
 from re import M
 from turtle import st
 from fastapi import APIRouter, HTTPException, Body
-from typing import List, Dict, Optional
+from typing import List, Dict, Any, Optional
 from bson import ObjectId
 from regex import P
 from app.models.story import Story
@@ -47,11 +47,11 @@ class TitleUpdate(BaseModel):
 
 
 class PremiseUpdate(BaseModel):
-    premise: str
+    new_premise: str
 
 
 class SettingUpdate(BaseModel):
-    setting: str
+    new_setting: str
 
 
 class CharacterUpdate(BaseModel):
@@ -387,12 +387,13 @@ async def edit_premise(story_id: str, user_id: str, data: PremiseUpdate):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"premise": data.premise, "updated_at": datetime.now()}},
+            {"$set": {"premise": data.new_premise, "updated_at": datetime.now()}},
         )
-        return {"message": "Premise updated successfully", "premise": data.premise}
+        return {"message": "Premise updated successfully", "premise": data.new_premise}
     except Exception as e:
         logger.error(f"Error updating premise: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.put("/update-setting/{story_id}")
@@ -406,15 +407,15 @@ async def edit_setting(story_id: str, user_id: str, data: SettingUpdate):
 
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"setting": data.setting, "updated_at": datetime.now()}},
+            {"$set": {"setting": data.new_setting, "updated_at": datetime.now()}},
         )
-        return {"message": "Setting updated successfully", "setting": data.setting}
+        return {"message": "Setting updated successfully", "setting": data.new_setting}
     except Exception as e:
         logger.error(f"Error updating setting: {e}")
         return HTTPException(status_code=500, detail=str("Unexpected error occoured"))
 
 
-@router.put("/edit-character/{story_id}")
+@router.put("/update-character/{story_id}")
 async def edit_character(story_id: str, user_id: str, data: CharacterUpdate):
     try:
         story = await stories.find_one(
@@ -445,7 +446,7 @@ async def edit_character(story_id: str, user_id: str, data: CharacterUpdate):
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/edit-outline-point/{story_id}")
+@router.put("/update-outline-point/{story_id}")
 async def edit_outline_point(story_id: str, user_id: str, data: OutlinePointUpdate):
     try:
         logger.info(f"Editing outline point: {data}")

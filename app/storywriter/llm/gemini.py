@@ -22,7 +22,7 @@ class GeminiClient:
             "HTTP-Referer": os.getenv("SITE_URL", "http://localhost:3000"),
             "X-Title": os.getenv("SITE_NAME", "StoryWriter"),
         }
-        self.model = "google/gemini-2.0-flash-thinking-exp:free"
+        self.model = "google/gemini-2.0-flash-exp:free"
 
     def __call__(self, prompt: str, **kwargs) -> dict:
         try:

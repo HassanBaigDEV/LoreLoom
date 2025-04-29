@@ -2,7 +2,7 @@ import logging
 import json
 import json5
 from pydoc import classname
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Dict, Any, Optional, Tuple, Union
 from bson import ObjectId
 from pymongo import UpdateOne
 from datetime import datetime
@@ -85,11 +85,13 @@ class DraftGenerator:
 
     async def retrieve_relevant_context(self, outline_point_id: str) -> PassageContext:
         """Retrieve relevant context for the current outline point"""
-        story = await self.load_plan_data()
-
         try:
-            # Find specific outline point
-            outline = story.get("outline", [])
+            # Load the story data and fetch the outline
+            story = await stories.find_one({"story_id": ObjectId(self.story_id)}, {"outline": 1})
+            if not story or "outline" not in story:
+                raise ValueError("Story or outline data not found")
+
+            outline = story["outline"]
             current_point = next(
                 (
                     point
@@ -98,23 +100,35 @@ class DraftGenerator:
                 ),
                 None,
             )
+
             if not current_point:
                 raise ValueError(f"Outline point {outline_point_id} not found")
 
-            # Get characters from outline point first
+            # Determine if we are at the first outline point or first in the story
+            is_first_in_story = await self._is_first_in_story(outline_point_id)
+            is_first_in_outline = await self._is_first_in_outline(outline_point_id)
+
+            # Fetch recent passages based on the current context
+            if is_first_in_story:
+                recent_passages = []
+            elif not is_first_in_story and is_first_in_outline:
+                # If not, fetch previous passages based on outline context
+                recent_passages = await self._get_previous_outline_passages(outline_point_id)
+            elif not is_first_in_outline and not is_first_in_story:
+                recent_passages = await self._get_recent_passages_for_outline(outline_point_id)
+
+            # Get characters from the outline point
             character_contexts = await self._get_outline_characters(current_point)
 
-            # Get recent passages
-            recent_passages = await self._get_recent_passages()
-
             # Add relevant characters from recent passages
+            logger.info(f"Test FIO: {is_first_in_outline}")
+            logger.info(f"Test FIS: {is_first_in_story}")
+            logger.info(f"Test response: {recent_passages}")
             if recent_passages:
                 recent_passage_text = recent_passages[0]["content"]
-                additional_chars = await self._get_relevant_characters(
-                    recent_passage_text
-                )
+                additional_chars = await self._get_relevant_characters(recent_passage_text)
 
-                # Add only characters not already included
+                # Only add characters not already included in character_contexts
                 existing_names = {char["name"] for char in character_contexts}
                 character_contexts.extend(
                     char
@@ -128,16 +142,71 @@ class DraftGenerator:
                 genre=story.get("genre", ""),
                 relevant_characters=character_contexts,
                 previous_summaries=(
-                    [p.get("summary", "") for p in recent_passages]
-                    if recent_passages
-                    else []
+                    [p.get("summary", "") for p in recent_passages] if recent_passages else []
                 ),
                 recent_passage=recent_passages[0]["content"] if recent_passages else "",
                 current_outline=current_point,
             )
+
         except Exception as e:
             logger.error(f"Error retrieving context: {e}")
             raise ValueError(f"Failed to retrieve context: {e}")
+
+    # async def retrieve_relevant_context(self, outline_point_id: str) -> PassageContext:
+    #     """Retrieve relevant context for the current outline point"""
+    #     story = await self.load_plan_data()
+
+    #     try:
+    #         # Find specific outline point
+    #         outline = story.get("outline", [])
+    #         current_point = next(
+    #             (
+    #                 point
+    #                 for point in outline
+    #                 if str(point.get("number")) == outline_point_id
+    #             ),
+    #             None,
+    #         )
+    #         if not current_point:
+    #             raise ValueError(f"Outline point {outline_point_id} not found")
+
+    #         # Get characters from outline point first
+    #         character_contexts = await self._get_outline_characters(current_point)
+
+    #         # Get recent passages
+    #         recent_passages = await self._get_recent_passages()
+
+    #         # Add relevant characters from recent passages
+    #         if recent_passages:
+    #             recent_passage_text = recent_passages[0]["content"]
+    #             additional_chars = await self._get_relevant_characters(
+    #                 recent_passage_text
+    #             )
+
+    #             # Add only characters not already included
+    #             existing_names = {char["name"] for char in character_contexts}
+    #             character_contexts.extend(
+    #                 char
+    #                 for char in additional_chars
+    #                 if char["name"] not in existing_names
+    #             )
+
+    #         return PassageContext(
+    #             premise=story.get("premise", ""),
+    #             setting=story.get("setting", ""),
+    #             genre=story.get("genre", ""),
+    #             relevant_characters=character_contexts,
+    #             previous_summaries=(
+    #                 [p.get("summary", "") for p in recent_passages]
+    #                 if recent_passages
+    #                 else []
+    #             ),
+    #             recent_passage=recent_passages[0]["content"] if recent_passages else "",
+    #             current_outline=current_point,
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"Error retrieving context: {e}")
+    #         raise ValueError(f"Failed to retrieve context: {e}")
 
     async def _get_recent_passages(self, limit: int = 3) -> List[Dict]:
         """Get recent passages with batch query"""
@@ -261,16 +330,25 @@ class DraftGenerator:
             f"### {title} ###\n{content}" for title, content in sorted_sections
         )
 
+        # Context-aware instruction for continuation
+        continuation_instruction = (
+            "Continue the story from where the previous passage left off, ensuring consistency in tone, pacing, and character development."
+            if context.recent_passage
+            else "Start the story at the current outline point, using the provided context to guide the tone and direction."
+        )
+
         prompt = f"""
         <|im_start|>system
-        You are a creative writer tasked with generating the next passage of a story. Write a detailed and engaging passage 
-        that follows the outline point and maintains consistency with the story context.
+        You are a skilled fiction author writing the next passage in a structured narrative. Use the story context below to craft a vivid, immersive, and coherent continuation.
+
+        {continuation_instruction}
+
         
         Story Context:
         {prompt_sections}
         
         Write a passage that:
-        1. Advances the story according to the outline point
+        1. Advances the story according to the outline point and context
         2. Maintains consistency with previous events
         3. Develops the characters naturally
         4. Creates vivid and engaging scenes
@@ -504,6 +582,183 @@ class DraftGenerator:
         except Exception as e:
             logger.error(f"LLM test failed: {e}")
             return False
+
+    # async def generate_passages_wS(self, outline_point_id: str, num_variations: int = 3) -> List[Dict[str, Any]]:
+    #     """Generate passages, score them, and return the top 2 to frontend"""
+    #     try:
+    #         logger.info(f"Starting passage generation for outline point {outline_point_id}")
+    #         context = await self.retrieve_relevant_context(outline_point_id)
+    #         base_prompt = self.prepare_prompt(context)
+
+    #         logit_bias = get_logit_bias()
+
+    #         generation_tasks = []
+    #         for i in range(num_variations):
+    #             kwargs = {
+    #                 "max_tokens": None,
+    #                 "temperature": 1.2,
+    #                 "top_p": 0.9,
+    #                 "frequency_penalty": 0.3,
+    #             }
+    #             task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
+    #             generation_tasks.append(task)
+
+    #         raw_passages_results = await asyncio.gather(*generation_tasks)
+    #         raw_passages = [p for p in raw_passages_results if p]
+
+    #         if not raw_passages:
+    #             raise ValueError("Failed to generate valid passages")
+
+    #         passage_tasks = [
+    #             PassageProcessor.process_passage(
+    #                 text,
+    #                 self.story_id,
+    #                 outline_point_id,
+    #                 self._generate_summary,
+    #                 self._extract_entities,
+    #             )
+    #             for text in raw_passages if text.strip()
+    #         ]
+
+    #         processed_passages = await asyncio.gather(*passage_tasks)
+    #         passages = [p for p in processed_passages if p is not None]
+
+    #         if not passages:
+    #             raise ValueError("Failed to generate any valid passages")
+
+    #         logger.info(f"Scoring {len(passages)} passages")
+    #         scored_passages = await rewriter.score_passages(passages, context)
+
+    #         # Sort by score descending
+    #         scored_passages.sort(key=lambda x: x[1], reverse=True)
+
+    #         # Pick top 2
+    #         top_passages = scored_passages[:2]
+
+    #         logger.info(f"Returning top {len(top_passages)} passages to frontend")
+
+    #         return [
+    #             {
+    #                 **passage.__dict__,  # Unpacks all fields of the passage
+    #                 "score": score        # Adds score as a separate key
+    #             }
+    #             for passage, score in top_passages
+    #         ]
+
+
+    #     except Exception as e:
+    #         logger.error(f"Error generating passages: {e}", exc_info=True)
+    #         raise
+
+    async def _is_first_in_story(self, outline_point_id: str) -> bool:
+        """Check if the current passage is the first in the story"""
+        all_passages = await passage_collection.find({"story_id": self.story_id}).to_list(length=1000)
+
+        # Sort passages by outline and creation date (descending)
+        all_passages.sort(key=lambda x: (x["outline_point_id"], x["created_at"]))
+
+        return len(all_passages) == 0
+
+    async def _is_first_in_outline(self, outline_point_id: str) -> bool:
+        """Check if the current passage would be the first in the outline point."""
+        all_passages = await passage_collection.find({"story_id": self.story_id, "outline_point_id": outline_point_id}).to_list(length=1)
+        
+        # If no passages exist for this outline point yet, it is the first
+        return len(all_passages) == 0
+
+    async def generate_passages_wS(self, outline_point_id: str, num_variations: int = 3) -> List[Dict[str, Any]]:
+        """Generate passages, score them, and return the top 2 to frontend, with improved relevance handling."""
+        try:
+            logger.info(f"Starting passage generation for outline point {outline_point_id}")
+            context = await self.retrieve_relevant_context(outline_point_id)
+            base_prompt = self.prepare_prompt(context)
+
+            generation_tasks = []
+
+            # Generate variations of the passage
+            for i in range(num_variations):
+                kwargs = {
+                    "max_tokens": None,
+                    "temperature": 1.2,
+                    "top_p": 0.9,
+                    "frequency_penalty": 0.3,
+                }
+                task = retry_generation(lambda: self._generate(base_prompt, **kwargs))
+                generation_tasks.append(task)
+
+            raw_passages_results = await asyncio.gather(*generation_tasks)
+            raw_passages = [p for p in raw_passages_results if p]
+
+            if not raw_passages:
+                raise ValueError("Failed to generate valid passages")
+
+            passage_tasks = [
+                PassageProcessor.process_passage(
+                    text,
+                    self.story_id,
+                    outline_point_id,
+                    self._generate_summary,
+                    self._extract_entities,
+                )
+                for text in raw_passages if text.strip()
+            ]
+
+            processed_passages = await asyncio.gather(*passage_tasks)
+            passages = [p for p in processed_passages if p is not None]
+
+            if not passages:
+                raise ValueError("Failed to generate any valid passages")
+
+            logger.info(f"Scoring {len(passages)} passages")
+            scored_passages = await rewriter.score_passages(passages, context)
+
+            # Sort by score descending
+            scored_passages.sort(key=lambda x: x[1], reverse=True)
+
+            # Pick top 2
+            top_passages = scored_passages[:2]
+
+            logger.info(f"Returning top {len(top_passages)} passages to frontend")
+
+            return [
+                {
+                    **passage.__dict__,  # Unpacks all fields of the passage
+                    "score": score        # Adds score as a separate key
+                }
+                for passage, score in top_passages
+            ]
+
+        except Exception as e:
+            logger.error(f"Error generating passages: {e}", exc_info=True)
+            raise
+
+    async def _get_previous_outline_passages(self, outline_point_id: str, limit: int = 3) -> List[Dict]:
+        """Fetch previous passages for a specific outline point"""
+        story = await stories.find_one({"story_id": ObjectId(self.story_id)}, {"outline": 1})
+        
+        if not story or "outline" not in story:
+            return []  
+
+        outline_points = story["outline"] 
+        previous_outline_points = [
+            point for point in outline_points if point["number"] == str(int(outline_point_id) - 1)
+        ]
+        
+        if previous_outline_points:
+            previous_outline_point = previous_outline_points[0]
+            return await self._get_recent_passages_for_outline(previous_outline_point["number"], limit)
+        
+        return []  # Return empty if no previous outline point found
+
+    async def _get_recent_passages_for_outline(self, outline_point_id: str, limit: int = 3) -> List[Dict]:
+        """Fetch recent passages for a given outline point. Return all if fewer than `limit` exist."""
+        pipeline = [
+            {"$match": {"story_id": self.story_id, "outline_point_id": outline_point_id}},
+            {"$sort": {"created_at": -1}},
+        ]
+        results = await passage_collection.aggregate(pipeline).to_list(length=None)
+        return results[:limit] if len(results) >= limit else results
+
 
     async def generate_passages(self, outline_point_id: str, num_variations: int = 3) -> GeneratedPassage:
         """Generate multiple variations of a passage efficiently"""

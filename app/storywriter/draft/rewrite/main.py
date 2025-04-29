@@ -326,6 +326,50 @@ class PassageRewriter:
 
         return float(round((length_score * 0.4 + cohesion_score * 0.6), 4))
 
+    # New method in rewriter
+    async def score_passages(
+        self, passages: List[GeneratedPassage], context: PassageContext
+    ) -> List[Tuple[GeneratedPassage, float]]:
+        """Score all passages individually and return list with their scores"""
+
+        async def score_passage(passage: GeneratedPassage) -> Tuple[GeneratedPassage, float]:
+            text = passage.content
+            outline = (
+                " ".join(str(v) for v in context.current_outline.values())
+                if isinstance(context.current_outline, dict)
+                else str(context.current_outline)
+            )
+
+            coherence = self.calculate_semantic_coherence(text, context.recent_passage, force_scalar=True)
+            if isinstance(coherence, (list, tuple)):
+                coherence = float(coherence[0]) if coherence else 0.0
+            coherence = float(coherence)
+
+            scores = {
+                "coherence": coherence,
+                "relevance": self._calculate_relevance(text, outline),
+                "repetition": self._detect_repetition(text, context.recent_passage or ""),
+                "perspective": self._check_narrative_perspective(text),
+                "flow": self.calculate_coherence_flow(text),
+                "readability": self._calculate_readability(text),
+            }
+
+            total = (
+                scores["coherence"] * 0.25
+                + scores["relevance"] * 0.25
+                + scores["repetition"] * 0.2
+                + scores["perspective"] * 0.1
+                + scores["flow"] * 0.1
+                + scores["readability"] * 0.1
+            )
+
+            if scores["repetition"] < 0.3 or scores["perspective"] < 0.4:
+                total *= 0.2
+
+            return passage, total
+
+        return await asyncio.gather(*(score_passage(p) for p in passages))
+
     async def rewrite(
         self, passages: List[GeneratedPassage], context: PassageContext
     ) -> GeneratedPassage:

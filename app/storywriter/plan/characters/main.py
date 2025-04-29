@@ -262,7 +262,7 @@ async def generate_characters(story_id: str, num_characters: int) -> List[Dict]:
         raise
 
 
-# Process characters JSON stringapp/storywriter/plan/characters/main.py
+# Process characters JSON stringapp/storywritercharacters/main.py
 def process_characters_json(characters_json: str) -> List[Dict]:
     try:
         characters_list = json.loads(characters_json)

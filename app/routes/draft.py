@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Dict, Optional
+from typing import List, Dict, Any, Optional
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 import logging
@@ -233,6 +233,51 @@ async def test_llm():
         return HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/prefer-passage/{story_id}")
+async def prefer_passage(story_id: str, passage: Passage):
+    """Save the preferred passage for a specific story"""
+    try:
+        # Validate story ownership (Optional but recommended security)
+
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id)}
+        )
+        if not story:
+            logger.error(f"Story {story_id} not found")
+            raise HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
+
+        # Prepare the passage document
+        passage_document = {
+            "passage_id": str(ObjectId()), 
+            "story_id": story_id, 
+            "outline_point_id": passage.outline_point_id,  
+            "content": passage.content,  
+            "summary": passage.summary,
+            "mentioned_entities": passage.mentioned_entities,
+            "created_at": datetime.now(),  
+        }
+
+        # Save the passage to the database
+        result = await passages.insert_one(passage_document)
+
+        # Initialize draft generator (optional step, depending on the requirement)
+        draft_gen = DraftGenerator(story_id)
+
+        return {
+            "message": "Preferred passage saved successfully.",
+            "passage_id": passage.passage_id  # Return the inserted passage_id if needed
+        }
+
+    except ValueError as ve:
+        logger.error(f"ValueError: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error saving preferred passage: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error") 
+
+
 @router.post("/generate-passages/{story_id}")
 async def generate_passages(story_id: str, outline_point_id: str, user_id: str, num_variations: int = 3):
     """Generate multiple passage variations for a specific outline point"""
@@ -253,17 +298,50 @@ async def generate_passages(story_id: str, outline_point_id: str, user_id: str, 
         # Generate passages
         passages = await draft_gen.generate_passages(outline_point_id, num_variations)
         
-        return passages
-        # return {
-        #     "passages": [p.model_dump() for p in passages],
-        #     "message": "Multiple passages generated successfully",
-        # }
+        # return passages
+        return {
+            "passages": passages,
+            "message": "Multiple passages generated successfully",
+        }
     except ValueError as ve:
         logger.error(f"ValueError: {ve}")
         return HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error generating passages: {e}")
         return HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/generate-passages-wS/{story_id}")
+async def generate_passages_wS(story_id: str, outline_point_id: str, user_id: str, num_variations: int = 3):
+    """Generate multiple passage variations for a specific outline point with Option for user """
+    try:
+        # Validate story ownership
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            logger.error(f"Story {story_id} not found or unauthorized")
+            raise HTTPException(
+                status_code=404, detail="Story not found or unauthorized"
+            )
+
+        # Initialize draft generator
+        draft_gen = DraftGenerator(story_id)
+
+        # Generate passages
+        passages = await draft_gen.generate_passages_wS(outline_point_id, num_variations)
+        
+        return {
+            "passages": passages,
+            "message": "Multiple passages generated successfully"
+        }
+
+    except ValueError as ve:
+        logger.error(f"ValueError: {ve}")
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error generating passages: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post("/generate-passage/{story_id}")
