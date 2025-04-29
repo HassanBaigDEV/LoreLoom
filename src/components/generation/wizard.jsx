@@ -78,15 +78,65 @@ export default function PassageCreationWizard({
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      await storyApiClient.post(`/draft/generate-passages/${storyId}`, null, {
+      const response = await storyApiClient.post(`/draft/generate-passages/${storyId}`, null, {
         params: {
           user_id: user.id,
           outline_point_id: selectedOutline,
         },
       });
+      
+      // Get the selected outline
+      const selectedOutlineData = outlinePoints.find(o => o.number === selectedOutline);
+      
+      // Check if the response contains the expected data format
+      if (response.data && response.data.passages && Array.isArray(response.data.passages)) {
+        // Pass all generated passages and outline data to the callback
+        onPassageCreated(response.data.passages, selectedOutlineData);
+        toast.success(response.data.message || "Passages created successfully!");
+      } else {
+        // Fallback to refresh if no data returned in expected format
+        onPassageCreated();
+        toast.success("Passage created!");
+      }
+      
+      handleClose();
+    } catch (error) {
+      console.error("Error creating passage:", error);
+      toast.error("Failed to create passage");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      toast.success("New passage created!");
-      onPassageCreated();
+  const handleCreatePassageS = async () => {
+    if (!selectedOutline) return;
+    
+    setLoading(true);
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user?.id) throw new Error("User not found");
+
+      const response = await storyApiClient.post(`/draft/generate-passages-wS/${storyId}`, null, {
+        params: {
+          user_id: user.id,
+          outline_point_id: selectedOutline,
+        },
+      });
+      
+      // Get the selected outline
+      const selectedOutlineData = outlinePoints.find(o => o.number === selectedOutline);
+      
+      // Check if the response contains the expected data format
+      if (response.data && response.data.passages && Array.isArray(response.data.passages)) {
+        // Pass all generated passages and outline data to the callback
+        onPassageCreated(response.data.passages, selectedOutlineData);
+        toast.success(response.data.message || "Passages created successfully!");
+      } else {
+        // Fallback to refresh if no data returned in expected format
+        onPassageCreated();
+        toast.success("Passage created!");
+      }
+      
       handleClose();
     } catch (error) {
       console.error("Error creating passage:", error);
@@ -103,6 +153,7 @@ export default function PassageCreationWizard({
     onClose();
   };
 
+  // Dialog content remains the same as in your original component
   return (
     <Dialog 
       open={open} 
@@ -135,7 +186,7 @@ export default function PassageCreationWizard({
         {step === 1 && (
           <>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-              Step 1: Select an outline for your passage
+              Select an outline for your passage
             </Typography>
             
             <Grid container spacing={2}>
@@ -210,7 +261,7 @@ export default function PassageCreationWizard({
         {step === 2 && (
           <>
             <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-              Step 2: Confirm passage creation
+              Confirm passage creation
             </Typography>
             
             <Paper elevation={1} sx={{ p: 3, mb: 3, bgcolor: 'rgba(34, 197, 94, 0.05)' }}>
@@ -226,7 +277,7 @@ export default function PassageCreationWizard({
             </Paper>
             
             <Typography variant="body2" color="text.secondary">
-              Your new passage will be generated based on this outline point. You'll be able to edit it once it's created.
+              Your passage will be generated based on this outline point. Multiple versions may be created for you to choose from.
             </Typography>
           </>
         )}
@@ -257,6 +308,7 @@ export default function PassageCreationWizard({
         )}
         
         {step === 2 && (
+          <>
           <Button
             variant="contained"
             onClick={handleCreatePassage}
@@ -273,9 +325,29 @@ export default function PassageCreationWizard({
                 Creating...
               </>
             ) : (
-              'Create Passage'
+              'Generate Passage'
             )}
           </Button>
+          <Button
+            variant="contained"
+            onClick={handleCreatePassageS}
+            disabled={loading}
+            sx={{
+              bgcolor: 'rgb(34 197 94)',
+              '&:hover': { bgcolor: 'rgb(22 163 74)' },
+              '&.Mui-disabled': { bgcolor: 'rgba(34, 197, 94, 0.5)' },
+            }}
+          >
+            {loading ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Creating...
+              </>
+            ) : (
+              'Generate Choice'
+            )}
+          </Button>
+          </>
         )}
       </DialogActions>
     </Dialog>
