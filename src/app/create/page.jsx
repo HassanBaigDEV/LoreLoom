@@ -55,14 +55,14 @@ export default function CreatePage() {
       if (generationMode === "manual") {
         response = await storyApiClient.post("/stories", null, {
           params: {
-            user_id: user.id,
+            user_id: user?.id,
             title: generatedContent?.title || "Untitled Story",
             genre: generatedContent?.genre || "Other",
             privacy: manualPrivacy,
           },
         });
       } else {
-        response = await storyApiClient.post(`/plan/create-story/${user.id}`, {
+        response = await storyApiClient.post(`/plan/create-story/${user?.id}`, {
           privacy: generatedContent.privacy,
           genre: generatedContent.genre,
           tone: generatedContent.tone,

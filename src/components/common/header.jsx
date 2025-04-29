@@ -167,7 +167,7 @@ function Header() {
                 <Tooltip title="Account settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                     <Avatar
-                      alt={user.username}
+                      alt={user?.username}
                       src={user?.photo}
                       sx={{
                         bgcolor: "rgb(34 197 94)",
@@ -177,7 +177,7 @@ function Header() {
                         height: 40,
                       }}
                     >
-                      {!user.photo && user.username?.[0]?.toUpperCase()}
+                      {!user?.photo && user?.username?.[0]?.toUpperCase()}
                     </Avatar>
                   </IconButton>
                 </Tooltip>

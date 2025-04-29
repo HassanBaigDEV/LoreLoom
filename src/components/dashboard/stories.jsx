@@ -25,7 +25,7 @@ export default function Stories() {
 
   useEffect(() => {
     if (user?.id) {
-      fetchStories(user.id).finally(() => setIsLoading(false));
+      fetchStories(user?.id).finally(() => setIsLoading(false));
     }
   }, [user]);
 
@@ -124,7 +124,7 @@ export default function Stories() {
                     {story.title.split(":")[0].replace(/^"|"$/g, "")}
                   </h3>
                   <p className="text-xs text-green-200/80">
-                    Read story by {user.last_name}
+                    Read story by {user?.last_name}
                   </p>
                 </div>
               </div>

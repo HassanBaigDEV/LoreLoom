@@ -82,13 +82,13 @@ export default function PassagePage({ params }) {
       const [passagesResponse, countResponse] = await Promise.all([
         storyApiClient.get(`/draft/passages/${storyId}`, {
           params: {
-            user_id: user.id,
+            user_id: user?.id,
             limit: ITEMS_PER_PAGE,
             skip: (page - 1) * ITEMS_PER_PAGE,
           },
         }),
         storyApiClient.get(`/draft/passages/${storyId}/count`, {
-          params: { user_id: user.id },
+          params: { user_id: user?.id },
         }),
       ]);
 
@@ -97,7 +97,9 @@ export default function PassagePage({ params }) {
           const outlineDiff =
             parseInt(a.outline_number) - parseInt(b.outline_number);
           if (outlineDiff !== 0) return outlineDiff;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         })
         .reverse();
 
@@ -116,9 +118,12 @@ export default function PassagePage({ params }) {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
-        params: { user_id: user.id },
-      });
+      const response = await storyApiClient.get(
+        `/plan/story-elements/${storyId}`,
+        {
+          params: { user_id: user?.id },
+        }
+      );
       setStoryElements(response.data);
     } catch (error) {
       console.error("Error fetching story elements:", error);
@@ -126,7 +131,7 @@ export default function PassagePage({ params }) {
   }, [storyId]);
 
   useEffect(() => {
-    fetchStoryElements(); 
+    fetchStoryElements();
     fetchPassages();
   }, [fetchPassages, fetchStoryElements]);
 

@@ -38,11 +38,7 @@ export default function Feedback() {
               </a>
             </p>
           </div>
-          <Image
-            src={token}
-            alt="Feedback icon"
-            className="w-3/6"
-          />
+          <Image src={token} alt="Feedback icon" className="w-3/6" />
         </div>
       </div>
 

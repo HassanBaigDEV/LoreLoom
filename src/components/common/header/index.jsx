@@ -1,7 +1,7 @@
 "use client";
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
+import React, { useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AppBar,
   Box,
@@ -21,24 +21,24 @@ import {
   useMediaQuery,
   useTheme,
   Backdrop,
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import HomeIcon from '@mui/icons-material/Home';
-import FeaturesIcon from '@mui/icons-material/Stars';
-import PricingIcon from '@mui/icons-material/Payment';
-import InfoIcon from '@mui/icons-material/Info';
-import CloseIcon from '@mui/icons-material/Close';
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import HomeIcon from "@mui/icons-material/Home";
+import FeaturesIcon from "@mui/icons-material/Stars";
+import PricingIcon from "@mui/icons-material/Payment";
+import InfoIcon from "@mui/icons-material/Info";
+import CloseIcon from "@mui/icons-material/Close";
 
 export default function Header() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { user, logout } = useAuth();
-  
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [featuresAnchor, setFeaturesAnchor] = useState(null);
-  
+
   const handleUserMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -57,33 +57,40 @@ export default function Header() {
   };
 
   const navigationItems = [
-    { 
-      label: 'Features',
+    {
+      label: "Features",
       icon: <FeaturesIcon />,
-      items: ['AI Story Generation', 'Story Planning', 'Collaboration', 'Export Options'],
-      href: '#features'
+      items: [
+        "AI Story Generation",
+        "Story Planning",
+        "Collaboration",
+        "Export Options",
+      ],
+      href: "#features",
     },
-    { label: 'Pricing', href: '/subscription' },
-    { label: 'How it works', href: '/about' },
+    { label: "Pricing", href: "/subscription" },
+    { label: "How it works", href: "/about" },
   ];
 
   const drawer = (
-    <Box 
-      sx={{ 
+    <Box
+      sx={{
         width: 280,
-        height: '100%',
-        background: 'rgba(255, 255, 255, 0.9)',
-        backdropFilter: 'blur(10px)',
-      }} 
+        height: "100%",
+        background: "rgba(255, 255, 255, 0.9)",
+        backdropFilter: "blur(10px)",
+      }}
       role="presentation"
     >
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        p: 2,
-        borderBottom: '1px solid rgba(0,0,0,0.12)'
-      }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          p: 2,
+          borderBottom: "1px solid rgba(0,0,0,0.12)",
+        }}
+      >
         <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
           StoryWeaver
         </Typography>
@@ -99,48 +106,48 @@ export default function Header() {
               <>
                 <ListItem sx={{ mb: 1 }}>
                   <ListItemIcon>{item.icon}</ListItemIcon>
-                  <ListItemText 
+                  <ListItemText
                     primary={item.label}
                     primaryTypographyProps={{ fontWeight: 500 }}
                   />
                 </ListItem>
                 {item.items.map((subItem) => (
-                  <ListItem 
-                    key={subItem} 
-                    button 
-                    sx={{ 
+                  <ListItem
+                    key={subItem}
+                    button
+                    sx={{
                       pl: 6,
                       mb: 1,
                       borderRadius: 1,
-                      '&:hover': {
-                        backgroundColor: 'rgba(0,0,0,0.04)'
-                      }
+                      "&:hover": {
+                        backgroundColor: "rgba(0,0,0,0.04)",
+                      },
                     }}
                     onClick={() => setMobileOpen(false)}
                   >
-                    <ListItemText 
+                    <ListItemText
                       primary={subItem}
-                      primaryTypographyProps={{ fontSize: '0.9rem' }}
+                      primaryTypographyProps={{ fontSize: "0.9rem" }}
                     />
                   </ListItem>
                 ))}
               </>
             ) : (
-              <ListItem 
-                button 
-                component={Link} 
+              <ListItem
+                button
+                component={Link}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                sx={{ 
+                sx={{
                   mb: 1,
                   borderRadius: 1,
-                  '&:hover': {
-                    backgroundColor: 'rgba(0,0,0,0.04)'
-                  }
+                  "&:hover": {
+                    backgroundColor: "rgba(0,0,0,0.04)",
+                  },
                 }}
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText 
+                <ListItemText
                   primary={item.label}
                   primaryTypographyProps={{ fontWeight: 500 }}
                 />
@@ -151,19 +158,19 @@ export default function Header() {
       </List>
 
       {!user && (
-        <Box sx={{ p: 2, mt: 'auto' }}>
+        <Box sx={{ p: 2, mt: "auto" }}>
           <Button
             component={Link}
             href="/register"
             fullWidth
             variant="contained"
-            sx={{ 
-              bgcolor: 'rgb(31 41 55)',
-              color: 'white',
+            sx={{
+              bgcolor: "rgb(31 41 55)",
+              color: "white",
               py: 1.5,
-              '&:hover': {
-                bgcolor: 'rgb(55 65 81)',
-              }
+              "&:hover": {
+                bgcolor: "rgb(55 65 81)",
+              },
             }}
           >
             Get Started
@@ -176,15 +183,15 @@ export default function Header() {
   return (
     <>
       <AppBar position="static" color="transparent" elevation={1}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Toolbar sx={{ justifyContent: "space-between" }}>
           {/* Logo */}
-          <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <Link href="/" style={{ textDecoration: "none", color: "inherit" }}>
             <Typography
               variant="h6"
               noWrap
               sx={{
                 fontWeight: 700,
-                color: 'rgb(55 65 81)',
+                color: "rgb(55 65 81)",
               }}
             >
               StoryWeaver
@@ -198,9 +205,9 @@ export default function Header() {
               aria-label="open drawer"
               edge="start"
               onClick={handleDrawerToggle}
-              sx={{ 
-                display: { md: 'none' },
-                color: 'rgb(55 65 81)',
+              sx={{
+                display: { md: "none" },
+                color: "rgb(55 65 81)",
               }}
             >
               <MenuIcon />
@@ -208,7 +215,7 @@ export default function Header() {
           ) : (
             <>
               {/* Desktop Navigation */}
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
                 {navigationItems.map((item) => (
                   <Box key={item.label}>
                     {item.items ? (
@@ -216,7 +223,7 @@ export default function Header() {
                         <Button
                           endIcon={<KeyboardArrowDownIcon />}
                           onClick={handleFeaturesClick}
-                          sx={{ color: 'rgb(55 65 81)' }}
+                          sx={{ color: "rgb(55 65 81)" }}
                         >
                           {item.label}
                         </Button>
@@ -236,7 +243,7 @@ export default function Header() {
                       <Button
                         component={Link}
                         href={item.href}
-                        sx={{ color: 'rgb(55 65 81)' }}
+                        sx={{ color: "rgb(55 65 81)" }}
                       >
                         {item.label}
                       </Button>
@@ -250,12 +257,12 @@ export default function Header() {
                 {user ? (
                   <>
                     <IconButton onClick={handleUserMenuClick}>
-                      <Avatar 
-                        src={user.photo}
-                        alt={user.username}
+                      <Avatar
+                        src={user?.photo}
+                        alt={user?.username}
                         sx={{ width: 32, height: 32 }}
                       >
-                        {user.username?.[0]?.toUpperCase()}
+                        {user?.username?.[0]?.toUpperCase()}
                       </Avatar>
                     </IconButton>
                     <Menu
@@ -263,25 +270,27 @@ export default function Header() {
                       open={Boolean(anchorEl)}
                       onClose={handleClose}
                     >
-                      <MenuItem 
-                        component={Link} 
+                      <MenuItem
+                        component={Link}
                         href="/dashboard"
                         onClick={handleClose}
                       >
                         Dashboard
                       </MenuItem>
-                      <MenuItem 
-                        component={Link} 
+                      <MenuItem
+                        component={Link}
                         href="/settings/profile"
                         onClick={handleClose}
                       >
                         Settings
                       </MenuItem>
                       <Divider />
-                      <MenuItem onClick={() => {
-                        handleClose();
-                        logout();
-                      }}>
+                      <MenuItem
+                        onClick={() => {
+                          handleClose();
+                          logout();
+                        }}
+                      >
                         Logout
                       </MenuItem>
                     </Menu>
@@ -291,12 +300,12 @@ export default function Header() {
                     component={Link}
                     href="/register"
                     variant="contained"
-                    sx={{ 
-                      bgcolor: 'rgb(31 41 55)',
-                      color: 'white',
-                      '&:hover': {
-                        bgcolor: 'rgb(55 65 81)',
-                      }
+                    sx={{
+                      bgcolor: "rgb(31 41 55)",
+                      color: "white",
+                      "&:hover": {
+                        bgcolor: "rgb(55 65 81)",
+                      },
                     }}
                   >
                     Get Started
@@ -320,15 +329,15 @@ export default function Header() {
         PaperProps={{
           sx: {
             width: 280,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(10px)',
-          }
+            backgroundColor: "rgba(255, 255, 255, 0.95)",
+            backdropFilter: "blur(10px)",
+          },
         }}
         BackdropProps={{
           sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(2px)',
-          }
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(2px)",
+          },
         }}
       >
         {drawer}

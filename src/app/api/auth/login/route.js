@@ -44,7 +44,7 @@ export async function POST(request) {
     // Create httpOnly cookies for security
     const secureAccessTokenCookie = serialize("accessToken", accessToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "development",
       sameSite: "lax",
       maxAge: MAX_AGE,
       path: "/",
@@ -52,7 +52,7 @@ export async function POST(request) {
 
     const secureRefreshTokenCookie = serialize("refreshToken", refreshToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "development",
       sameSite: "lax",
       maxAge: MAX_AGE,
       path: "/",
@@ -61,7 +61,7 @@ export async function POST(request) {
     // Create non-httpOnly cookies for client-side access
     const clientAccessTokenCookie = serialize("client_accessToken", accessToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "development",
       sameSite: "lax",
       maxAge: MAX_AGE,
       path: "/",
@@ -69,7 +69,7 @@ export async function POST(request) {
 
     const clientRefreshTokenCookie = serialize("client_refreshToken", refreshToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === "development",
       sameSite: "lax",
       maxAge: MAX_AGE,
       path: "/",

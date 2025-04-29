@@ -10,7 +10,6 @@ import CircularProgress from "@mui/material/CircularProgress";
 import storyApiClient from "@/lib/storyApi";
 
 export default function CreateStory() {
-  
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +55,7 @@ export default function CreateStory() {
       // Make the API request to create the story
       const response = await storyApiClient.post("/stories", bodyData, {
         params: {
-          user_id: user.id,
+          user_id: user?.id,
           title: storyData.title,
           genre: storyData.genre,
           privacy: storyData.privacy,

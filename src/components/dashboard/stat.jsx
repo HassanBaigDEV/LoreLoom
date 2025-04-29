@@ -1,18 +1,18 @@
 "use client";
-import React from 'react';
+import React from "react";
 import Image from "next/image";
 import token from "@/assets/images/STBK-token.webp";
-import { BookOpen as StoryIcon } from 'lucide-react';
+import { BookOpen as StoryIcon } from "lucide-react";
 
 const StatisticsSection = () => {
   let userStories = [];
-  
+
   try {
     const user = JSON.parse(localStorage.getItem("user") || '{"stories": []}');
-    userStories = user.stories || [];
+    userStories = user?.stories || [];
     console.log(userStories);
   } catch (error) {
-    console.error('Error parsing user data:', error);
+    console.error("Error parsing user data:", error);
   }
 
   return (
@@ -23,12 +23,12 @@ const StatisticsSection = () => {
         </h3>
         <div className="flex justify-between mt-5">
           <div className="flex items-center text-center">
-            <Image 
-              src={token} 
-              alt="Token icon" 
+            <Image
+              src={token}
+              alt="Token icon"
               width={40}
               height={40}
-              className="pr-2" 
+              className="pr-2"
             />
             <div>
               <div className="text-4xl font-semibold text-yellow-500">999+</div>
@@ -36,8 +36,8 @@ const StatisticsSection = () => {
             </div>
           </div>
           <div className="flex items-center">
-            <StoryIcon 
-              className="w-8 h-8 mb-4 mr-2 text-blue-950" 
+            <StoryIcon
+              className="w-8 h-8 mb-4 mr-2 text-blue-950"
               strokeWidth={1.5}
             />
             <div>
