@@ -92,9 +92,14 @@ class PassageProcessor:
                 passage, new_content, user_id
             )
 
-            # Update passage object
+            # Get passage data without content
+            passage_data = passage.model_dump()
+            passage_data.pop('content', None)  # Remove the old content
+
+            # Update passage object with new content
             updated_passage = GeneratedPassage(
-                **passage.model_dump(), content=new_content
+                **passage_data,
+                content=new_content
             )
 
             return updated_passage
