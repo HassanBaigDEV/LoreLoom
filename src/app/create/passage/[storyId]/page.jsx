@@ -20,14 +20,9 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import {
-  ChevronRight as ChevronRightIcon,
-  ChevronLeft as ChevronLeftIcon,
-  Edit as EditIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  MenuBook as MenuBookIcon,
   Add as AddIcon,
   PictureAsPdf as PdfIcon,
+  MenuBook as MenuBookIcon,
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import PassageEditor from "@/components/passage/PassageEditor";
@@ -35,6 +30,8 @@ import StoryElementsPanel from "@/components/passage/StoryElementsPanel";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Toaster, toast } from "react-hot-toast";
 import PassageCreationWizard from "@/components/generation/wizard";
+import NewPassageResult from "@/components/passage/NewPassageResult";
+import ComparisonPassageResults from "@/components/passage/ComparisonPassageResults";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -70,10 +67,12 @@ export default function PassagePage({ params }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [expandedPassage, setExpandedPassage] = useState(null);
-
-  // New state for wizard modal
+  
+  // New state for wizard modal and generated passages
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [newPassages, setNewPassages] = useState([]);
+  const [selectedOutline, setSelectedOutline] = useState(null);
+  const [dismissedPassages, setDismissedPassages] = useState(new Set());
 
   const fetchPassages = useCallback(async () => {
     setLoading(true);
@@ -141,7 +140,7 @@ export default function PassagePage({ params }) {
     setPage(value);
   };
 
-  // Open the wizard modal instead of directly creating a passage
+  // Open the wizard modal
   const handleOpenWizard = () => {
     if (!storyElements?.outline?.length) {
       toast.error("Please create an outline first");
@@ -149,6 +148,51 @@ export default function PassagePage({ params }) {
     }
     setWizardOpen(true);
   };
+
+  // Handle passage created from wizard
+  const handlePassageCreated = (newPassages, outline) => {
+    if (newPassages && Array.isArray(newPassages)) {
+      // Sort passages by score (highest first)
+      const sortedPassages = [...newPassages].sort((a, b) => b.score - a.score);
+      
+      // Store the newly created passages and outline
+      setNewPassages(sortedPassages);
+      setSelectedOutline(outline);
+      setDismissedPassages(new Set()); // Reset dismissed passages
+      
+      // Refresh the passages list to include the new ones
+      fetchPassages();
+    } else {
+      // No passage data returned, just refresh the list
+      fetchPassages();
+    }
+  };
+
+  // Handle dismissing a passage
+  const handleDismissPassage = (passageId) => {
+    setDismissedPassages(prev => {
+      const updated = new Set(prev);
+      updated.add(passageId);
+      return updated;
+    });
+    
+    // If all passages are dismissed, clear the state
+    if (dismissedPassages.size + 1 >= newPassages.length) {
+      setTimeout(() => {
+        setNewPassages([]);
+        setSelectedOutline(null);
+        setDismissedPassages(new Set());
+      }, 300);
+    }
+  };
+
+  // Filter out dismissed passages
+  const visibleNewPassages = newPassages.filter(
+    passage => !dismissedPassages.has(passage.passage_id)
+  );
+
+  // Find highest scoring passage
+  const highestScorePassage = visibleNewPassages.length > 0 ? visibleNewPassages[0] : null;
 
   return (
     <>
@@ -234,109 +278,119 @@ export default function PassagePage({ params }) {
               </Stack>
             </Box>
 
+            {/* Display newly generated passages if they exist */}
+            {visibleNewPassages.length > 0 && (
+              <>
+                {visibleNewPassages.length === 1 ? (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Generated Passage
+                    </Typography>
+                    <NewPassageResult 
+                      passage={visibleNewPassages[0]}
+                      outline={selectedOutline}
+                      onUpdate={fetchPassages}
+                      onClose={handleDismissPassage}
+                      isHighestScore={true}
+                    />
+                  </Box>
+                ) : (
+                  <ComparisonPassageResults
+                    passages={visibleNewPassages}
+                    outline={selectedOutline}
+                    onUpdate={fetchPassages}
+                    onClose={handleDismissPassage}
+                  />
+                )}
+              </>
+            )}
+
             {/* Passages List */}
             <AnimatePresence mode="wait">
               {loading ? (
                 <LoadingOverlay />
               ) : (
                 <Stack spacing={2}>
-                  {passages.map((passage, index) => {
-                    // Compute global index for pagination
-                    const globalIndex = (page - 1) * ITEMS_PER_PAGE + index + 1;
-
-                    // Find the outline item by matching `passage.outline_point_id`
-                    // to the `number` in the story's outline array
-                    const outlinePoint = story?.outline?.find(
-                      (o) => o.number === passage.outline_point_id
-                    );
-                    const outlineTitle = outlinePoint?.title || "Untitled";
-
-                    const formattedDate = new Date(
-                      passage.created_at
-                    ).toLocaleDateString();
-
-                    return (
-                      <motion.div
-                        key={passage.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                      >
-                        <Paper
-                          elevation={3}
-                          sx={{
-                            p: { xs: 2, sm: 3 },
-                            transition: "all 0.3s ease",
-                            "&:hover": {
-                              boxShadow: 3,
-                              transform: "translateY(-2px)",
-                            },
-                          }}
+                  {passages.length > 0 ? (
+                    passages.map((passage, index) => {
+                      return (
+                        <motion.div
+                          key={passage.id || passage.passage_id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ delay: index * 0.1 }}
                         >
-                          <Typography
-                            variant="subtitle2"
-                            color="text.secondary"
-                            gutterBottom
+                          <Paper
+                            elevation={3}
+                            sx={{
+                              p: { xs: 2, sm: 3 },
+                              transition: "all 0.3s ease",
+                              "&:hover": {
+                                boxShadow: 3,
+                                transform: "translateY(-2px)",
+                              },
+                            }}
                           >
-                            {/* Passage {globalIndex}  */}
-                            Outline {passage.outline_point_id}:{" "}
-                            {storyElements?.outline?.find(
-                              (o) => o.number === passage.outline_point_id
-                            )?.title || "Untitled"}
-                            <span
-                              style={{ marginLeft: "10px", fontSize: "0.8em" }}
-                            >
-                              (
-                              {new Date(
-                                passage.created_at
-                              ).toLocaleDateString()}
-                              )
-                            </span>
-                          </Typography>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Outline {passage.outline_point_id}:{" "}
+                              {storyElements?.outline?.find((o) => o.number === passage.outline_point_id)?.title || "Untitled"}
+                                <span style={{ marginLeft: "10px", fontSize: "0.8em" }}>
+                                  ({new Date(passage.created_at).toLocaleDateString()})
+                                </span>
+                            </Typography>
 
-                          <PassageEditor
-                            passage={passage}
-                            onUpdate={fetchPassages}
-                          />
-                        </Paper>
-                      </motion.div>
-                    );
-                  })}
+                            <PassageEditor
+                              passage={passage}
+                              onUpdate={fetchPassages}
+                            />
+                          </Paper>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <Box sx={{ p: 4, textAlign: "center" }}>
+                      <Typography variant="body1" color="text.secondary">
+                        No passages yet. Click "New Passage" to create one!
+                      </Typography>
+                    </Box>
+                  )}
                 </Stack>
               )}
             </AnimatePresence>
 
             {/* Pagination */}
-            <Box
-              sx={{
-                mt: 4,
-                display: "flex",
-                justifyContent: "center",
-                "& .MuiPagination-ul": {
-                  flexWrap: "nowrap",
-                },
-              }}
-            >
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={handlePageChange}
-                color="primary"
-                size={isMobile ? "small" : "large"}
-                siblingCount={isMobile ? 0 : 1}
-                boundaryCount={isMobile ? 1 : 2}
+            {passages.length > 0 && (
+              <Box
                 sx={{
-                  "& .MuiPaginationItem-root": {
-                    color: "rgb(34 197 94)",
-                  },
-                  "& .Mui-selected": {
-                    bgcolor: "rgb(34 197 94) !important",
-                    color: "white !important",
+                  mt: 4,
+                  display: "flex",
+                  justifyContent: "center",
+                  "& .MuiPagination-ul": {
+                    flexWrap: "nowrap",
                   },
                 }}
-              />
-            </Box>
+              >
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={handlePageChange}
+                  color="primary"
+                  size={isMobile ? "small" : "large"}
+                  siblingCount={isMobile ? 0 : 1}
+                  boundaryCount={isMobile ? 1 : 2}
+                  sx={{
+                    "& .MuiPaginationItem-root": {
+                      color: "rgb(34 197 94)",
+                    },
+                    "& .Mui-selected": {
+                      bgcolor: "rgb(34 197 94) !important",
+                      color: "white !important",
+                    },
+                  }}
+                />
+              </Box>
+            )}
           </Container>
         </Box>
 
@@ -419,7 +473,7 @@ export default function PassagePage({ params }) {
           onClose={() => setWizardOpen(false)}
           storyId={storyId}
           storyElements={storyElements}
-          onPassageCreated={fetchPassages}
+          onPassageCreated={handlePassageCreated}
         />
       </Box>
     </>

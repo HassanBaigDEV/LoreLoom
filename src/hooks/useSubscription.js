@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from './useAuth';
-import { subscriptionService } from '@/lib/subscriptionService';
-import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { useAuth } from "./useAuth";
+import { subscriptionService } from "@/lib/subscriptionService";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export function useSubscription() {
   const [subscription, setSubscription] = useState(null);
@@ -26,7 +26,7 @@ export function useSubscription() {
       setSubscription(data);
     } catch (error) {
       setError(error.message);
-      console.error('Error fetching subscription:', error);
+      console.error("Error fetching subscription:", error);
     } finally {
       setLoading(false);
     }
@@ -34,26 +34,27 @@ export function useSubscription() {
 
   const upgrade = async (tier) => {
     if (!isAuthenticated) {
-      sessionStorage.setItem('intended_plan', tier);
-      router.push('/login?redirect=/subscription');
+      sessionStorage.setItem("intended_plan", tier);
+      router.push("/login?redirect=/subscription");
       return;
     }
 
     try {
       setLoading(true);
-      if (tier === 'FREE') {
+      if (tier === "FREE") {
         await subscriptionService.upgrade(tier);
-        toast.success('Successfully switched to Free plan');
+        toast.success("Successfully switched to Free plan");
         await fetchSubscription();
-        router.push('/dashboard');
+        router.push("/dashboard");
       } else {
-        const { checkout_url } = await subscriptionService.createCheckoutSession(tier);
+        const { checkout_url } =
+          await subscriptionService.createCheckoutSession(tier);
         // window.location.href = checkout_url;
         router.push(checkout_url);
       }
     } catch (error) {
-      toast.error('Failed to upgrade plan. Please try again.');
-      console.error('Error upgrading subscription:', error);
+      toast.error("Failed to upgrade plan. Please try again.");
+      console.error("Error upgrading subscription:", error);
     } finally {
       setLoading(false);
     }
@@ -64,8 +65,23 @@ export function useSubscription() {
       const limits = await subscriptionService.checkLimits();
       return limits;
     } catch (error) {
-      console.error('Error checking limits:', error);
+      console.error("Error checking limits:", error);
       return null;
+    }
+  };
+
+  const cancelSubscription = async () => {
+    try {
+      setLoading(true);
+      await subscriptionService.cancelSubscription();
+      toast.success("Subscription cancelled successfully");
+      await fetchSubscription();
+      router.push("/dashboard");
+    } catch (error) {
+      toast.error("Failed to cancel subscription. Please try again.");
+      console.error("Error cancelling subscription:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,6 +91,7 @@ export function useSubscription() {
     error,
     upgrade,
     checkLimits,
-    refresh: fetchSubscription
+    refresh: fetchSubscription,
+    cancelSubscription,
   };
-} 
+}

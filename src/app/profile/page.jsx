@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useSubscription } from "@/hooks/useSubscription";
+import ConfirmDialog from "@/components/common/ConfirmDialog";
 
 export default function ProfilePage() {
   const { user, checkAuth } = useAuth();
@@ -34,6 +36,13 @@ export default function ProfilePage() {
   });
   const [passwordError, setPasswordError] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const { cancelSubscription } = useSubscription();
+  const [confirmDialog, setConfirmDialog] = useState({
+    open: false,
+    title: "",
+    content: "",
+    onConfirm: null,
+  });
 
   useEffect(() => {
     if (user) {
@@ -97,22 +106,24 @@ export default function ProfilePage() {
   };
 
   const handleRemovePhoto = async () => {
-    if (
-      !window.confirm("Are you sure you want to remove your profile photo?")
-    ) {
-      return;
-    }
-
-    setPhotoLoading(true);
-    try {
-      await userService.removeProfilePhoto();
-      await checkAuth();
-      toast.success("Profile photo removed successfully!");
-    } catch (err) {
-      toast.error("Failed to remove photo");
-    } finally {
-      setPhotoLoading(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: "Remove Profile Photo",
+      content: "Are you sure you want to remove your profile photo?",
+      onConfirm: async () => {
+        setPhotoLoading(true);
+        try {
+          await userService.removeProfilePhoto();
+          await checkAuth();
+          toast.success("Profile photo removed successfully!");
+        } catch (err) {
+          toast.error("Failed to remove photo");
+        } finally {
+          setPhotoLoading(false);
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        }
+      },
+    });
   };
 
   const handlePasswordChange = async (e) => {
@@ -143,6 +154,24 @@ export default function ProfilePage() {
     } finally {
       setPasswordLoading(false);
     }
+  };
+
+  const handleCancelSubscription = async () => {
+    setConfirmDialog({
+      open: true,
+      title: "Cancel Subscription",
+      content:
+        "Are you sure you want to cancel your subscription? You will be downgraded to the Free plan.",
+      onConfirm: async () => {
+        try {
+          await cancelSubscription();
+          setConfirmDialog((prev) => ({ ...prev, open: false }));
+        } catch (error) {
+          console.error("Error cancelling subscription:", error);
+          toast.error("Failed to cancel subscription");
+        }
+      },
+    });
   };
 
   return (
@@ -393,23 +422,50 @@ export default function ProfilePage() {
                     </div>
                   </div>
 
-                  <Button
-                    variant="outline"
-                    className="w-full text-green-500 border-green-500 hover:bg-green-500/10"
-                    asChild
-                  >
-                    <a href="/subscription">
-                      {subscription?.tier === "free"
-                        ? "Upgrade Plan"
-                        : "Manage Subscription"}
-                    </a>
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      className="w-full text-green-500 border-green-500 hover:bg-green-500/10"
+                      asChild
+                    >
+                      <a href="/subscription">
+                        {subscription?.tier === "free"
+                          ? "Upgrade Plan"
+                          : "Manage Subscription"}
+                      </a>
+                    </Button>
+
+                    {subscription?.tier !== "free" && (
+                      <Button
+                        variant="outline"
+                        className="w-full text-red-500 border-red-500 hover:bg-red-500/10"
+                        onClick={handleCancelSubscription}
+                      >
+                        Cancel Subscription
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
         </motion.div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        content={confirmDialog.content}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, open: false }))}
+        confirmText={
+          confirmDialog.title.includes("Cancel Subscription")
+            ? "Cancel Subscription"
+            : "Remove Photo"
+        }
+        cancelText="Keep"
+        isDestructive={true}
+      />
     </div>
   );
 }

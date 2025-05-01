@@ -87,7 +87,7 @@ export function useAuth() {
       // Clear everything on auth error
       setUser(null);
       localStorage.removeItem("user");
-      tokenKeys.forEach(removeCookie);
+      tokenKeys?.forEach(removeCookie);
       return null;
     }
   };

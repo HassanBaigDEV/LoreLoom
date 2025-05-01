@@ -196,6 +196,7 @@ export default function StoryElement({
       } else {
         // Title, premise, setting
         const field = title.toLowerCase();
+        console.log(formData);
         const response = await storyApiClient.put(
           `/plan/update-${field}/${storyId}`,
           {
@@ -359,7 +360,7 @@ export default function StoryElement({
 
       const fieldName = title.toLowerCase();
       const response = await storyApiClient.put(
-        `/plan/edit-${fieldName}/${storyId}`,
+        `/plan/update-${fieldName}/${storyId}`,
         {
           [`new_${fieldName}`]: manualInput,
         },
