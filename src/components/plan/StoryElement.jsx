@@ -607,7 +607,7 @@ export default function StoryElement({
           {!showOptions ? (
             <Button
               variant="outlined"
-              className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-50"
+              className="px-6 py-2 text-green-600 border-2 border-green-500 hover:bg-green-50"
               onClick={() => {
                 setShowOptions(true);
               }}
@@ -616,9 +616,9 @@ export default function StoryElement({
               ADD NEW CHARACTER
             </Button>
           ) : (
-            <div className="flex flex-col items-center space-y-4 w-full max-w-md">
+            <div className="flex flex-col items-center w-full max-w-md space-y-4">
               {selectedOption === "generateMany" && (
-                <div className="flex items-center justify-center space-x-2 mb-2">
+                <div className="flex items-center justify-center mb-2 space-x-2">
                   <IconButton
                     size="small"
                     onClick={() => setCount(Math.max(1, count - 1))}
@@ -784,7 +784,7 @@ export default function StoryElement({
             key={index}
             className="p-4 transition-shadow duration-300 hover:shadow-lg"
           >
-            <div className="flex items-start justify-between flex-wrap gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <Typography variant="h6" className="text-gray-800">
                 {point.number}. {point.title}
               </Typography>
@@ -836,7 +836,7 @@ export default function StoryElement({
 
             <Divider className="my-2" />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div className="grid grid-cols-1 gap-4 mt-2 md:grid-cols-2">
               <div>
                 <Typography variant="subtitle2" className="text-gray-700">
                   Purpose
@@ -870,7 +870,7 @@ export default function StoryElement({
                   />
                 ))}
                 {point.characters_involved.length === 0 && (
-                  <Typography variant="body2" className="text-gray-500 italic">
+                  <Typography variant="body2" className="italic text-gray-500">
                     No characters specified
                   </Typography>
                 )}
@@ -888,7 +888,7 @@ export default function StoryElement({
           {!showOptions ? (
             <Button
               variant="outlined"
-              className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-50"
+              className="px-6 py-2 text-green-600 border-2 border-green-500 hover:bg-green-50"
               onClick={() => {
                 setShowOptions(true);
               }}
@@ -897,9 +897,9 @@ export default function StoryElement({
               ADD NEW OUTLINE POINT
             </Button>
           ) : (
-            <div className="flex flex-col items-center space-y-4 w-full max-w-md">
+            <div className="flex flex-col items-center w-full max-w-md space-y-4">
               {selectedOption === "generateMany" && (
-                <div className="flex items-center justify-center space-x-2 mb-2">
+                <div className="flex items-center justify-center mb-2 space-x-2">
                   <IconButton
                     size="small"
                     onClick={() => setPointCount(Math.max(1, pointCount - 1))}
@@ -1018,14 +1018,14 @@ export default function StoryElement({
     ];
     return (
       <div className="space-y-4">
-        <div className="flex flex-col space-y-4 p-5 bg-gray-50 rounded-lg shadow-sm">
-          <Typography variant="subtitle1" className="text-gray-800 font-medium">
+        <div className="flex flex-col p-5 space-y-4 rounded-lg shadow-sm bg-gray-50">
+          <Typography variant="subtitle1" className="font-medium text-gray-800">
             Generate Character Points
           </Typography>
 
           <div className="flex flex-col space-y-3">
             <div>
-              <Typography variant="body2" className="text-gray-600 mb-2">
+              <Typography variant="body2" className="mb-2 text-gray-600">
                 Number of characters to generate:
               </Typography>
 
@@ -1033,7 +1033,7 @@ export default function StoryElement({
                 <Button
                   size="small"
                   variant="outlined"
-                  className="min-w-8 h-8"
+                  className="h-8 min-w-8"
                   disabled={count <= 1}
                   onClick={() => setCount(Math.max(1, count - 1))}
                 >
@@ -1049,7 +1049,7 @@ export default function StoryElement({
                     max: 5,
                     style: { textAlign: "center" },
                   }}
-                  className="mx-2 w-16"
+                  className="w-16 mx-2"
                   InputProps={{
                     sx: { height: "32px" },
                   }}
@@ -1057,7 +1057,7 @@ export default function StoryElement({
                 <Button
                   size="small"
                   variant="outlined"
-                  className="min-w-8 h-8"
+                  className="h-8 min-w-8"
                   disabled={count >= 5}
                   onClick={() => setCount(Math.min(5, count + 1))}
                 >
@@ -1090,7 +1090,7 @@ export default function StoryElement({
                   </Typography>
                 </div>
 
-                <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-100">
+                <div className="p-3 mt-2 border border-blue-100 rounded-md bg-blue-50">
                   <Typography variant="body2" className="text-blue-700">
                     {continueFromExisting ? (
                       <>
@@ -1118,20 +1118,20 @@ export default function StoryElement({
           <Button
             variant="contained"
             onClick={options[0].handler}
-            className="bg-green-500 hover:bg-green-600 h-10 self-end mt-2"
+            className="self-end h-10 mt-2 bg-green-500 hover:bg-green-600"
             startIcon={<AutoFixHighIcon />}
           >
             Generate
           </Button>
         </div>
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <Typography variant="body2" className="text-gray-600">
             Or add a single character manually:
           </Typography>
           <Button
             variant="outlined"
             onClick={options[1].handler}
-            className="border-green-500 text-green-500 hover:bg-green-50"
+            className="text-green-500 border-green-500 hover:bg-green-50"
             startIcon={<AddIcon />}
           >
             Add Manually
@@ -1164,21 +1164,21 @@ export default function StoryElement({
 
     return (
       <div className="space-y-4">
-        <div className="flex flex-col space-y-4 p-5 bg-gray-50 rounded-lg shadow-sm">
-          <Typography variant="subtitle1" className="text-gray-800 font-medium">
+        <div className="flex flex-col p-5 space-y-4 rounded-lg shadow-sm bg-gray-50">
+          <Typography variant="subtitle1" className="font-medium text-gray-800">
             Generate Story Outline Points
           </Typography>
 
           <div className="flex flex-col space-y-3">
             <div>
-              <Typography variant="body2" className="text-gray-600 mb-2">
+              <Typography variant="body2" className="mb-2 text-gray-600">
                 Number of points to generate:
               </Typography>
               <div className="flex items-center">
                 <Button
                   size="small"
                   variant="outlined"
-                  className="min-w-8 h-8"
+                  className="h-8 min-w-8"
                   disabled={pointCount <= 1}
                   onClick={() => setPointCount(Math.max(1, pointCount - 1))}
                 >
@@ -1194,7 +1194,7 @@ export default function StoryElement({
                     max: 5,
                     style: { textAlign: "center" },
                   }}
-                  className="mx-2 w-16"
+                  className="w-16 mx-2"
                   InputProps={{
                     sx: { height: "32px" },
                   }}
@@ -1202,7 +1202,7 @@ export default function StoryElement({
                 <Button
                   size="small"
                   variant="outlined"
-                  className="min-w-8 h-8"
+                  className="h-8 min-w-8"
                   disabled={pointCount >= 5}
                   onClick={() => setPointCount(Math.min(5, pointCount + 1))}
                 >
@@ -1235,7 +1235,7 @@ export default function StoryElement({
                   </Typography>
                 </div>
 
-                <div className="mt-2 p-3 rounded-md bg-blue-50 border border-blue-100">
+                <div className="p-3 mt-2 border border-blue-100 rounded-md bg-blue-50">
                   <Typography variant="body2" className="text-blue-700">
                     {continueFromExisting ? (
                       <>
@@ -1262,7 +1262,7 @@ export default function StoryElement({
           <Button
             variant="contained"
             onClick={options[0].handler}
-            className="bg-green-500 hover:bg-green-600 h-10 self-end mt-2"
+            className="self-end h-10 mt-2 bg-green-500 hover:bg-green-600"
             startIcon={<AutoFixHighIcon />}
           >
             {hasExistingPoints && !continueFromExisting
@@ -1271,14 +1271,14 @@ export default function StoryElement({
           </Button>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <Typography variant="body2" className="text-gray-600">
             Or add a single point manually:
           </Typography>
           <Button
             variant="outlined"
             onClick={options[1].handler}
-            className="border-green-500 text-green-500 hover:bg-green-50"
+            className="text-green-500 border-green-500 hover:bg-green-50"
             startIcon={<AddIcon />}
           >
             Add Manually
