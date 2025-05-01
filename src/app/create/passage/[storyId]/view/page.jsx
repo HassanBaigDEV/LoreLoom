@@ -33,6 +33,23 @@ export default function PassageViewPage({ params }) {
   const [passages, setPassages] = useState([]);
   const [storyDetails, setStoryDetails] = useState({ title: "", genre: "" });
   const [currentPage, setCurrentPage] = useState(0);
+  const [cameFromDiscover, setCameFromDiscover] = useState(false);
+
+  useEffect(() => {
+    // Check if user came from discover page
+    if (typeof window !== 'undefined') {
+      const referrer = document.referrer;
+      setCameFromDiscover(referrer.includes('/discover'));
+    }
+  }, []);
+
+  const handleBack = () => {
+    if (cameFromDiscover) {
+      router.push('/discover');
+    } else {
+      router.back();
+    }
+  };
 
   const fetchPassages = useCallback(async () => {
     setLoading(true);
@@ -606,7 +623,7 @@ export default function PassageViewPage({ params }) {
             }}
           >
             <Stack direction="row" spacing={2} alignItems="center">
-              <IconButton onClick={() => router.back()}>
+              <IconButton onClick={handleBack}>
                 <ArrowBackIcon />
               </IconButton>
               <Typography variant="h4" sx={{ fontWeight: 700 }}>
