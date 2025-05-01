@@ -35,10 +35,14 @@ async def generate_title(story_id: str) -> str:
         <|im_end|>
         <|im_start|>assistant
         """
-        title = model(title_template,
-                      logit_bias=get_logit_bias())
-        title_str = title["choices"][0]["text"].strip()  # type: ignore
-        return title_str
+        full_response = model(title_template,
+                      logit_bias=get_logit_bias())["choices"][0]["text"].strip()  # type: ignore
+        lines = [line.strip() for line in full_response.strip().split("\n") if line.strip()]
+        title_str = lines[-1] if lines else "Untitled"
+        return {
+            "title": title_str,
+            "raw_response": full_response
+        }
 
     result = await retry_generation(_generate)
     if not result:
@@ -47,11 +51,11 @@ async def generate_title(story_id: str) -> str:
     try:
         await stories.update_one(
             {"story_id": ObjectId(story_id)},
-            {"$set": {"title": result, "updated_at": datetime.utcnow()}},
+            {"$set": {"title": result["title"], "updated_at": datetime.utcnow()}},
         )
     except Exception as e:
         logging.error(f"Error updating story title: {e}")
-    return result
+    return result["raw_response"]
 
 
 async def generate_premise(story_id: str, title: str) -> str:
@@ -109,9 +113,11 @@ async def generate_title_with_context(
         3. Keywords used: At least {int(len(keywords)*complexity)} from provided list
         **Instructions:**
         1. **Output only the title**—no explanations, labels, or extra text.
+        2. **Ensure it is a single line** and a complete phrase.
         <|im_end|>
         <|im_start|>user
-        Generate a creative and unique title for a {genre} story. Only write the title and nothing else.
+        Generate a creative and unique title for a {genre} story.
+        **Only return the title as plain text.**
         <|im_end|>
         <|im_start|>assistant
         """
@@ -124,7 +130,6 @@ async def generate_title_with_context(
     return title
         
         
-
 async def generate_premise_with_context(
     title: str, user_prompt: str, genre: str, complexity: float
 ) -> str:
