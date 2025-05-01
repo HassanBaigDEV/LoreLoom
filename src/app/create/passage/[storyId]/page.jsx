@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import {
   Add as AddIcon,
+  PictureAsPdf as PdfIcon,
   MenuBook as MenuBookIcon,
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
@@ -246,19 +247,35 @@ export default function PassagePage({ params }) {
               >
                 Write Your Story
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleOpenWizard}
-                disabled={loading}
-                sx={{
-                  bgcolor: "rgb(34 197 94)",
-                  "&:hover": { bgcolor: "rgb(22 163 74)" },
-                  width: { xs: "100%", sm: "auto" },
-                }}
-              >
-                New Passage
-              </Button>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="outlined"
+                  startIcon={<PdfIcon />}
+                  onClick={() => router.push(`/create/passage/${storyId}/view`)}
+                  sx={{
+                    borderColor: "rgb(34 197 94)",
+                    color: "rgb(34 197 94)",
+                    "&:hover": {
+                      borderColor: "rgb(22 163 74)",
+                      bgcolor: "rgba(34, 197, 94, 0.04)",
+                    },
+                  }}
+                >
+                  View Story
+                </Button>
+                <Button
+                  variant="contained"
+                  startIcon={<AddIcon />}
+                  onClick={handleOpenWizard}
+                  disabled={loading}
+                  sx={{
+                    bgcolor: "rgb(34 197 94)",
+                    "&:hover": { bgcolor: "rgb(22 163 74)" },
+                  }}
+                >
+                  New Passage
+                </Button>
+              </Stack>
             </Box>
 
             {/* Display newly generated passages if they exist */}
