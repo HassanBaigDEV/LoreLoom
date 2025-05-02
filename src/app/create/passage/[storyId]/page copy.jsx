@@ -201,7 +201,7 @@ export default function PassagePage({ params }) {
           } else {
             setHasAccess(false);
             toast.error("You don't have access to this story");
-            // setTimeout(() => router.push("/dashboard"), 2000);
+            setTimeout(() => router.push("/dashboard"), 2000);
           }
         }
       }
@@ -212,7 +212,7 @@ export default function PassagePage({ params }) {
       console.error("Error checking access:", error);
       setHasAccess(false);
       toast.error("Failed to verify access to this story");
-      // setTimeout(() => router.push("/dashboard"), 2000);
+      setTimeout(() => router.push("/dashboard"), 2000);
     } finally {
       setAccessChecking(false);
     }

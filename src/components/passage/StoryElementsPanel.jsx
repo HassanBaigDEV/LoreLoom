@@ -68,8 +68,6 @@ export default function StoryElementsPanel({
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
-  
-
   const renderContent = (sectionId) => {
     const content = storyElements?.[sectionId];
     if (!content) return null;

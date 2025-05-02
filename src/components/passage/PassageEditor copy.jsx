@@ -180,15 +180,13 @@ export default function PassageEditor({
                 {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
               </IconButton>
 
-              <Tooltip title="Edit options">
-                <IconButton
-                  size="small"
-                  onClick={handleMenuOpen}
-                  sx={{ color: "text.secondary" }}
-                >
-                  <MoreVertIcon />
-                </IconButton>
-              </Tooltip>
+              <IconButton
+                size="small"
+                onClick={handleMenuOpen}
+                sx={{ color: "text.secondary" }}
+              >
+                <MoreVertIcon />
+              </IconButton>
             </>
           )}
         </Stack>
@@ -251,6 +249,21 @@ export default function PassageEditor({
             >
               {content || "No content yet."}
             </Typography>
+            {!isReadOnly && (
+              <Box sx={{ mt: 2, display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  startIcon={<EditIcon />}
+                  onClick={() => setIsEditing(true)}
+                  sx={{
+                    bgcolor: "rgb(34 197 94)",
+                    "&:hover": { bgcolor: "rgb(22 163 74)" },
+                  }}
+                >
+                  Edit
+                </Button>
+              </Box>
+            )}
           </Box>
         )}
       </Collapse>
@@ -265,14 +278,8 @@ export default function PassageEditor({
             handleMenuClose();
             setIsEditing(true);
           }}
-          sx={{
-            color: "rgb(34 197 94)",
-            fontWeight: "bold",
-            "&:hover": { bgcolor: "rgba(34, 197, 94, 0.1)" },
-          }}
         >
-          <EditIcon fontSize="small" sx={{ mr: 1, color: "rgb(34 197 94)" }} />{" "}
-          Edit
+          <EditIcon fontSize="small" sx={{ mr: 1 }} /> Edit
         </MenuItem>
         <MenuItem
           onClick={() => {
