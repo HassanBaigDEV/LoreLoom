@@ -43,12 +43,12 @@ def custom_jsonable_encoder(obj):
 
 # get passage count
 @router.get("/passages/{story_id}/count")
-async def get_passage_count(story_id: str, user_id: str):
+async def get_passage_count(story_id: str):
     """Get the total number of passages for a story"""
     try:
         # Validate story ownership
         story = await stories.find_one(
-            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+            {"story_id": ObjectId(story_id)}
         )
         if not story:
             logger.error(f"Story {story_id} not found or unauthorized")
@@ -71,7 +71,7 @@ async def get_story_passages(
     try:
         # Validate story ownership
         story = await stories.find_one(
-            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+            {"story_id": ObjectId(story_id)}
         )
         if not story:
             logger.error(f"Story {story_id} not found or unauthorized")
