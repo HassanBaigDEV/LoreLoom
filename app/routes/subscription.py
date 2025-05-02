@@ -48,7 +48,7 @@ def clean_subscription_data(subscription: dict) -> dict:
             subscription.get("updated_at")
             if subscription.get("updated_at")
             else None
-        ),
+        )
     }
 
 
