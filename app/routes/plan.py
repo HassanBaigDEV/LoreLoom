@@ -379,6 +379,7 @@ async def edit_title(story_id: str, user_id: str, data: TitleUpdate):
 @router.put("/update-premise/{story_id}")
 async def edit_premise(story_id: str, user_id: str, data: PremiseUpdate):
     try:
+        logger.info(f"Updating premise for story {story_id} with new premise: {data.new_premise}")
         story = await stories.find_one(
             {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
         )
