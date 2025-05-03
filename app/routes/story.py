@@ -4,15 +4,19 @@ from pydantic import BaseModel, Field, AfterValidator
 from bson import ObjectId
 from datetime import datetime
 from app.config.database import db
+import logging
 
 # MongoDB Collection
 stories_collection = db["stories"]
-
 users_collection = db["users"]
+passages_collection = db["passages"]
 
 # FastAPI Router
 story_router = APIRouter()
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Custom ObjectId type for validation
 def validate_object_id(v: str) -> str:
@@ -80,6 +84,19 @@ class StoryResponse(StoryBase):
     id: ObjectIdStr = Field(alias="_id")
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+
+
+class Passage(BaseModel):
+    passage_id: str
+    story_id: str
+    outline_point_id: str
+    content: str
+    summary: str
+    mentioned_entities: List[str]
+    created_at: datetime
+
+    class Config:
+        json_encoders = {ObjectId: str}
 
 
 # Helper function to convert MongoDB documents to JSON-compatible dicts
@@ -165,6 +182,33 @@ async def get_story_planning(story_id: ObjectIdStr):
         raise HTTPException(status_code=404, detail="Story not found")
 
     return objectid_to_str(story)
+
+
+# Endpoints
+@story_router.get("/passages", response_model=List[Passage])
+async def get_passages(author: Optional[str] = None):
+    """
+    Retrieve a list of passages for stories, filtered by author.
+    First fetches stories, then gets passages for each story.
+    """
+    # First get stories based on author filter
+    story_query = {}
+    if author:
+        story_query["author"] = ObjectId(author)
+    
+    stories = await stories_collection.find(story_query).to_list(length=100)
+    story_ids = [str(story["story_id"]) for story in stories]
+    
+    # Fetch passages for these stories
+    passages_query = {"story_id": {"$in": story_ids}}
+    passages = await passages_collection.find(passages_query).to_list(length=100)
+    response = []
+    for passage in passages:
+        passage_dict = dict(passage)
+        passage_dict = objectid_to_str(passage_dict)
+        response.append(passage_dict)
+    
+    return response
 
 
 # @story_router.post("/stories", response_model=StoryResponse)
