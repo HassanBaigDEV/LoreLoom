@@ -121,7 +121,9 @@ export default function Stories() {
               <div className="absolute bottom-2 left-2 right-2">
                 <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 ">
                   <h3 className="font-bold truncate text-green-50">
-                    {story.title.split(":")[0].replace(/^"|"$/g, "")}
+                  {typeof story.title === "string"
+                    ? story.title.split(":")[0].replace(/^"|"$/g, "")
+                    : "Untitled"}
                   </h3>
                   <p className="text-xs text-green-200/80">
                     Read story by {user?.last_name}

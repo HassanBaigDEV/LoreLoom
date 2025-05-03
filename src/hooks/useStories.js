@@ -17,6 +17,7 @@ export function useStories() {
   // Atoms
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [stories, setStories] = useAtom(storiesAtom);
+  const [passages, setPassages] = useAtom(storiesAtom);
   const [pStories, setPStories] = useAtom(pStoriesAtom);
   const [, setProgress] = useAtom(storyProgressAtom);
   const [, setIsLoading] = useAtom(storyLoadingAtom);
@@ -65,20 +66,44 @@ export function useStories() {
     }
   };
 
+  const fetchPassages = async (userId) => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await apiClient.get('author/passages', { 
+        params: { author: userId } 
+      });
+      console.log(response);
+      setPassages(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch passages:', error);
+      setError("Failed to fetch passages");
+      setPassages([]);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     // State
     stories,
     pStories,
     storyData,
+    passages,
     currentStoryId,
     
     // Methods
     fetchStories,
     fetchPStories,
+    fetchPassages,
     
     // Setters for direct manipulation
     setPStories,
     setStories,
+    setPassages,
     setStoryData,
     setCurrentStoryId,
   };
