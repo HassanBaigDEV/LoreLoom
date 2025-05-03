@@ -16,6 +16,8 @@ import StoryElement from "@/components/plan/StoryElement";
 import ProgressIndicator from "@/components/plan/ProgressIndicator";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Toaster, toast } from "react-hot-toast";
+import { useAtom } from "jotai";
+import { storyDataAtom } from "@/store/atoms";
 
 const LoadingOverlay = () => (
   <Box
@@ -39,11 +41,10 @@ const LoadingOverlay = () => (
 export default function PlanStory({ params }) {
   const router = useRouter();
   const { storyId } = params;
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [progress, setProgress] = useState(0);
-  const [storyData, setStoryData] = useState({
+  const [globalStoryData, setGlobalStoryData] = useAtom(storyDataAtom);
+  
+  // Local states for story elements
+  const [localStoryData, setLocalStoryData] = useState({
     title: "",
     genre: "",
     premise: "",
@@ -51,39 +52,36 @@ export default function PlanStory({ params }) {
     characters: [],
     outline: [],
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [progress, setProgress] = useState(0);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Calculate progress based on local story data
   const calculateProgress = useCallback((data) => {
-    const elements = [
-      "title",
-      "genre",
-      "premise",
-      "setting",
-      "characters",
-      "outline",
-    ];
+    const elements = ["title", "genre", "premise", "setting", "characters", "outline"];
     const completed = elements.filter((elem) =>
       Array.isArray(data[elem]) ? data[elem].length > 0 : Boolean(data[elem])
     ).length;
     setProgress((completed / elements.length) * 100);
   }, []);
 
+  // Fetch story elements and update both local and global state
   const fetchStoryElements = useCallback(async () => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      const response = await storyApiClient.get(
-        `/plan/story-elements/${storyId}`,
-        {
-          params: {
-            user_id: user?.id,
-          },
-        }
-      );
+      const response = await storyApiClient.get(`/plan/story-elements/${storyId}`, {
+        params: { user_id: user?.id },
+      });
 
-      setStoryData(response.data);
+      setLocalStoryData(response.data);
+      setGlobalStoryData(response.data);
       calculateProgress(response.data);
+      setHasUnsavedChanges(false);
     } catch (err) {
       console.error("Error fetching story elements:", err);
       toast.error("Failed to fetch story elements");
@@ -91,44 +89,48 @@ export default function PlanStory({ params }) {
     } finally {
       setLoading(false);
     }
-  }, [storyId, calculateProgress]);
+  }, [storyId, calculateProgress, setGlobalStoryData]);
 
   useEffect(() => {
     fetchStoryElements();
   }, [fetchStoryElements]);
 
-  const handleElementUpdate = async () => {
-    setSaving(true);
-    try {
-      await fetchStoryElements();
-      toast.success("Successfully updated!");
-    } catch (error) {
-      toast.error("Failed to update. Please try again.");
-    } finally {
-      setSaving(false);
-    }
+  // Handle local updates
+  const handleLocalUpdate = (field, value) => {
+    setLocalStoryData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      calculateProgress(newData);
+      return newData;
+    });
+    setHasUnsavedChanges(true);
   };
 
-  const handleGenreUpdate = async (newGenre) => {
+  // Save changes to backend and update global state
+  const handleSaveChanges = async () => {
+    setSaving(true);
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      await storyApiClient.post(
-        `/add-genre/${storyId}`,
-        {
-          genre: newGenre,
-        },
-        {
-          params: { user_id: user?.id },
-        }
-      );
+      // Here you would implement the API calls to save all changes
+      // For example:
+      await storyApiClient.put(`/plan/update-story/${storyId}`, {
+        story_data: localStoryData
+      }, {
+        params: { user_id: user?.id }
+      });
 
-      setStoryData((prev) => ({ ...prev, genre: newGenre }));
-      toast.success("Genre updated successfully");
+      setGlobalStoryData(localStoryData);
+      setHasUnsavedChanges(false);
+      toast.success("Changes saved successfully!");
     } catch (error) {
-      console.error("Error updating genre:", error);
-      toast.error("Failed to update genre");
+      console.error("Error saving changes:", error);
+      toast.error("Failed to save changes");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -161,65 +163,86 @@ export default function PlanStory({ params }) {
                 <StoryElement
                   title="Genre"
                   description="Select the primary genre for your story"
-                  content={storyData?.genre}
+                  content={localStoryData.genre}
                   storyId={storyId}
                   isFirst={true}
-                  onUpdate={handleGenreUpdate}
+                  onUpdate={(field, value) => handleLocalUpdate(field, value)}
                 />
 
                 <StoryElement
                   title="Title"
                   description="Create a captivating title for your story"
-                  content={storyData?.title}
+                  content={localStoryData?.title || ""}
                   storyId={storyId}
-                  onUpdate={handleElementUpdate}
+                  onUpdate={handleLocalUpdate}
                 />
 
-                {storyData?.genre && (
+                {localStoryData?.genre && (
                   <StoryElement
                     title="Premise"
                     description="Define the core concept of your story"
-                    content={storyData?.premise}
+                    content={localStoryData?.premise}
                     storyId={storyId}
-                    onUpdate={handleElementUpdate}
+                    onUpdate={(value) => handleLocalUpdate()}
                   />
                 )}
 
-                {storyData?.premise && (
+                {localStoryData?.premise && (
                   <StoryElement
                     title="Setting"
                     description="Establish the world where your story takes place"
-                    content={storyData?.setting}
+                    content={localStoryData?.setting}
                     storyId={storyId}
-                    onUpdate={handleElementUpdate}
+                    onUpdate={(field, value) => handleLocalUpdate(field, value)}
                   />
                 )}
 
-                {storyData?.setting && (
+                {localStoryData?.setting && (
                   <StoryElement
                     title="Characters"
                     description="Bring your story's characters to life"
-                    content={storyData?.characters}
+                    content={localStoryData?.characters}
                     storyId={storyId}
                     isCharacters={true}
-                    onUpdate={handleElementUpdate}
+                    onUpdate={(field,value) => handleLocalUpdate(field,value)}
                   />
                 )}
 
-                {storyData?.characters?.length > 0 && (
+                {localStoryData?.characters?.length > 0 && (
                   <StoryElement
                     title="Outline"
                     description="Structure your story's plot"
-                    content={storyData?.outline}
+                    content={localStoryData?.outline}
                     storyId={storyId}
                     isOutline={true}
-                    onUpdate={handleElementUpdate}
+                    onUpdate={(field, value) => handleLocalUpdate(field, value)}
                   />
                 )}
               </motion.div>
             </AnimatePresence>
 
-            {progress === 100 && (
+            {hasUnsavedChanges && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 text-center"
+              >
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSaveChanges}
+                  disabled={saving}
+                  sx={{
+                    bgcolor: "rgb(34 197 94)",
+                    "&:hover": { bgcolor: "rgb(22 163 74)" },
+                  }}
+                >
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
+              </motion.div>
+            )}
+
+            {progress === 100 && !hasUnsavedChanges && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -235,9 +258,7 @@ export default function PlanStory({ params }) {
                     px: 6,
                     py: 2,
                     bgcolor: "rgb(34 197 94)",
-                    "&:hover": {
-                      bgcolor: "rgb(22 163 74)",
-                    },
+                    "&:hover": { bgcolor: "rgb(22 163 74)" },
                   }}
                 >
                   Proceed to Writing

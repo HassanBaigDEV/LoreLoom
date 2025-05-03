@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -30,10 +30,6 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import storyApiClient from "@/lib/storyApi";
-import { useAtom } from "jotai";
-import { storyDataAtom, storyLoadingAtom, storyErrorAtom } from "@/store/atoms";
-import AddIcon from "@mui/icons-material/Add";
-import CheckIcon from "@mui/icons-material/Check";
 import {
   Select,
   SelectContent,
@@ -41,6 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import AddIcon from "@mui/icons-material/Add";
+import CheckIcon from "@mui/icons-material/Check";
 
 export default function StoryElement({
   title,
@@ -50,10 +48,8 @@ export default function StoryElement({
   isCharacters = false,
   isOutline = false,
   storyId,
+  onUpdate,
 }) {
-  const [storyData, setStoryData] = useAtom(storyDataAtom);
-  const [loading, setLoading] = useAtom(storyLoadingAtom);
-  const [error, setError] = useAtom(storyErrorAtom);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -71,6 +67,11 @@ export default function StoryElement({
   const [pointCount, setPointCount] = useState(1);
   const [selectedOption, setSelectedOption] = useState(null);
   const [count, setCount] = useState(1);
+  const [localLoading, setLocalLoading] = useState(false);
+
+  useEffect(() => {
+    setEditedContent(content);
+  }, [content]);
 
   const handleEdit = (content) => {
     setEditedContent(content);
@@ -79,144 +80,112 @@ export default function StoryElement({
 
   const handleSave = async (formData) => {
     try {
-      setLoadingId(title.toLowerCase());
+      setLocalLoading(true);
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      let updatedItem;
+      if (title === "Title") {
+        const response = await storyApiClient.put(
+          `/plan/update-title/${storyId}`,
+          {
+            title: formData,
+          },
+          { params: { user_id: user?.id } }
+        );
 
-      if (isCharacters) {
-        // Check if this is a new character or existing one
+        setEditedContent(formData);
+        onUpdate("title", formData);
+        toast.success("Title updated successfully!");
+      } else if (isCharacters) {
         const isNewCharacter = !content.some(
           (char) => char.name === formData.name
         );
 
-        // Validate required fields
         if (!formData.name?.trim() || !formData.role?.trim()) {
           toast.error("Name and Role are required fields");
           return;
         }
 
-        if (isNewCharacter) {
-          // Add new character
-          const response = await storyApiClient.post(
-            `/plan/add-character/${storyId}`,
-            {
-              new_character: formData,
-            },
-            { params: { user_id: user?.id } }
+          const response = await (isNewCharacter
+            ? storyApiClient.post(`/plan/add-character/${storyId}`, {
+                new_character: formData
+              }, { params: { user_id: user?.id } })
+            : storyApiClient.put(`/plan/update-character/${storyId}`, {
+                character_name: formData.name,
+                updated_character: formData
+              }, { params: { user_id: user?.id } })
           );
-          updatedItem = response.data.character;
 
-          setStoryData((prev) => ({
-            ...prev,
-            characters: [...prev.characters, updatedItem],
-          }));
-          toast.success("Character added successfully!");
-        } else {
-          // Update existing character
-          const response = await storyApiClient.put(
-            `/plan/edit-character/${storyId}`,
-            {
-              character_name: formData.name,
-              updated_character: formData,
-            },
-            { params: { user_id: user?.id } }
-          );
-          updatedItem = response.data.character;
+          const updatedItem = response.data.character;
 
-          setStoryData((prev) => ({
-            ...prev,
-            characters: prev.characters.map((c) =>
+        const updatedCharacters = isNewCharacter
+          ? [...(content || []), updatedItem]
+          : (content || []).map((c) =>
               c.name === updatedItem.name ? updatedItem : c
-            ),
-          }));
-          toast.success("Character updated successfully!");
-        }
+            );
+        
+        onUpdate("characters", updatedCharacters);
+        toast.success(
+          `Character ${isNewCharacter ? "added" : "updated"} successfully!`
+        );
+
       } else if (isOutline) {
-        // Check if this is an edit of an existing point or a new point being added
         const isNewPoint = !content.some(
           (point) => point.number === formData.number
         );
 
-        // Validate required fields before proceeding
         if (!formData.title?.trim() || !formData.description?.trim()) {
           toast.error("Title and Description are required fields");
           return;
         }
 
-        if (isNewPoint) {
-          // This is a new point - create it
-          const response = await storyApiClient.post(
-            `/plan/add-outline-point/${storyId}`,
-            {
-              new_point: {
-                ...formData,
-                // Ensure number is string type for API consistency
-                number: String(formData.number),
-              },
-              position: content?.length || 0,
-            },
-            { params: { user_id: user?.id } }
+          const response = await (isNewPoint
+            ? storyApiClient.post(`/plan/add-outline-point/${storyId}`, {
+                new_point: { ...formData, number: String(formData.number) },
+                position: content?.length || 0,
+              }, { params: { user_id: user?.id } })
+            : storyApiClient.put(`/plan/update-outline-point/${storyId}`, {
+                point_number: String(formData.number),
+                updated_point: { ...formData, number: String(formData.number) },
+              }, { params: { user_id: user?.id } })
           );
 
-          updatedItem = response.data.outline_point;
+          const updatedItem = response.data.outline_point;
 
-          setStoryData((prev) => ({
-            ...prev,
-            outline: [...prev.outline, updatedItem],
-          }));
-
-          toast.success("New outline point added successfully!");
-        } else {
-          // This is an update to an existing point
-          const response = await storyApiClient.put(
-            `/plan/edit-outline-point/${storyId}`,
-            {
-              point_number: String(formData.number),
-              updated_point: {
-                ...formData,
-                // Ensure number remains string type
-                number: String(formData.number),
-              },
-            },
-            { params: { user_id: user?.id } }
-          );
-          updatedItem = response.data.outline_point;
-
-          setStoryData((prev) => ({
-            ...prev,
-            outline: prev.outline.map((p) =>
+        const updatedOutline = isNewPoint
+          ? [...(content || []), updatedItem]
+          : (content || []).map((p) =>
               p.number === updatedItem.number ? updatedItem : p
-            ),
-          }));
+            );
+        
+        onUpdate("outline", updatedOutline);
+        toast.success(
+          `Outline point ${isNewPoint ? "added" : "updated"} successfully!`
+        );
 
-          toast.success("Outline point updated successfully!");
-        }
       } else {
-        // Title, premise, setting
         const field = title.toLowerCase();
-        console.log(formData);
         const response = await storyApiClient.put(
           `/plan/update-${field}/${storyId}`,
           {
-            [field]: formData,
+            [`new_${field}`]: formData,
           },
           { params: { user_id: user?.id } }
         );
 
-        setStoryData((prev) => ({
-          ...prev,
-          [field]: response.data[field],
-        }));
+        // Update the local state with the new content
+        setEditedContent(formData);
+        // Call onUpdate with the field name and the new content
+        onUpdate(field, formData);
+        toast.success(`${title} updated successfully!`);
       }
 
       setIsEditing(false);
-      setEditedContent(null);
     } catch (error) {
       console.error("Error saving changes:", error);
       toast.error("Failed to save changes");
     } finally {
+      setLocalLoading(false);
       setLoadingId("");
     }
   };
@@ -231,6 +200,7 @@ export default function StoryElement({
       setLoadingId(title.toLowerCase());
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
+
       const response = await storyApiClient.get(
         `/plan/generate-${title.toLowerCase()}/${storyId}`,
         {
@@ -238,11 +208,7 @@ export default function StoryElement({
         }
       );
 
-      setStoryData((prev) => ({
-        ...prev,
-        [title.toLowerCase()]: response.data,
-      }));
-
+      onUpdate(title.toLowerCase(), response.data);
       setIsTyping(true);
       toast.success(`${title} generated successfully!`);
     } catch (error) {
@@ -270,7 +236,6 @@ export default function StoryElement({
       if (!user?.id) throw new Error("User not found");
       if (isOutline) {
         const newPoint = {
-          //length of array + 1,
           number: content.length + 1,
           title: "",
           description: "",
@@ -328,16 +293,11 @@ export default function StoryElement({
         data,
       });
 
-      setStoryData((prev) => ({
-        ...prev,
-        [itemType === "character" ? "characters" : "outline"]: prev[
-          itemType === "character" ? "characters" : "outline"
-        ].filter((item) =>
+      onUpdate(itemType, (prev => prev.filter((item) =>
           itemType === "character"
             ? item.name !== itemId
             : item.number !== itemId
-        ),
-      }));
+      )));
 
       toast.success(`${itemType} deleted successfully!`);
     } catch (error) {
@@ -369,11 +329,8 @@ export default function StoryElement({
         }
       );
 
-      setStoryData((prev) => ({
-        ...prev,
-        [fieldName]: response.data[fieldName],
-      }));
-
+      setEditedContent(manualInput);
+      onUpdate(fieldName, manualInput);
       setManualInput("");
       toast.success(`${title} saved successfully!`);
     } catch (error) {
@@ -396,12 +353,9 @@ export default function StoryElement({
         { params: { user_id: user?.id } }
       );
 
-      setStoryData((prev) => ({
-        ...prev,
-        characters: prev.characters.map((char) =>
+      onUpdate("characters", (prev => prev.map((char) =>
           char.name === characterName ? response.data.character : char
-        ),
-      }));
+      )));
       toast.success(`Character ${characterName} regenerated successfully!`);
     } catch (error) {
       console.error(`Error regenerating character ${characterName}:`, error);
@@ -418,7 +372,6 @@ export default function StoryElement({
       setShowOptions(false);
     } else if (option === "generateOne") {
       if (isCharacters) {
-        // handleGenerate();
         handleGenerateMultipleCharacters(1);
       } else if (isOutline) {
         handleGenerateMultiplePoints(1, true);
@@ -430,7 +383,6 @@ export default function StoryElement({
   const handleGenerateMany = () => {
     if (isCharacters) handleGenerateMultipleCharacters(count);
     else if (isOutline) handleGenerateMultiplePoints(pointCount, true);
-    // set count to 1
     setCount(1);
     setPointCount(1);
     setShowOptions(false);
@@ -719,7 +671,7 @@ export default function StoryElement({
 
     const handlePointRegenerate = async (pointNumber) => {
       try {
-        setLoadingId(`outline-${pointNumber}`); // Track loading state per point
+        setLoadingId(`outline-${pointNumber}`);
         const user = JSON.parse(localStorage.getItem("user"));
         if (!user?.id) throw new Error("User not found");
 
@@ -733,13 +685,9 @@ export default function StoryElement({
           }
         );
 
-        // Update only the regenerated point in the content
-        setStoryData((prev) => ({
-          ...prev,
-          outline: prev.outline.map((point) =>
+        onUpdate("outline", (prev => prev.map((point) =>
             point.number === pointNumber ? response.data.outline_point : point
-          ),
-        }));
+        )));
 
         toast.success(`Point ${pointNumber} regenerated successfully!`);
       } catch (error) {
@@ -760,7 +708,6 @@ export default function StoryElement({
       setSelectedOption(null);
     };
 
-    // If editing, show the OutlineForm
     if (isEditing) {
       return (
         <OutlineForm
@@ -883,7 +830,6 @@ export default function StoryElement({
           </Card>
         ))}
 
-        {/* Add New Point Section */}
         <div className="flex flex-col items-center space-y-4">
           {!showOptions ? (
             <Button
@@ -1004,7 +950,6 @@ export default function StoryElement({
       if (!isNaN(value) && value >= 1 && value <= 5) {
         setCount(value);
       }
-      // else show a toast warning
       else {
         toast.error("Please enter a number between 1 and 5");
       }
@@ -1068,51 +1013,6 @@ export default function StoryElement({
                 </Typography>
               </div>
             </div>
-            {/* {
-            hasExistingCharacters && (
-              <div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    checked={continueFromExisting}
-                    onChange={(e) => setContinueFromExisting(e.target.checked)}
-                    color="success"
-                    size="small"
-                  />
-                  <Typography variant="body2" className="text-gray-700">
-                    Continue from existing outline
-                    {content?.length > 0 && (
-                      <span className="text-gray-500">
-                        {" "}
-                        (currently {content.length} point
-                        {content.length !== 1 ? "s" : ""})
-                      </span>
-                    )}
-                  </Typography>
-                </div>
-
-                <div className="p-3 mt-2 border border-blue-100 rounded-md bg-blue-50">
-                  <Typography variant="body2" className="text-blue-700">
-                    {continueFromExisting ? (
-                      <>
-                        <span className="font-semibold">
-                          Continuing from existing outline:
-                        </span>{" "}
-                        Points will be added after point #
-                        {content[content.length - 1].number}.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold">
-                          Starting a new outline:
-                        </span>{" "}
-                        This will replace your existing outline points.
-                      </>
-                    )}
-                  </Typography>
-                </div>
-              </div>
-              
-            )} */}
           </div>
 
           <Button
@@ -1306,15 +1206,11 @@ export default function StoryElement({
   const renderTextContent = (contentToRender) => {
     if (!contentToRender) return "";
 
-    // If it's a string, return it directly
     if (typeof contentToRender === "string") return contentToRender;
 
-    // If it's an object with a description property, return that
     if (contentToRender?.description) return contentToRender.description;
 
-    // If it's an object with a type property (like in your data), handle it appropriately
     if (contentToRender?.type) {
-      // Return the most relevant text field based on the object structure
       return (
         contentToRender.description ||
         contentToRender.title ||
@@ -1322,12 +1218,10 @@ export default function StoryElement({
       );
     }
 
-    // If it's an array, join the elements
     if (Array.isArray(contentToRender)) {
       return contentToRender.join(", ");
     }
 
-    // If all else fails, convert to string
     try {
       return JSON.stringify(contentToRender);
     } catch (e) {
@@ -1337,17 +1231,7 @@ export default function StoryElement({
 
   const renderContent = () => {
     if (title === "Genre") {
-      return (
-        <div className="space-y-4">
-          <Select
-            value={content || ""}
-            onValueChange={(value) => handleSave(value)}
-          >
-            <SelectTrigger className="w-[300px] bg-gray-100 border-gray-300">
-              <SelectValue placeholder="Select genre" />
-            </SelectTrigger>
-            <SelectContent>
-              {[
+      const availableGenres = [
                 "Fantasy",
                 "Science Fiction",
                 "Mystery",
@@ -1358,18 +1242,69 @@ export default function StoryElement({
                 "Contemporary",
                 "Thriller",
                 "Other",
-              ].map((genre) => (
+      ];
+
+      // Use editedContent if available, otherwise fall back to content
+      const displayGenre = editedContent || content;
+      const validGenre = availableGenres.includes(displayGenre) ? displayGenre : "";
+
+      return (
+        <div className="space-y-4">
+          <Select
+            value={validGenre}
+            onValueChange={async (value) => {
+              try {
+                setLocalLoading(true);
+                const user = JSON.parse(localStorage.getItem("user"));
+                if (!user?.id) throw new Error("User not found");
+
+                const response = await storyApiClient.put(
+                  `/plan/update-genre/${storyId}`,
+                  {
+                    genre: value
+                  },
+                  { params: { user_id: user?.id } }
+                );
+
+                // Update editedContent first
+                setEditedContent(value);
+                // Then update parent state
+                onUpdate("genre", value);
+                
+                toast.success("Genre updated successfully!");
+              } catch (error) {
+                console.error("Error saving genre:", error);
+                toast.error("Failed to save genre");
+                // Reset editedContent on error
+                setEditedContent(null);
+              } finally {
+                setLocalLoading(false);
+              }
+            }}
+          >
+            <SelectTrigger className="w-[300px] bg-gray-100 border-gray-300">
+              <SelectValue placeholder="Select genre">
+                {validGenre || "Select genre"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {availableGenres.map((genre) => (
                 <SelectItem key={genre} value={genre}>
                   {genre}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {localLoading && (
+            <div className="flex justify-center mt-2">
+              <CircularProgress size={20} />
+            </div>
+          )}
         </div>
       );
     }
 
-    if (loading && loadingId === title.toLowerCase()) {
+    if (localLoading && loadingId === title.toLowerCase()) {
       return (
         <div className="flex flex-col items-center justify-center py-8">
           <CircularProgress size={40} className="text-green-500" />
@@ -1385,41 +1320,37 @@ export default function StoryElement({
     if (!content) {
       return (
         <div className="space-y-4">
-          {isCharacters || isOutline ? (
-            renderGenerateOptions()
-          ) : (
-            <div className="space-y-4">
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
+          <div className="space-y-4">
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              variant="outlined"
+              placeholder={`Enter your ${title.toLowerCase()} or use AI to generate one`}
+              className="bg-gray-50"
+            />
+            <div className="flex items-center justify-between">
+              <Button
                 variant="outlined"
-                placeholder={`Enter your ${title.toLowerCase()} or use AI to generate one`}
-                className="bg-gray-50"
-              />
-              <div className="flex items-center justify-between">
-                <Button
-                  variant="outlined"
-                  onClick={handleManualSave}
-                  disabled={!manualInput}
-                  className="px-6"
+                onClick={handleManualSave}
+                disabled={!manualInput}
+                className="px-6"
+              >
+                Save Manual Input
+              </Button>
+              <Tooltip title={`Generate ${title} using AI`}>
+                <IconButton
+                  onClick={handleGenerate}
+                  className="p-3 transition-all duration-200 transform bg-green-500 shadow-lg hover:bg-green-600 hover:scale-105"
+                  size="large"
                 >
-                  Save Manual Input
-                </Button>
-                <Tooltip title={`Generate ${title} using AI`}>
-                  <IconButton
-                    onClick={handleGenerate}
-                    className="p-3 transition-all duration-200 transform bg-green-500 shadow-lg hover:bg-green-600 hover:scale-105"
-                    size="large"
-                  >
-                    <AutoFixHighIcon className="text-white" />
-                  </IconButton>
-                </Tooltip>
-              </div>
+                  <AutoFixHighIcon className="text-white" />
+                </IconButton>
+              </Tooltip>
             </div>
-          )}
+          </div>
         </div>
       );
     }
@@ -1462,7 +1393,6 @@ export default function StoryElement({
       return renderOutlineContent();
     }
 
-    // For title, premise, and setting
     if (isEditing) {
       return (
         <div className="space-y-4">
@@ -1497,21 +1427,13 @@ export default function StoryElement({
       <div className="relative p-4 rounded-lg bg-gray-50">
         {isTyping ? (
           <TypewriterText
-            // text={renderTextContent(content)}
-            text={
-              typeof content === "string"
-                ? content
-                : JSON.stringify(content, null, 2)
-            }
+            text={editedContent || content}
             onComplete={() => setIsTyping(false)}
           />
         ) : (
           <>
             <Typography variant="body1" className="whitespace-pre-line">
-              {/* {renderTextContent(content)} */}
-              {typeof content === "string"
-                ? content
-                : JSON.stringify(content, null, 2)}
+              {editedContent || content}
             </Typography>
             <div className="absolute flex space-x-1 top-2 right-2">
               <IconButton
@@ -1537,23 +1459,13 @@ export default function StoryElement({
   ) => {
     try {
       setLoadingId(title.toLowerCase());
-
-      // Set appropriate loading message
-      const hasExistingPoints = Array.isArray(content) && content.length > 0;
-      if (hasExistingPoints && !continueFromExisting) {
-        setLoadingMessage(
-          `Replacing outline with ${count} new point${count > 1 ? "s" : ""}...`
-        );
-      } else {
         setLoadingMessage(
           `Generating ${count} outline point${count > 1 ? "s" : ""}...`
         );
-      }
 
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      // Calculate continue from previous based on user preference and state
       const continueFromPrevious =
         continueFromExisting && Array.isArray(content) && content.length > 0;
 
@@ -1563,34 +1475,18 @@ export default function StoryElement({
           max_depth: count,
           continue_from_previous: continueFromPrevious,
         },
-        {
-          params: { user_id: user?.id },
-        }
+        { params: { user_id: user?.id } }
       );
 
       if (response.data) {
-        // If we're continuing from previous, append the new points
-        // If we're not continuing, replace the existing points
         const newOutline = continueFromPrevious
-          ? [...content, ...response.data]
+          ? [...(content || []), ...response.data]
           : response.data;
 
-        setStoryData((prev) => ({
-          ...prev,
-          outline: newOutline,
-        }));
-
-        if (hasExistingPoints && !continueFromExisting) {
+        onUpdate("outline", newOutline);
           toast.success(
-            `Outline replaced with ${count} new point${count > 1 ? "s" : ""}!`
-          );
-        } else {
-          toast.success(
-            `${count} outline point${
-              count > 1 ? "s" : ""
-            } generated successfully!`
-          );
-        }
+          `${count} outline point${count > 1 ? "s" : ""} generated successfully!`
+        );
       }
     } catch (error) {
       console.error("Error generating outline points:", error);
@@ -1615,11 +1511,7 @@ export default function StoryElement({
         { params: { user_id: user?.id } }
       );
 
-      setStoryData((prev) => ({
-        ...prev,
-        characters: [...prev.characters, ...response.data.characters],
-      }));
-
+      onUpdate("characters", [...(content || []), ...response.data.characters]);
       toast.success(
         `${count} character${count > 1 ? "s" : ""} generated successfully!`
       );
@@ -1664,6 +1556,7 @@ export default function StoryElement({
             </div>
 
             <Collapse in={isExpanded}>{renderContent()}</Collapse>
+            {localLoading && <CircularProgress size={24} className="absolute top-4 right-4" />}
           </CardContent>
         </Card>
       </motion.div>

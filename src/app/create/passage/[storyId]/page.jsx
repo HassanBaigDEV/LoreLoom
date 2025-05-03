@@ -379,6 +379,7 @@ export default function PassagePage({ params }) {
                   size={isMobile ? "small" : "large"}
                   siblingCount={isMobile ? 0 : 1}
                   boundaryCount={isMobile ? 1 : 2}
+                  disabled={page===1}
                   sx={{
                     "& .MuiPaginationItem-root": {
                       color: "rgb(34 197 94)",
