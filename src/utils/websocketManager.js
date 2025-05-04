@@ -149,6 +149,66 @@ class WebSocketManager {
     });
   }
 
+  // Send passage lock notification
+  sendPassageLock(section, username) {
+    return this.send({
+      type: "passage_lock",
+      section,
+      username,
+      timestamp: Date.now(),
+    });
+  }
+
+  // Send passage unlock notification
+  sendPassageUnlock(section, username) {
+    const message = {
+      type: "passage_unlock",
+      section,
+      username,
+      timestamp: Date.now(),
+    };
+
+    console.log(
+      `[WebSocket] Sending passage_unlock for ${section} by ${username}`
+    );
+
+    const success = this.send(message);
+
+    if (!success) {
+      console.warn(
+        `[WebSocket] Failed to send passage_unlock message for ${section}, retrying...`
+      );
+      // Retry after a short delay
+      setTimeout(() => {
+        console.log(`[WebSocket] Retrying passage_unlock for ${section}`);
+        const retrySuccess = this.send(message);
+        if (!retrySuccess) {
+          console.error(
+            `[WebSocket] Failed to send passage_unlock message for ${section} on retry`
+          );
+
+          // As a last resort, trigger a custom event to update the UI
+          if (typeof window !== "undefined") {
+            const unlockEvent = new CustomEvent("passage-unlocked", {
+              detail: {
+                passageId: section,
+                username: username,
+                timestamp: Date.now(),
+                source: "local-fallback",
+              },
+            });
+            window.dispatchEvent(unlockEvent);
+            console.log(
+              `[WebSocket] Dispatched local passage-unlocked event for ${section}`
+            );
+          }
+        }
+      }, 1000);
+    }
+
+    return success;
+  }
+
   // Send cursor position to collaborators
   sendCursorPosition(position, section) {
     return this.send({

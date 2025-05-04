@@ -9,6 +9,7 @@ export function useWebSocketCollaboration(storyId) {
   const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [activeCollaborators, setActiveCollaborators] = useState([]);
+  const [lockedPassages, setLockedPassages] = useState({});
   const [error, setError] = useState(null);
 
   // Connect to WebSocket
@@ -76,6 +77,49 @@ export function useWebSocketCollaboration(storyId) {
         .onMessage("cursor_position", (message) => {
           // Handle cursor position updates from other users
           // This will be implemented by the components using this hook
+        })
+        .onMessage("passage_lock", (message) => {
+          // Handle passage lock updates
+          const { section, username, client_id } = message;
+          console.log(
+            `[WebSocket] Received passage_lock for ${section} by ${username}`
+          );
+          setLockedPassages((prev) => ({
+            ...prev,
+            [section]: { username, client_id, timestamp: Date.now() },
+          }));
+        })
+        .onMessage("passage_unlock", (message) => {
+          // Handle passage unlock updates
+          const { section, username } = message;
+          console.log(
+            `[WebSocket] Received passage_unlock for ${section} by ${username}`
+          );
+
+          setLockedPassages((prev) => {
+            console.log(`[WebSocket] Current locked passages:`, prev);
+            if (prev[section]) {
+              console.log(`[WebSocket] Removing lock for ${section}`);
+              const newState = { ...prev };
+              delete newState[section];
+              return newState;
+            } else {
+              console.log(
+                `[WebSocket] No lock found for ${section}, state unchanged`
+              );
+              return prev;
+            }
+          });
+
+          // Notify other components about the unlock
+          const unlockEvent = new CustomEvent("passage-unlocked", {
+            detail: {
+              passageId: section,
+              username: username,
+              timestamp: Date.now(),
+            },
+          });
+          window.dispatchEvent(unlockEvent);
         });
 
       // Connect to the WebSocket
@@ -102,6 +146,32 @@ export function useWebSocketCollaboration(storyId) {
       }
 
       return websocketManager.sendContentUpdate(content, section);
+    },
+    [isConnected]
+  );
+
+  // Send passage lock notification
+  const sendPassageLock = useCallback(
+    (section, username) => {
+      if (!isConnected) {
+        setError("Not connected to collaboration session");
+        return false;
+      }
+
+      return websocketManager.sendPassageLock(section, username);
+    },
+    [isConnected]
+  );
+
+  // Send passage unlock notification
+  const sendPassageUnlock = useCallback(
+    (section, username) => {
+      if (!isConnected) {
+        setError("Not connected to collaboration session");
+        return false;
+      }
+
+      return websocketManager.sendPassageUnlock(section, username);
     },
     [isConnected]
   );
@@ -138,11 +208,14 @@ export function useWebSocketCollaboration(storyId) {
   return {
     isConnected,
     activeCollaborators,
+    lockedPassages,
     error,
     connect,
     disconnect,
     sendContentUpdate,
     sendCursorPosition,
+    sendPassageLock,
+    sendPassageUnlock,
     registerMessageHandler,
   };
 }
