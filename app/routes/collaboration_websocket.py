@@ -65,6 +65,20 @@ async def websocket_endpoint(websocket: WebSocket, story_id: str):
                     await websocket_manager.broadcast(
                         story_id, message_data, exclude=client_id
                     )
+                elif message_data.get("type") == "passage_lock":
+                    # Broadcast passage lock to all other clients
+                    await websocket_manager.broadcast(
+                        story_id,
+                        message_data,
+                        exclude=None,  # Send to all clients including sender
+                    )
+                elif message_data.get("type") == "passage_unlock":
+                    # Broadcast passage unlock to all other clients
+                    await websocket_manager.broadcast(
+                        story_id,
+                        message_data,
+                        exclude=None,  # Send to all clients including sender
+                    )
                 else:
                     # Broadcast other message types
                     await websocket_manager.broadcast(
@@ -95,4 +109,3 @@ async def websocket_endpoint(websocket: WebSocket, story_id: str):
             story_id,
             {"type": "user_left", "client_id": client_id, "story_id": story_id},
         )
- 
