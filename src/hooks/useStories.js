@@ -7,7 +7,8 @@ import {
   storyErrorAtom,
   currentStoryIdAtom,
   storiesAtom,
-  pStoriesAtom
+  pStoriesAtom,
+  passagesAtom
 } from '@/store/atoms';
 import apiClient from '@/lib/axios';
 
@@ -17,7 +18,7 @@ export function useStories() {
   // Atoms
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [stories, setStories] = useAtom(storiesAtom);
-  const [passages, setPassages] = useAtom(storiesAtom);
+  const [passages, setPassages] = useAtom(passagesAtom);
   const [pStories, setPStories] = useAtom(pStoriesAtom);
   const [, setProgress] = useAtom(storyProgressAtom);
   const [, setIsLoading] = useAtom(storyLoadingAtom);
