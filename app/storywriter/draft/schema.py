@@ -31,6 +31,12 @@ class GeneratedPassage(BaseModel):
         default_factory=list, description="Characters mentioned in the passage"
     )
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    locked_by: Optional[str] = Field(
+        default=None, description="User ID of who has locked this passage for editing"
+    )
+    locked_at: Optional[datetime] = Field(
+        default=None, description="When the passage was locked"
+    )
 
 
 class CharacterUpdate(BaseModel):

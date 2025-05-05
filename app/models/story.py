@@ -8,6 +8,9 @@ from bson import ObjectId
 class Story(BaseModel):
     story_id: ObjectId = Field(default_factory=ObjectId)
     author: ObjectId  # Reference to users collection
+    collaborators: List[ObjectId] = Field(
+        default_factory=list
+    )  # List of user IDs who can collaborate
     title: Optional[str] = ""
     genre: Optional[str] = ""
     privacy: Optional[str] = ""

@@ -8,6 +8,8 @@ from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.plan import router as plan_router
 from app.routes.draft import router as draft_router
+from app.routes.collaboration import router as collaboration_router
+from app.routes.collaboration_websocket import router as websocket_router
 import logging
 from app.config.mongo import db  # Import the database connection
 
@@ -30,6 +32,8 @@ app.add_middleware(
 # Include routers
 app.include_router(plan_router, prefix="/plan", tags=["plan"])
 app.include_router(draft_router, prefix="/draft", tags=["draft"])
+app.include_router(collaboration_router, tags=["collaboration"])
+app.include_router(websocket_router, tags=["websocket"])
 
 stories = db["stories"]  # Define the stories collection
 users = db["users"]  # Define the users collection
@@ -38,6 +42,7 @@ users = db["users"]  # Define the users collection
 class Story(BaseModel):
     story_id: ObjectId = Field(default_factory=ObjectId)
     author: ObjectId  # Reference to users collection
+    collaborators: List[ObjectId] = Field(default_factory=list)  # List of collaborators
     title: Optional[str] = ""
     genre: Optional[str] = ""
     privacy: Optional[str] = ""
@@ -71,7 +76,6 @@ async def create_story(
         title=title,
         genre=genre,
         privacy=privacy,
-        
     )
 
     # Insert the story into the database
