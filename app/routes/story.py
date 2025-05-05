@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, AfterValidator
 from bson import ObjectId
 from datetime import datetime
 from app.config.database import db
+from pymongo.errors import OperationFailure
 import logging
 
 # MongoDB Collection
@@ -763,123 +764,173 @@ async def update_story(story_id: str, story: StoryCreate):
 
 
 # Add a new route to fetch stories where a user is a collaborator
-@story_router.get("/author/stories/collaborative")
-async def get_collaborative_stories(user_id: str = Query(...)):
+# @story_router.get("/author/stories/collaborative")
+# async def get_collaborative_stories(user_id: str = Query(...)):
+#     """
+#     Get all stories where the user is a collaborator (not the author)
+#     """
+#     try:
+#         print(f"[DEBUG] Fetching collaborative stories for user_id: {user_id}")
+
+#         # Convert user ID to ObjectId
+#         user_oid = ObjectId(user_id)
+#         user_str = str(user_oid)
+#         print(
+#             f"[DEBUG] Converted user_id to ObjectId: {user_oid} and string: {user_str}"
+#         )
+
+#         # First try the more direct MongoDB query to see if it works
+#         try:
+#             direct_query_stories = await stories_collection.find(
+#                 {"collaborators": user_oid, "author": {"$ne": user_oid}}
+#             ).to_list(length=100)
+#             print(
+#                 f"[DEBUG] Direct MongoDB query returned {len(direct_query_stories)} stories"
+#             )
+#         except Exception as e:
+#             print(f"[DEBUG] Direct query failed: {e}")
+#             direct_query_stories = []
+
+#         # Now do the manual filtering approach
+#         # Find all stories first
+#         all_stories = await stories_collection.find({}).to_list(length=500)
+#         print(f"[DEBUG] Found {len(all_stories)} total stories")
+
+#         collaborative_stories = []
+
+#         # Filter stories where the user is a collaborator but not the author
+#         for story in all_stories:
+#             story_id = str(story["_id"])
+#             author = story.get("author")
+#             collaborators = story.get("collaborators", [])
+
+#             print(f"[DEBUG] Examining story: {story_id}")
+#             print(f"[DEBUG]   - Author: {author} (type: {type(author)})")
+#             print(
+#                 f"[DEBUG]   - Collaborators: {collaborators} (type: {type(collaborators)})"
+#             )
+
+#             # Skip if user is the author
+#             if author == user_oid:
+#                 print(f"[DEBUG]   - Skipping: User is the author")
+#                 continue
+
+#             # Check if user is a collaborator
+#             is_collaborator = False
+#             if "collaborators" in story and collaborators:
+#                 for collab in collaborators:
+#                     collab_str = str(collab)
+#                     print(
+#                         f"[DEBUG]   - Comparing collaborator {collab_str} with user {user_str}"
+#                     )
+#                     if collab_str == user_str:
+#                         is_collaborator = True
+#                         print(f"[DEBUG]   - MATCH! User is a collaborator")
+#                         break
+
+#             if is_collaborator:
+#                 print(f"[DEBUG]   - Adding story to collaborative_stories result")
+#                 # Format story for response
+#                 story["_id"] = str(story["_id"])
+#                 story["author"] = str(story["author"])
+#                 if "collaborators" in story:
+#                     story["collaborators"] = [
+#                         str(collab) for collab in story["collaborators"]
+#                     ]
+
+#                 # Try to get author name for display
+#                 try:
+#                     author = await users_collection.find_one(
+#                         {"_id": ObjectId(story["author"])}
+#                     )
+#                     if author:
+#                         story["author_name"] = (
+#                             f"{author.get('first_name', '')} {author.get('last_name', '')}"
+#                         )
+#                     else:
+#                         story["author_name"] = "Unknown Author"
+#                 except:
+#                     story["author_name"] = "Unknown Author"
+
+#                 collaborative_stories.append(story)
+
+#         print(f"[DEBUG] Returning {len(collaborative_stories)} collaborative stories")
+#         print(
+#             f"[DEBUG] Direct query found: {len(direct_query_stories)}, Manual filtering found: {len(collaborative_stories)}"
+#         )
+
+#         # Compare the two approaches
+#         if len(direct_query_stories) != len(collaborative_stories):
+#             print(
+#                 f"[DEBUG] WARNING: Different number of stories found between approaches!"
+#             )
+
+#             # Show stories found in direct query but not in manual filtering
+#             direct_ids = {str(s["_id"]) for s in direct_query_stories}
+#             manual_ids = {s["_id"] for s in collaborative_stories}
+#             only_in_direct = direct_ids - manual_ids
+#             only_in_manual = manual_ids - direct_ids
+
+#             if only_in_direct:
+#                 print(f"[DEBUG] Stories found only in direct query: {only_in_direct}")
+#             if only_in_manual:
+#                 print(
+#                     f"[DEBUG] Stories found only in manual filtering: {only_in_manual}"
+#                 )
+
+#         return collaborative_stories
+#     except Exception as e:
+#         print(f"Error getting collaborative stories: {e}")
+#         raise HTTPException(
+#             status_code=500, detail=f"Failed to get collaborative stories: {str(e)}"
+#         )
+
+
+@story_router.get("/collaborative/stories", response_model=List[StoryResponse])
+async def get_collaborative_stories(author: Optional[str] = None):
     """
-    Get all stories where the user is a collaborator (not the author)
+    Retrieve a list of stories where the user is a collaborator but not the author.
     """
     try:
-        print(f"[DEBUG] Fetching collaborative stories for user_id: {user_id}")
+        query = {}
 
-        # Convert user ID to ObjectId
-        user_oid = ObjectId(user_id)
-        user_str = str(user_oid)
-        print(
-            f"[DEBUG] Converted user_id to ObjectId: {user_oid} and string: {user_str}"
-        )
+        if author:
+            author_oid = ObjectId(author) 
+            query = {
+                "collaborators": author_oid, 
+                "author": {"$ne": author_oid} 
+            }
+        else:
+            query = {
+                "collaborators": {"$exists": True, "$ne": []} 
+            }
 
-        # First try the more direct MongoDB query to see if it works
-        try:
-            direct_query_stories = await stories_collection.find(
-                {"collaborators": user_oid, "author": {"$ne": user_oid}}
-            ).to_list(length=100)
-            print(
-                f"[DEBUG] Direct MongoDB query returned {len(direct_query_stories)} stories"
-            )
-        except Exception as e:
-            print(f"[DEBUG] Direct query failed: {e}")
-            direct_query_stories = []
+        stories = await stories_collection.find(query).to_list(length=100)
+        response = []
 
-        # Now do the manual filtering approach
-        # Find all stories first
-        all_stories = await stories_collection.find({}).to_list(length=500)
-        print(f"[DEBUG] Found {len(all_stories)} total stories")
+        for story in stories:
+            story_dict = dict(story)
+            story_dict = objectid_to_str(story_dict)
+            
+            try:
+                author_user = await users_collection.find_one({"_id": ObjectId(story_dict["author"])})
+                if author_user:
+                    first_name = author_user.get("first_name", "")
+                    last_name = author_user.get("last_name", "")
+                    story_dict["author_name"] = f"{first_name} {last_name}".strip()
+                else:
+                    story_dict["author_name"] = "Unknown Author"
+            except Exception as ex:
+                print(f"Error fetching author details for {story_dict['author']}: {ex}")
+                story_dict["author_name"] = "Unknown Author"
 
-        collaborative_stories = []
+            response.append(story_dict)
 
-        # Filter stories where the user is a collaborator but not the author
-        for story in all_stories:
-            story_id = str(story["_id"])
-            author = story.get("author")
-            collaborators = story.get("collaborators", [])
+        return response
 
-            print(f"[DEBUG] Examining story: {story_id}")
-            print(f"[DEBUG]   - Author: {author} (type: {type(author)})")
-            print(
-                f"[DEBUG]   - Collaborators: {collaborators} (type: {type(collaborators)})"
-            )
-
-            # Skip if user is the author
-            if author == user_oid:
-                print(f"[DEBUG]   - Skipping: User is the author")
-                continue
-
-            # Check if user is a collaborator
-            is_collaborator = False
-            if "collaborators" in story and collaborators:
-                for collab in collaborators:
-                    collab_str = str(collab)
-                    print(
-                        f"[DEBUG]   - Comparing collaborator {collab_str} with user {user_str}"
-                    )
-                    if collab_str == user_str:
-                        is_collaborator = True
-                        print(f"[DEBUG]   - MATCH! User is a collaborator")
-                        break
-
-            if is_collaborator:
-                print(f"[DEBUG]   - Adding story to collaborative_stories result")
-                # Format story for response
-                story["_id"] = str(story["_id"])
-                story["author"] = str(story["author"])
-                if "collaborators" in story:
-                    story["collaborators"] = [
-                        str(collab) for collab in story["collaborators"]
-                    ]
-
-                # Try to get author name for display
-                try:
-                    author = await users_collection.find_one(
-                        {"_id": ObjectId(story["author"])}
-                    )
-                    if author:
-                        story["author_name"] = (
-                            f"{author.get('first_name', '')} {author.get('last_name', '')}"
-                        )
-                    else:
-                        story["author_name"] = "Unknown Author"
-                except:
-                    story["author_name"] = "Unknown Author"
-
-                collaborative_stories.append(story)
-
-        print(f"[DEBUG] Returning {len(collaborative_stories)} collaborative stories")
-        print(
-            f"[DEBUG] Direct query found: {len(direct_query_stories)}, Manual filtering found: {len(collaborative_stories)}"
-        )
-
-        # Compare the two approaches
-        if len(direct_query_stories) != len(collaborative_stories):
-            print(
-                f"[DEBUG] WARNING: Different number of stories found between approaches!"
-            )
-
-            # Show stories found in direct query but not in manual filtering
-            direct_ids = {str(s["_id"]) for s in direct_query_stories}
-            manual_ids = {s["_id"] for s in collaborative_stories}
-            only_in_direct = direct_ids - manual_ids
-            only_in_manual = manual_ids - direct_ids
-
-            if only_in_direct:
-                print(f"[DEBUG] Stories found only in direct query: {only_in_direct}")
-            if only_in_manual:
-                print(
-                    f"[DEBUG] Stories found only in manual filtering: {only_in_manual}"
-                )
-
-        return collaborative_stories
+    except OperationFailure as e:
+        print(f"Database operation failed: {e}")
+        raise HTTPException(status_code=500, detail="Database operation failed")
     except Exception as e:
-        print(f"Error getting collaborative stories: {e}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get collaborative stories: {str(e)}"
-        )
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch stories: {str(e)}")
