@@ -139,41 +139,99 @@ export function useWebSocketCollaboration(storyId) {
 
   // Send content update
   const sendContentUpdate = useCallback(
-    (content, section) => {
+    (sectionId, content) => {
       if (!isConnected) {
         setError("Not connected to collaboration session");
         return false;
       }
 
-      return websocketManager.sendContentUpdate(content, section);
+      try {
+        // Include more user information in the message
+        const userName = user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.username || user.email || "Unknown user";
+
+        const message = {
+          type: "content_update",
+          section: sectionId,
+          content: content,
+          user_id: user.id,
+          username: userName,
+          timestamp: new Date().toISOString(),
+        };
+
+        websocketManager.sendContentUpdate(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        console.error("Error sending content update:", error);
+        return false;
+      }
     },
-    [isConnected]
+    [isConnected, user]
   );
 
   // Send passage lock notification
   const sendPassageLock = useCallback(
-    (section, username) => {
+    (sectionId) => {
       if (!isConnected) {
         setError("Not connected to collaboration session");
         return false;
       }
 
-      return websocketManager.sendPassageLock(section, username);
+      try {
+        // Include more user information in the message
+        const userName = user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.username || user.email || "Unknown user";
+
+        const message = {
+          type: "passage_lock",
+          section: sectionId,
+          user_id: user.id,
+          username: userName,
+          timestamp: new Date().toISOString(),
+        };
+
+        websocketManager.sendPassageLock(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        console.error("Error sending passage lock:", error);
+        return false;
+      }
     },
-    [isConnected]
+    [isConnected, user]
   );
 
   // Send passage unlock notification
   const sendPassageUnlock = useCallback(
-    (section, username) => {
+    (sectionId, username) => {
       if (!isConnected) {
         setError("Not connected to collaboration session");
         return false;
       }
 
-      return websocketManager.sendPassageUnlock(section, username);
+      try {
+        // Include more user information in the message
+        const userName = user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.username || user.email || username || "Unknown user";
+
+        const message = {
+          type: "passage_unlock",
+          section: sectionId,
+          user_id: user.id,
+          username: userName,
+          timestamp: new Date().toISOString(),
+        };
+
+        websocketManager.sendPassageUnlock(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        console.error("Error sending passage unlock:", error);
+        return false;
+      }
     },
-    [isConnected]
+    [isConnected, user]
   );
 
   // Send cursor position

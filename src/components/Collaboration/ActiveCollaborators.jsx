@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { User, Users, Wifi, WifiOff } from "lucide-react";
 
-export default function ActiveCollaborators({ storyId }) {
+export default function ActiveCollaborators({ storyId, fetchOnMount = false, showUserNames = false }) {
   const { user } = useAuth();
   const { isConnected, activeCollaborators } =
     useWebSocketCollaboration(storyId);
@@ -15,7 +15,7 @@ export default function ActiveCollaborators({ storyId }) {
 
   // Fetch collaborators only once when the component mounts
   useEffect(() => {
-    if (storyId && user?.id && !hasFetchedRef.current) {
+    if (storyId && user?.id && (fetchOnMount || !hasFetchedRef.current)) {
       fetchCollaborators(storyId);
       hasFetchedRef.current = true;
     }
@@ -23,7 +23,7 @@ export default function ActiveCollaborators({ storyId }) {
     return () => {
       hasFetchedRef.current = false;
     };
-  }, [storyId, user?.id]); // Remove fetchCollaborators from dependencies
+  }, [storyId, user?.id, fetchOnMount]); // Added fetchOnMount to dependencies
 
   // Create a map of collaborator IDs to their names
   useEffect(() => {
@@ -32,14 +32,28 @@ export default function ActiveCollaborators({ storyId }) {
     const map = {};
     collaborators.forEach((collab) => {
       map[collab._id] = {
-        name: `${collab.first_name} ${collab.last_name}`,
+        name: collab.first_name && collab.last_name 
+          ? `${collab.first_name} ${collab.last_name}` 
+          : collab.username || collab.email || "User",
         email: collab.email,
         active: activeCollaborators.includes(collab._id),
       };
     });
 
+    // Add the current user to the map if they're not already there
+    if (user?.id && !map[user.id]) {
+      map[user.id] = {
+        name: user.first_name && user.last_name 
+          ? `${user.first_name} ${user.last_name}` 
+          : user.username || user.email || "You",
+        email: user.email,
+        active: activeCollaborators.includes(user.id),
+        isCurrentUser: true
+      };
+    }
+
     setCollaboratorMap(map);
-  }, [collaborators, activeCollaborators]);
+  }, [collaborators, activeCollaborators, user]);
 
   if (!storyId || !user) return null;
 
@@ -78,7 +92,7 @@ export default function ActiveCollaborators({ storyId }) {
             const collaborator = collaboratorMap[collabId];
             const displayName = collaborator
               ? collaborator.name
-              : "Unknown user";
+              : (user.id === collabId ? "You" : "Collaborator");
 
             return (
               <div

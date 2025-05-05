@@ -32,6 +32,7 @@ import { toast } from "react-hot-toast";
 import storyApiClient from "@/lib/storyApi";
 import { useWebSocketCollaboration } from "@/hooks/useWebSocketCollaboration";
 import passageService from "@/services/passageService";
+import websocketManager from "@/utils/websocketManager";
 
 export default function PassageEditor({
   passage,
@@ -145,12 +146,58 @@ export default function PassageEditor({
           const username = user?.username || user?.email;
 
           if (username !== message.username) {
-            toast(`${message.username} finished editing this passage`, {
-              icon: "🔓",
-              duration: 3000,
-            });
+            // If this unlock includes updated content, update our local state
+            if (message.content) {
+              console.log(`[${passage.passage_id}] Unlock includes updated content, updating local state`);
+              console.log(`[${passage.passage_id}] New content:`, message.content.substring(0, 50) + "...");
+              
+              // Create an updated passage object with the new content
+              const updatedPassage = {
+                ...localPassage,
+                content: message.content,
+                updated_at: new Date().toISOString(),
+              };
+              
+              // Update our local UI
+              console.log(`[${passage.passage_id}] Setting new content to state`);
+              setContent(message.content);
+              setLocalPassage(updatedPassage);
+              setLastSaved(new Date());
+              
+              // Update the parent component to ensure the change is visible there too
+              console.log(`[${passage.passage_id}] Updating parent component via callback`);
+              updateParentWithPassage(updatedPassage);
+              
+              // Show toast with indication that content was updated
+              toast.success(`${message.username} updated this passage`, {
+                icon: "🔄",
+                duration: 3000,
+              });
+              
+              // Add animation to highlight the content change
+              const passageElement = document.getElementById(`passage-${passage.passage_id}`);
+              if (passageElement) {
+                console.log(`[${passage.passage_id}] Adding animation class for content update`);
+                passageElement.classList.add('content-updated');
+                setTimeout(() => {
+                  passageElement.classList.remove('content-updated');
+                }, 3000);
+              } else {
+                console.warn(`[${passage.passage_id}] Passage element not found for animation`);
+              }
+            } else {
+              // Regular unlock notification without content update
+              console.log(`[${passage.passage_id}] Regular unlock without content`);
+              toast(`${message.username} finished editing this passage`, {
+                duration: 2000,
+              });
+            }
+          } else {
+            console.log(`[${passage.passage_id}] Ignoring our own unlock notification`);
           }
         }
+      } else {
+        console.log(`[${passage.passage_id}] Ignoring unlock for different passage: ${message.section}`);
       }
     };
 
@@ -160,10 +207,29 @@ export default function PassageEditor({
 
       // Only update if the update is for this passage
       if (message.section === passage.passage_id) {
-        console.log(`[${passage.passage_id}] Received content update`);
+        console.log(`[${passage.passage_id}] Received content update for this passage`);
 
         // Don't update if we're editing this passage
         if (!isEditing) {
+          console.log(`[${passage.passage_id}] Not currently editing, applying update`);
+          
+          // Save the current scroll position
+          const scrollableElement = document.querySelector('.MuiContainer-root') || window;
+          const scrollPosition = scrollableElement.scrollTop;
+          
+          // Mark element for animation
+          const passageElement = document.getElementById(`passage-${passage.passage_id}`);
+          if (passageElement) {
+            console.log(`[${passage.passage_id}] Adding animation class to passage element`);
+            passageElement.classList.add('content-updated');
+            // Remove the class after animation completes
+            setTimeout(() => {
+              passageElement.classList.remove('content-updated');
+            }, 3000);
+          } else {
+            console.warn(`[${passage.passage_id}] Passage element not found in DOM for animation`);
+          }
+          
           // Create an updated passage object
           const updatedPassage = {
             ...localPassage,
@@ -177,7 +243,13 @@ export default function PassageEditor({
           setLastSaved(new Date());
 
           // Update the parent component to prevent refresh
+          console.log(`[${passage.passage_id}] Updating parent component with new content`);
           updateParentWithPassage(updatedPassage);
+          
+          // Restore scroll position after state update
+          setTimeout(() => {
+            scrollableElement.scrollTop = scrollPosition;
+          }, 0);
 
           // Show toast notification
           const user = JSON.parse(localStorage.getItem("user"));
@@ -187,9 +259,12 @@ export default function PassageEditor({
               `${message.username || "A collaborator"} updated this passage`,
               {
                 duration: 3000,
+                icon: "🔄"
               }
             );
           }
+        } else {
+          console.log(`[${passage.passage_id}] Currently editing, ignoring content update`);
         }
       }
     };
@@ -746,78 +821,189 @@ export default function PassageEditor({
   };
 
   const handleSave = async () => {
-    console.log(`[${passage.passage_id}] Saving passage...`);
     setLoading(true);
-
+    let saveSuccess = false;
+    let saveError = null;
+    
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      // 1. Immediately update our local state (optimistic update)
-      const now = new Date();
       const updatedPassage = {
-        ...localPassage,
+        ...passage,
         content,
-        updated_at: now.toISOString(),
+        title,
+        updated_at: new Date().toISOString(),
       };
 
-      // Update our local component state
+      // First, update our local state immediately for optimistic UI update
       setLocalPassage(updatedPassage);
-      setLastSaved(now);
-      setIsEditing(false);
-
-      // 2. Update parent component state immediately (prevents refresh)
+      setLastSaved(new Date());
+      
+      // Update parent component without triggering a full page refresh
       updateParentWithPassage(updatedPassage);
 
-      // 3. Notify collaborators through WebSocket
-      console.log(
-        `[${passage.passage_id}] Sending content update via WebSocket`
-      );
-      sendContentUpdate(content, passage.passage_id);
-
-      // 4. Release the lock BEFORE API call
-      console.log(`[${passage.passage_id}] Releasing lock after save`);
-      await releasePassageLock(true); // Silent mode, we'll show a different toast
-
-      // 5. Finally, update server (but UI is already updated)
-      try {
-        console.log(
-          `[${passage.passage_id}] Updating passage content on server`
-        );
-        const updateResult = await passageService.updatePassage(
-          passage.passage_id,
-          content,
-          user.id
-        );
-        console.log(
-          `[${passage.passage_id}] Save successful on server:`,
-          updateResult
-        );
-        toast.success("Passage saved successfully!");
-      } catch (apiError) {
-        console.error(
-          `[${passage.passage_id}] Error saving content to server:`,
-          apiError
-        );
-        // Show error but don't revert UI since WebSocket update was sent
-        toast.error(
-          "Changes saved locally but server update failed. Other users will still see your changes."
-        );
+      // Try to save to backend with retries
+      let retryCount = 0;
+      const maxRetries = 2;
+      let savedSuccessfully = false;
+      
+      while (!savedSuccessfully && retryCount <= maxRetries) {
+        try {
+          // Send the update via WebSocket to notify other users
+          if (isConnected && sendContentUpdate) {
+            console.log(`[${passage.passage_id}] Sending content update via WebSocket (attempt ${retryCount + 1})`);
+            sendContentUpdate(passage.passage_id, content);
+          }
+          
+          // Save to backend
+          console.log(`[${passage.passage_id}] Saving to backend (attempt ${retryCount + 1})`);
+          await storyApiClient.put(
+            `/draft/passage/${passage.passage_id}`,
+            {
+              content,
+              title,
+              user_id: user.id,
+            }
+          );
+          
+          savedSuccessfully = true;
+          saveSuccess = true;
+          console.log(`[${passage.passage_id}] Successfully saved passage content (attempt ${retryCount + 1})`);
+        } catch (err) {
+          retryCount++;
+          console.error(`[${passage.passage_id}] Error saving content (attempt ${retryCount}):`, err);
+          
+          if (retryCount > maxRetries) {
+            saveError = err;
+            throw err;
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        }
       }
+      
+      // Exit editing mode BEFORE sending unlock message
+      setIsEditing(false);
+      
+      // Include the updated content in the unlock message for real-time updates
+      const userName = user.first_name && user.last_name
+        ? `${user.first_name} ${user.last_name}`
+        : user.username || user.email || "Unknown user";
+      
+      // Create a combined message with both unlock and content info
+      const unlockWithContentMessage = {
+        type: "passage_unlock",
+        section: passage.passage_id,
+        user_id: user.id,
+        username: userName,
+        content: content, // Include content in unlock message
+        timestamp: new Date().toISOString(),
+      };
+      
+      console.log(`[${passage.passage_id}] Sending unlock with content:`, unlockWithContentMessage);
+      
+      // 1. Send WebSocket message with content
+      if (isConnected && websocketManager && websocketManager.socket) {
+        try {
+          websocketManager.send(unlockWithContentMessage);
+          console.log(`[${passage.passage_id}] Unlock with content sent successfully via WebSocket`);
+        } catch (err) {
+          console.error(`[${passage.passage_id}] Error sending unlock with content via WebSocket:`, err);
+        }
+      }
+      
+      // 2. Dispatch a DOM event for local listeners
+      try {
+        const unlockEvent = new CustomEvent("passage-unlocked", {
+          detail: {
+            passageId: passage.passage_id,
+            username: userName,
+            content: content,
+            timestamp: new Date().toISOString(),
+            source: "local-save"
+          }
+        });
+        window.dispatchEvent(unlockEvent);
+        console.log(`[${passage.passage_id}] Dispatched local passage-unlocked event`);
+      } catch (err) {
+        console.error(`[${passage.passage_id}] Error dispatching passage-unlocked event:`, err);
+      }
+      
+      // 3. Also use the regular unlock process as a backup
+      await releasePassageLock();
+      
+      toast.success("Passage saved");
     } catch (error) {
-      console.error(
-        `[${passage.passage_id}] Fatal error in handleSave:`,
-        error
-      );
+      console.error("Error saving passage:", error);
       toast.error("Failed to save passage");
-
-      // Revert to editing mode if there was a fatal error
-      // but keep the optimistic update
-      setIsEditing(true);
+      
+      // If we failed to save but the content changed,
+      // still try to sync with other clients
+      if (!saveSuccess && content !== passage.content) {
+        try {
+          // Dispatch an event to notify clients of the content change
+          // even though the save failed
+          const contentUpdateEvent = new CustomEvent("passage-content-changed", {
+            detail: {
+              passageId: passage.passage_id,
+              content: content,
+              timestamp: new Date().toISOString(),
+              success: false
+            }
+          });
+          window.dispatchEvent(contentUpdateEvent);
+        } catch (err) {
+          console.error("Error dispatching content update after save failure:", err);
+        }
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // Add auto-save functionality
+  useEffect(() => {
+    let autoSaveTimeout;
+    
+    if (isEditing && content !== passage.content) {
+      // Auto-save after 3 seconds of inactivity while editing
+      autoSaveTimeout = setTimeout(async () => {
+        try {
+          const user = JSON.parse(localStorage.getItem("user"));
+          if (!user?.id) return;
+          
+          // Only send to backend, don't change UI state
+          await storyApiClient.put(
+            `/draft/passage/${passage.passage_id}`,
+            {
+              content,
+              title,
+              user_id: user.id,
+            }
+          );
+          
+          // Update last saved time
+          setLastSaved(new Date());
+          
+          // Notify other users via WebSocket
+          if (isConnected && sendContentUpdate) {
+            sendContentUpdate(passage.passage_id, content);
+          }
+          
+          // Show subtle notification
+          toast.success("Auto-saved", { duration: 2000 });
+        } catch (error) {
+          console.error("Auto-save error:", error);
+        }
+      }, 3000);
+    }
+    
+    return () => {
+      if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+    };
+  }, [content, isEditing, passage.passage_id, isConnected, sendContentUpdate]);
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this passage?"))
@@ -1221,17 +1407,18 @@ export default function PassageEditor({
           mb: 1,
         }}
       >
-        {title && (
-          <Typography variant="h6" gutterBottom>
-            {title}
-          </Typography>
-        )}
-
-        <Stack direction="row" spacing={1} alignItems="center">
+        <Box>
+          {title && (
+            <Typography variant="h6" gutterBottom>
+              {title}
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary">
             Last updated: {formatDate(lastSaved)}
           </Typography>
+        </Box>
 
+        <Stack direction="row" spacing={1} alignItems="center">
           {currentEditor && !isEditing && (
             <Tooltip title={`Being edited by ${currentEditor}`}>
               <Chip
@@ -1441,6 +1628,7 @@ export default function PassageEditor({
           </Paper>
         ) : (
           <Paper
+            id={`passage-${passage.passage_id}`}
             elevation={0}
             sx={{
               overflow: "hidden",
@@ -1451,6 +1639,10 @@ export default function PassageEditor({
               ...(currentEditor && {
                 boxShadow: "0 0 8px rgba(251, 191, 36, 0.15)",
               }),
+              transition: "background-color 0.3s ease-in-out",
+              "&.content-updated": {
+                animation: "content-highlight 3s ease-in-out"
+              }
             }}
           >
             <Typography
@@ -1480,6 +1672,22 @@ export default function PassageEditor({
           100% {
             opacity: 0.4;
           }
+        }
+        
+        @keyframes content-highlight {
+          0% {
+            background-color: rgba(34, 197, 94, 0.15);
+          }
+          50% {
+            background-color: rgba(34, 197, 94, 0.05);
+          }
+          100% {
+            background-color: transparent;
+          }
+        }
+        
+        .content-updated {
+          animation: content-highlight 3s ease-in-out;
         }
       `}</style>
 

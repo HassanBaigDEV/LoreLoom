@@ -77,8 +77,8 @@ export function useStories() {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get("/author/stories/collaborative", {
-        params: { user_id: userId },
+      const response = await apiClient.get("/author/collaborative/stories", {
+        params: { author: userId },
       });
       setCollabStories(response.data);
       return response.data;

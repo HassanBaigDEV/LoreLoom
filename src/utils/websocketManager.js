@@ -140,73 +140,116 @@ class WebSocketManager {
   }
 
   // Send content update to collaborators
-  sendContentUpdate(content, section) {
-    return this.send({
-      type: "content_update",
-      content,
-      section,
-      timestamp: Date.now(),
-    });
+  sendContentUpdate(messageData) {
+    // Handle both the new format (JSON string) and the old format (content, section)
+    try {
+      let message;
+      if (typeof messageData === 'string') {
+        message = JSON.parse(messageData);
+      } else {
+        // Legacy support for old format
+        console.warn('Using deprecated content update format, please update your code');
+        message = {
+          type: "content_update",
+          content: messageData,
+          section: arguments[1],
+          timestamp: Date.now(),
+        };
+      }
+      
+      return this.send(message);
+    } catch (error) {
+      console.error("Error sending content update:", error);
+      return false;
+    }
   }
 
   // Send passage lock notification
-  sendPassageLock(section, username) {
-    return this.send({
-      type: "passage_lock",
-      section,
-      username,
-      timestamp: Date.now(),
-    });
+  sendPassageLock(messageData) {
+    try {
+      let message;
+      if (typeof messageData === 'string') {
+        message = JSON.parse(messageData);
+      } else {
+        // Legacy support for old format
+        console.warn('Using deprecated passage lock format, please update your code');
+        message = {
+          type: "passage_lock",
+          section: messageData,
+          username: arguments[1],
+          timestamp: Date.now(),
+        };
+      }
+      
+      return this.send(message);
+    } catch (error) {
+      console.error("Error sending passage lock:", error);
+      return false;
+    }
   }
 
   // Send passage unlock notification
-  sendPassageUnlock(section, username) {
-    const message = {
-      type: "passage_unlock",
-      section,
-      username,
-      timestamp: Date.now(),
-    };
+  sendPassageUnlock(messageData) {
+    try {
+      let message;
+      if (typeof messageData === 'string') {
+        message = JSON.parse(messageData);
+      } else {
+        // Legacy support for old format
+        console.warn('Using deprecated passage unlock format, please update your code');
+        message = {
+          type: "passage_unlock",
+          section: messageData,
+          username: arguments[1],
+          timestamp: Date.now(),
+        };
+      }
 
-    console.log(
-      `[WebSocket] Sending passage_unlock for ${section} by ${username}`
-    );
-
-    const success = this.send(message);
-
-    if (!success) {
-      console.warn(
-        `[WebSocket] Failed to send passage_unlock message for ${section}, retrying...`
+      const { section, username } = message;
+      
+      console.log(
+        `[WebSocket] Sending passage_unlock for ${section} by ${username}`
       );
-      // Retry after a short delay
-      setTimeout(() => {
-        console.log(`[WebSocket] Retrying passage_unlock for ${section}`);
-        const retrySuccess = this.send(message);
-        if (!retrySuccess) {
-          console.error(
-            `[WebSocket] Failed to send passage_unlock message for ${section} on retry`
-          );
 
-          // As a last resort, trigger a custom event to update the UI
-          if (typeof window !== "undefined") {
-            const unlockEvent = new CustomEvent("passage-unlocked", {
-              detail: {
-                passageId: section,
-                username: username,
-                timestamp: Date.now(),
-                source: "local-fallback",
-              },
-            });
-            window.dispatchEvent(unlockEvent);
-            console.log(
-              `[WebSocket] Dispatched local passage-unlocked event for ${section}`
+      const success = this.send(message);
+
+      if (!success) {
+        console.warn(
+          `[WebSocket] Failed to send passage_unlock message for ${section}, retrying...`
+        );
+        // Retry after a short delay
+        setTimeout(() => {
+          console.log(`[WebSocket] Retrying passage_unlock for ${section}`);
+          const retrySuccess = this.send(message);
+          if (!retrySuccess) {
+            console.error(
+              `[WebSocket] Failed to send passage_unlock message for ${section} on retry`
             );
-          }
-        }
-      }, 1000);
-    }
 
-    return success;
+            // As a last resort, trigger a custom event to update the UI
+            if (typeof window !== "undefined") {
+              const unlockEvent = new CustomEvent("passage-unlocked", {
+                detail: {
+                  passageId: section,
+                  username: username,
+                  timestamp: Date.now(),
+                  source: "local-fallback",
+                },
+              });
+              window.dispatchEvent(unlockEvent);
+              console.log(
+                `[WebSocket] Dispatched local passage-unlocked event for ${section}`
+              );
+            }
+          }
+        }, 1000);
+      }
+
+      return success;
+    } catch (error) {
+      console.error("Error sending passage unlock:", error);
+      return false;
+    }
   }
 
   // Send cursor position to collaborators
@@ -284,5 +327,15 @@ class WebSocketManager {
 
 // Create a singleton instance
 const websocketManager = new WebSocketManager();
+
+// Make it available globally for troubleshooting and direct access
+if (typeof window !== 'undefined') {
+  window.websocketManager = websocketManager;
+  
+  // Also expose the register message handler function globally
+  window.registerMessageHandler = (type, handler) => {
+    return websocketManager.onMessage(type, handler);
+  };
+}
 
 export default websocketManager;
