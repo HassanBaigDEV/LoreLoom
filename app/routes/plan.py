@@ -118,6 +118,15 @@ class StoryCreationRequest(BaseModel):
     keywords: list[str] = []
 
 
+class StoryUpdate(BaseModel):
+    title: Optional[str] = None
+    genre: Optional[str] = None
+    premise: Optional[str] = None
+    setting: Optional[str] = None
+    characters: Optional[List[Dict]] = None
+    outline: Optional[List[Dict]] = None
+
+
 @router.get("/generate-title/{story_id}")
 async def get_title(story_id: str, user_id: str):
     try:
@@ -893,3 +902,45 @@ async def create_story(user_id: str, request: StoryCreationRequest):
     except Exception as e:
         logger.error(f"Story creation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/update-story/{story_id}")
+async def update_story(story_id: str, user_id: str, story_data: StoryUpdate):
+    try:
+        # Validate story exists and belongs to user
+        story = await stories.find_one(
+            {"story_id": ObjectId(story_id), "author": ObjectId(user_id)}
+        )
+        if not story:
+            return HTTPException(status_code=404, detail="Story not found")
+
+        # Prepare update data
+        update_data = {"updated_at": datetime.now()}
+        
+        # Add only the fields that are provided in the request
+        if story_data.title is not None:
+            update_data["title"] = story_data.title
+        if story_data.genre is not None:
+            update_data["genre"] = story_data.genre
+        if story_data.premise is not None:
+            update_data["premise"] = story_data.premise
+        if story_data.setting is not None:
+            update_data["setting"] = story_data.setting
+        if story_data.characters is not None:
+            update_data["characters"] = story_data.characters
+        if story_data.outline is not None:
+            update_data["outline"] = story_data.outline
+
+        # Update the story
+        await stories.update_one(
+            {"story_id": ObjectId(story_id)},
+            {"$set": update_data}
+        )
+
+        return {
+            "message": "Story updated successfully",
+            "story_data": story_data.model_dump(exclude_none=True)
+        }
+    except Exception as e:
+        logger.error(f"Error updating story: {e}")
+        return HTTPException(status_code=500, detail=str(e))
