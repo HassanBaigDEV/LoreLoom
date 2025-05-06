@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -40,6 +40,7 @@ import {
   ExpandLess as ExpandLessIcon,
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
+  Lock as LockIcon,
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import { toast } from "react-hot-toast";
@@ -57,12 +58,49 @@ export default function StoryElementsPanel({
   storyElements,
   onUpdate,
   storyId,
+  isReadOnly,
+  authorId,
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState({});
   const [characterDialog, setCharacterDialog] = useState(null);
   const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
   const [outlineDialog, setOutlineDialog] = useState(null);
+  const [userIsAuthor, setUserIsAuthor] = useState(false);
+
+  useEffect(() => {
+    // Check if user is the author of the story
+    const checkUserIsAuthor = () => {
+      try {
+        // If isReadOnly is true, we know the user doesn't have edit access
+        if (isReadOnly) {
+          setUserIsAuthor(false);
+          return;
+        }
+        
+        // If no authorId was provided, user can't be the author
+        if (!authorId) {
+          setUserIsAuthor(false);
+          return;
+        }
+        
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user?.id) {
+          setUserIsAuthor(false);
+          return;
+        }
+
+        // Direct comparison of user ID with author ID
+        const isAuthor = authorId === user.id;
+        setUserIsAuthor(isAuthor);
+      } catch (error) {
+        console.error("Error checking if user is author:", error);
+        setUserIsAuthor(false);
+      }
+    };
+
+    checkUserIsAuthor();
+  }, [authorId, isReadOnly]);
 
   const handleExpandToggle = (field) => {
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
@@ -361,25 +399,36 @@ export default function StoryElementsPanel({
 
   const renderHeader = () => (
     <Box
-      component="a"
-      href={`/create/plan/${storyId}`}
-      target="_blank"
-      rel="noopener noreferrer"
+      component={userIsAuthor ? "a" : "div"}
+      href={userIsAuthor ? `/create/plan/${storyId}` : undefined}
+      target={userIsAuthor ? "_blank" : undefined}
+      rel={userIsAuthor ? "noopener noreferrer" : undefined}
       sx={{
         p: 3,
         borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-        cursor: "pointer",
+        cursor: userIsAuthor ? "pointer" : "default",
         textDecoration: "none",
         "&:hover": {
-          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          backgroundColor: userIsAuthor ? "rgba(255, 255, 255, 0.05)" : "transparent",
         },
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
-        Story Elements
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Typography variant="h6" sx={{ color: "white", fontWeight: 600, flex: 1 }}>
+          Story Elements
+        </Typography>
+        {!userIsAuthor && (
+          <Tooltip title="Only the story author can edit story elements">
+            <LockIcon sx={{ color: "grey.500", ml: 1 }} />
+          </Tooltip>
+        )}
+      </Box>
       <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
-        Click to manage story elements (opens in new tab)
+        {userIsAuthor 
+          ? "Click to manage story elements (opens in new tab)" 
+          : "Only the story author can edit story elements"}
       </Typography>
     </Box>
   );

@@ -796,6 +796,7 @@ export default function PassagePage({ params }) {
             onUpdate={fetchStoryElements}
             storyId={storyId}
             isReadOnly={isReadOnly}
+            authorId={story?.author}
           />
         </Drawer>
 
@@ -841,6 +842,7 @@ export default function PassagePage({ params }) {
             onUpdate={fetchStoryElements}
             storyId={storyId}
             isReadOnly={isReadOnly}
+            authorId={story?.author}
           />
         </Drawer>
 
