@@ -41,9 +41,9 @@ export function useStories() {
       const response = await apiClient.get("/author/stories", {
         params: { author: userId },
       });
-      setStories(response.data);
+      setStories(response?.data ?? []);
       setProgress(100);
-      return response.data;
+      return response?.data ?? [];
     } catch (err) {
       setError("Failed to fetch stories");
       console.error(err);
@@ -60,9 +60,9 @@ export function useStories() {
       setError("");
 
       const response = await apiClient.get("author/pStories");
-      console.log(response.data);
-      setPStories(response.data);
-      return response.data;
+      console.log(response?.data);
+      setPStories(response?.data ?? []);
+      return response?.data ?? [];
     } catch (error) {
       console.error("Failed to fetch stories:", error);
       setError("Failed to fetch stories");
@@ -82,8 +82,8 @@ export function useStories() {
       const response = await apiClient.get("/author/collaborative/stories", {
         params: { author: userId },
       });
-      setCollabStories(response.data);
-      return response.data;
+      setCollabStories(response?.data ?? []);
+      return response?.data ?? [];
     } catch (err) {
       setError("Failed to fetch collaborative stories");
       console.error(err);
@@ -102,8 +102,8 @@ export function useStories() {
       const response = await apiClient.get(`/author/stories/${storyId}`, {
         params: { user_id: userId },
       });
-      setStoryData(response.data);
-      return response.data;
+      setStoryData(response?.data ?? null);
+      return response?.data ?? null;
     } catch (err) {
       setError("Failed to fetch story");
       console.error(err);
@@ -124,9 +124,9 @@ export function useStories() {
         ...data,
         user_id: userId,
       });
-      setStoryData(response.data);
+      setStoryData(response?.data ?? null);
       toast.success("Story updated successfully");
-      return response.data;
+      return response?.data ?? null;
     } catch (err) {
       setError("Failed to update story");
       console.error(err);
@@ -134,6 +134,8 @@ export function useStories() {
       return null;
     } finally {
       setLoading(false);
+    }
+  };
 
   const fetchPassages = async (userId) => {
     try {
@@ -144,8 +146,8 @@ export function useStories() {
         params: { author: userId } 
       });
       console.log(response);
-      setPassages(response.data);
-      return response.data;
+      setPassages(response?.data ?? []);
+      return response?.data ?? [];
     } catch (error) {
       console.error('Failed to fetch passages:', error);
       setError("Failed to fetch passages");

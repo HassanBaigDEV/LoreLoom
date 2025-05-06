@@ -100,53 +100,60 @@ export default function PassagePage({ params }) {
     disconnectRef.current = disconnect;
   }, [connect, fetchCollaborators, disconnect]);
 
-  const fetchPassages = useCallback(async (showLoader = true, passageUpdate = null) => {
-    if (!hasAccess) return;
+  const fetchPassages = useCallback(
+    async (showLoader = true, passageUpdate = null) => {
+      if (!hasAccess) return;
 
-    // If we have a direct passage update, update it in the current passages array
-    if (passageUpdate) {
-      setPassages(prevPassages => 
-        prevPassages.map(p => 
-          p.passage_id === passageUpdate.passage_id ? { ...p, ...passageUpdate } : p
-        )
-      );
-      return; // Don't fetch from server if we have a direct update
-    }
+      // If we have a direct passage update, update it in the current passages array
+      if (passageUpdate) {
+        setPassages((prevPassages) =>
+          prevPassages.map((p) =>
+            p.passage_id === passageUpdate.passage_id
+              ? { ...p, ...passageUpdate }
+              : p
+          )
+        );
+        return; // Don't fetch from server if we have a direct update
+      }
 
-    if (showLoader) setLoading(true);
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
+      if (showLoader) setLoading(true);
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user?.id) throw new Error("User not found");
 
-      const [passagesResponse, countResponse] = await Promise.all([
-        storyApiClient.get(`/draft/passages/${storyId}`, {
-          params: {
-            user_id: user?.id,
-            limit: ITEMS_PER_PAGE,
-            skip: (page - 1) * ITEMS_PER_PAGE,
-          },
-        }),
-        storyApiClient.get(`/draft/passages/${storyId}/count`, {
-          params: { user_id: user?.id },
-        }),
-      ]);
+        const [passagesResponse, countResponse] = await Promise.all([
+          storyApiClient.get(`/draft/passages/${storyId}`, {
+            params: {
+              user_id: user?.id,
+              limit: ITEMS_PER_PAGE,
+              skip: (page - 1) * ITEMS_PER_PAGE,
+            },
+          }),
+          storyApiClient.get(`/draft/passages/${storyId}/count`, {
+            params: { user_id: user?.id },
+          }),
+        ]);
 
-      const sortedPassages = [...passagesResponse.data]
-        .sort((a, b) => {
-          const outlineDiff = parseInt(a.outline_point_id) - parseInt(b.outline_point_id);
+        const sortedPassages = [...passagesResponse.data].sort((a, b) => {
+          const outlineDiff =
+            parseInt(a.outline_point_id) - parseInt(b.outline_point_id);
           if (outlineDiff !== 0) return outlineDiff;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         });
 
-      setPassages(sortedPassages);
-      setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));
-    } catch (error) {
-      console.error("Error fetching passages:", error);
-      toast.error("Failed to load passages");
-    } finally {
-      if (showLoader) setLoading(false);
-    }
-  }, [storyId, page, hasAccess]);
+        setPassages(sortedPassages);
+        setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));
+      } catch (error) {
+        console.error("Error fetching passages:", error);
+        toast.error("Failed to load passages");
+      } finally {
+        if (showLoader) setLoading(false);
+      }
+    },
+    [storyId, page, hasAccess]
+  );
 
   const fetchStoryElements = useCallback(async () => {
     if (!hasAccess) return;
@@ -232,84 +239,97 @@ export default function PassagePage({ params }) {
   }, [checkAccess]);
 
   // Fix 1: Define the fetchSinglePassage function before any useEffects that depend on it
-  const fetchSinglePassage = useCallback(async (passageId) => {
-    if (!hasAccess || !passageId) return;
-    
-    console.log(`Fetching single passage data for: ${passageId}`);
-    
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-      
-      // Call API to get the specific passage
-      const response = await storyApiClient.get(`/draft/passage/${passageId}`, {
-        params: { user_id: user?.id }
-      });
-      
-      if (response.data) {
-        console.log(`Received updated passage data:`, response.data);
-        
-        // Update only this specific passage in the state
-        setPassages(prevPassages => 
-          prevPassages.map(p => 
-            p.passage_id === passageId ? { 
-              ...response.data,
-              _highlight: true // Add highlight flag for visual feedback 
-            } : p
-          )
+  const fetchSinglePassage = useCallback(
+    async (passageId) => {
+      if (!hasAccess || !passageId) return;
+
+      console.log(`Fetching single passage data for: ${passageId}`);
+
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (!user?.id) throw new Error("User not found");
+
+        // Call API to get the specific passage
+        const response = await storyApiClient.get(
+          `/draft/passage/${passageId}`,
+          {
+            params: { user_id: user?.id },
+          }
         );
-        
-        // Remove highlight after animation completes
-        setTimeout(() => {
-          setPassages(currentPassages => 
-            currentPassages.map(p => 
-              p.passage_id === passageId ? { ...p, _highlight: false } : p
+
+        if (response.data) {
+          console.log(`Received updated passage data:`, response.data);
+
+          // Update only this specific passage in the state
+          setPassages((prevPassages) =>
+            prevPassages.map((p) =>
+              p.passage_id === passageId
+                ? {
+                    ...response.data,
+                    _highlight: true, // Add highlight flag for visual feedback
+                  }
+                : p
             )
           );
-        }, 3000);
+
+          // Remove highlight after animation completes
+          setTimeout(() => {
+            setPassages((currentPassages) =>
+              currentPassages.map((p) =>
+                p.passage_id === passageId ? { ...p, _highlight: false } : p
+              )
+            );
+          }, 3000);
+        }
+      } catch (error) {
+        console.error(`Error fetching passage ${passageId}:`, error);
+        toast.error("Failed to refresh passage content");
+
+        // Fall back to full refresh on error
+        fetchPassagesRef.current?.(false);
       }
-    } catch (error) {
-      console.error(`Error fetching passage ${passageId}:`, error);
-      toast.error("Failed to refresh passage content");
-      
-      // Fall back to full refresh on error
-      fetchPassagesRef.current?.(false);
-    }
-  }, [hasAccess, fetchPassagesRef]);
+    },
+    [hasAccess, fetchPassagesRef]
+  );
 
   // Enhanced approach for passage updates - simplify to just listen for passage unlock events and refetch
   useEffect(() => {
     // Simple handler for passage unlock events that just refetches all passages
     const handlePassageUnlock = (event) => {
       if (hasAccess && !accessChecking) {
-        console.log("Passage unlock event received - refetching passages", event.detail);
-        
+        console.log(
+          "Passage unlock event received - refetching passages",
+          event.detail
+        );
+
         // Show notification to user
-        toast.success("Content updated. Refreshing passages...", { 
+        toast.success("Content updated. Refreshing passages...", {
           duration: 2000,
         });
-        
+
         // Simply refetch all passages to ensure everything is in sync
         fetchPassagesRef.current?.(false);
       }
     };
-    
+
     // Also handle WebSocket messages by refetching
     const handleWebSocketMessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         // If this is a content update or an unlock with content, fetch all passages
-        if ((data.type === 'content_update' || 
-            (data.type === 'passage_unlock' && data.content)) && 
-            hasAccess && !accessChecking) {
-          
+        if (
+          (data.type === "content_update" ||
+            (data.type === "passage_unlock" && data.content)) &&
+          hasAccess &&
+          !accessChecking
+        ) {
           console.log("Content update via WebSocket - refreshing passages");
-          
+
           // Store the last update timestamp to avoid too frequent refetches
           const now = Date.now();
           const lastUpdate = window._lastPassageUpdate || 0;
-          
+
           // Only refetch if it's been more than 2 seconds since last update
           if (now - lastUpdate > 2000) {
             window._lastPassageUpdate = now;
@@ -317,33 +337,33 @@ export default function PassagePage({ params }) {
           }
         }
       } catch (e) {
-        console.error('Error handling WebSocket message:', e);
+        console.error("Error handling WebSocket message:", e);
       }
     };
-    
+
     // Register event listeners
-    if (typeof window !== 'undefined') {
-      window.addEventListener('passage-unlocked', handlePassageUnlock);
-      
+    if (typeof window !== "undefined") {
+      window.addEventListener("passage-unlocked", handlePassageUnlock);
+
       // Find and attach to WebSocket if available
       const wsManager = window.websocketManager;
       const socket = wsManager?.socket;
-      
+
       if (socket && socket.addEventListener) {
-        socket.addEventListener('message', handleWebSocketMessage);
+        socket.addEventListener("message", handleWebSocketMessage);
       }
     }
-    
+
     // Clean up
     return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('passage-unlocked', handlePassageUnlock);
-        
+      if (typeof window !== "undefined") {
+        window.removeEventListener("passage-unlocked", handlePassageUnlock);
+
         const wsManager = window.websocketManager;
         const socket = wsManager?.socket;
-        
+
         if (socket && socket.removeEventListener) {
-          socket.removeEventListener('message', handleWebSocketMessage);
+          socket.removeEventListener("message", handleWebSocketMessage);
         }
       }
     };
@@ -372,7 +392,7 @@ export default function PassagePage({ params }) {
     if (value !== page) {
       setPage(value);
       // The fetchPassages will be triggered by the useEffect watching page
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -432,20 +452,25 @@ export default function PassagePage({ params }) {
     visibleNewPassages.length > 0 ? visibleNewPassages[0] : null;
 
   // Add a direct passage update handler
-  const handlePassageUpdate = useCallback((updatedPassage) => {
-    if (!updatedPassage) {
-      // If no passage is provided, fetch all passages
-      fetchPassages(false);
-      return;
-    }
-    
-    // Update a single passage without refreshing the entire list
-    setPassages(prevPassages => 
-      prevPassages.map(p => 
-        p.passage_id === updatedPassage.passage_id ? { ...p, ...updatedPassage } : p
-      )
-    );
-  }, [fetchPassages]);
+  const handlePassageUpdate = useCallback(
+    (updatedPassage) => {
+      if (!updatedPassage) {
+        // If no passage is provided, fetch all passages
+        fetchPassages(false);
+        return;
+      }
+
+      // Update a single passage without refreshing the entire list
+      setPassages((prevPassages) =>
+        prevPassages.map((p) =>
+          p.passage_id === updatedPassage.passage_id
+            ? { ...p, ...updatedPassage }
+            : p
+        )
+      );
+    },
+    [fetchPassages]
+  );
 
   if (accessChecking) {
     return (
@@ -516,7 +541,7 @@ export default function PassagePage({ params }) {
               box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
             }
           }
-          
+
           .passage-highlight {
             animation: highlightPulse 2s infinite;
           }
@@ -603,9 +628,9 @@ export default function PassagePage({ params }) {
                   <Typography variant="subtitle2" gutterBottom>
                     Collaboration Status
                   </Typography>
-                  <ActiveCollaborators 
-                    storyId={storyId} 
-                    fetchOnMount={true} 
+                  <ActiveCollaborators
+                    storyId={storyId}
+                    fetchOnMount={true}
                     showUserNames={true}
                   />
                 </Paper>
@@ -652,20 +677,22 @@ export default function PassagePage({ params }) {
                         <motion.div
                           key={passage.id || passage.passage_id}
                           initial={{ opacity: 0, y: 20 }}
-                          animate={{ 
-                            opacity: 1, 
+                          animate={{
+                            opacity: 1,
                             y: 0,
-                            boxShadow: isHighlighted ? "0 0 0 2px rgba(34, 197, 94, 0.8)" : "none"
+                            boxShadow: isHighlighted
+                              ? "0 0 0 2px rgba(34, 197, 94, 0.8)"
+                              : "none",
                           }}
                           exit={{ opacity: 0 }}
-                          transition={{ 
+                          transition={{
                             delay: index * 0.1,
-                            boxShadow: { duration: 0.5, ease: "easeInOut" }
+                            boxShadow: { duration: 0.5, ease: "easeInOut" },
                           }}
                         >
                           <Paper
                             elevation={3}
-                            className={isHighlighted ? 'passage-highlight' : ''}
+                            className={isHighlighted ? "passage-highlight" : ""}
                             sx={{
                               p: { xs: 2, sm: 3 },
                               transition: "all 0.3s ease",
@@ -676,7 +703,7 @@ export default function PassagePage({ params }) {
                               ...(isHighlighted && {
                                 boxShadow: "0 0 8px rgba(34, 197, 94, 0.6)",
                                 border: "1px solid rgba(34, 197, 94, 0.5)",
-                              })
+                              }),
                             }}
                           >
                             <Typography
@@ -706,7 +733,11 @@ export default function PassagePage({ params }) {
                                   label="Just updated"
                                   color="success"
                                   variant="outlined"
-                                  sx={{ ml: 1, height: "20px", fontSize: "0.7rem" }}
+                                  sx={{
+                                    ml: 1,
+                                    height: "20px",
+                                    fontSize: "0.7rem",
+                                  }}
                                 />
                               )}
                             </Typography>
@@ -753,7 +784,7 @@ export default function PassagePage({ params }) {
                   size={isMobile ? "small" : "large"}
                   siblingCount={isMobile ? 0 : 1}
                   boundaryCount={isMobile ? 1 : 2}
-                  disabled={page===1}
+                  disabled={page === 1}
                   sx={{
                     "& .MuiPaginationItem-root": {
                       color: "rgb(34 197 94)",
@@ -796,6 +827,7 @@ export default function PassagePage({ params }) {
             onUpdate={fetchStoryElements}
             storyId={storyId}
             isReadOnly={isReadOnly}
+            storyAuthorId={story?.author}
           />
         </Drawer>
 
@@ -841,6 +873,7 @@ export default function PassagePage({ params }) {
             onUpdate={fetchStoryElements}
             storyId={storyId}
             isReadOnly={isReadOnly}
+            storyAuthorId={story?.author}
           />
         </Drawer>
 

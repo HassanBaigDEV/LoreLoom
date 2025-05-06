@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -40,6 +40,7 @@ import {
   ExpandLess as ExpandLessIcon,
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
+  OpenInNew as OpenInNewIcon,
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import { toast } from "react-hot-toast";
@@ -57,12 +58,31 @@ export default function StoryElementsPanel({
   storyElements,
   onUpdate,
   storyId,
+  storyAuthorId,
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState({});
   const [characterDialog, setCharacterDialog] = useState(null);
   const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
   const [outlineDialog, setOutlineDialog] = useState(null);
+  const [isAuthor, setIsAuthor] = useState(false);
+
+  // Check if current user is the author
+  useEffect(() => {
+    const checkAuthorStatus = () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        if (user && user.id && storyAuthorId) {
+          setIsAuthor(user.id === storyAuthorId);
+        }
+      } catch (error) {
+        console.error("Error checking author status:", error);
+        setIsAuthor(false);
+      }
+    };
+
+    checkAuthorStatus();
+  }, [storyAuthorId]);
 
   const handleExpandToggle = (field) => {
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
@@ -361,26 +381,45 @@ export default function StoryElementsPanel({
 
   const renderHeader = () => (
     <Box
-      component="a"
-      href={`/create/plan/${storyId}`}
-      target="_blank"
-      rel="noopener noreferrer"
+      component={isAuthor ? "a" : "div"}
+      href={isAuthor ? `/create/plan/${storyId}` : undefined}
+      target={isAuthor ? "_blank" : undefined}
+      rel={isAuthor ? "noopener noreferrer" : undefined}
       sx={{
         p: 3,
         borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-        cursor: "pointer",
+        cursor: isAuthor ? "pointer" : "default",
         textDecoration: "none",
         "&:hover": {
-          backgroundColor: "rgba(255, 255, 255, 0.05)",
+          backgroundColor: isAuthor
+            ? "rgba(255, 255, 255, 0.05)"
+            : "transparent",
         },
       }}
     >
-      <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
-        Story Elements
-      </Typography>
-      <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
-        Click to manage story elements (opens in new tab)
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
+          Story Elements
+        </Typography>
+        {isAuthor && (
+          <Tooltip title="Edit story elements (opens in new tab)">
+            <OpenInNewIcon sx={{ color: "grey.400", fontSize: 18 }} />
+          </Tooltip>
+        )}
+      </Stack>
+
+      {isAuthor ? (
+        <Typography variant="body2" sx={{ color: "grey.400", mt: 1,fontSize: "13px" }}>
+          Click to manage story elements
+        </Typography>
+      ) : (
+        <Typography
+          variant="body2"
+          sx={{ color: "grey.400", mt: 1, fontSize: "13px" }}
+        >
+          Only the author can edit story elements
+        </Typography>
+      )}
     </Box>
   );
 
