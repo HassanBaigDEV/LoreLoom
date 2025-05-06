@@ -74,7 +74,7 @@ export default function Stories() {
     return (
       <div className="mt-8 mb-48">
         <div className="flex items-center gap-2 mb-8">
-          <BookOpen className="w-6 h-6 text-green-500" />
+          <BookOpen className="w-8 h-8 text-blue-900" />
           <h2 className="text-2xl font-semibold">Your Stories</h2>
         </div>
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
@@ -95,6 +95,13 @@ export default function Stories() {
   const renderStoryGrid = (storyList, isCollaborative = false) => {
     if (!storyList?.length) {
       return (
+
+      <div className="mt-8 mb-48">
+        <div className="flex items-center gap-2 mb-8">
+          <BookOpen className="w-8 h-8 text-blue-900" />
+          <h2 className="text-2xl font-semibold">Your Stories</h2>
+        </div>
+        
         <div className="flex items-center justify-center w-full h-64">
           <p className="text-gray-500">
             {isCollaborative
@@ -122,7 +129,7 @@ export default function Stories() {
               />
 
               <div className="absolute top-2 left-4">
-                <span className="px-2 py-1 text-xs bg-green-600/80 backdrop-blur-sm rounded-lg text-green-100 transition-colors hover:bg-green-700/90">
+                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
                   {story.genre}
                 </span>
               </div>
@@ -142,7 +149,7 @@ export default function Stories() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-green-200 hover:bg-green-800/30 backdrop-blur-sm transition-all"
+                      className="text-green-200 transition-all hover:bg-blue-900/50 backdrop-blur-sm"
                     >
                       •••
                     </Button>
@@ -188,9 +195,12 @@ export default function Stories() {
                 className="absolute bottom-2 left-2 right-2 cursor-pointer"
                 onClick={() => handleWriteStory(story)}
               >
-                <div className="p-2 bg-gray-900/90 backdrop-blur-sm rounded-lg transition-colors hover:bg-gray-800/90">
+                <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 ">
+//               <div className="absolute bottom-2 left-2 right-2">
                   <h3 className="font-bold truncate text-green-50">
-                    {story.title.split(":")[0].replace(/^"|"$/g, "")}
+                  {typeof story.title === "string"
+                    ? story.title.split(":")[0].replace(/^"|"$/g, "")
+                    : "Untitled"}
                   </h3>
                   <p className="text-xs text-green-200/80">
                     {isCollaborative

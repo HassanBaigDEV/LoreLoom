@@ -8,6 +8,7 @@ import {
   currentStoryIdAtom,
   storiesAtom,
   pStoriesAtom,
+  passagesAtom,
 } from "@/store/atoms";
 import apiClient from "@/lib/axios";
 import { useState } from "react";
@@ -20,6 +21,7 @@ export function useStories() {
   // Atoms
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [stories, setStories] = useAtom(storiesAtom);
+  const [passages, setPassages] = useAtom(passagesAtom);
   const [pStories, setPStories] = useAtom(pStoriesAtom);
   const [, setProgress] = useAtom(storyProgressAtom);
   const [, setIsLoading] = useAtom(storyLoadingAtom);
@@ -132,6 +134,25 @@ export function useStories() {
       return null;
     } finally {
       setLoading(false);
+
+  const fetchPassages = async (userId) => {
+    try {
+      setIsLoading(true);
+      setError("");
+
+      const response = await apiClient.get('author/passages', { 
+        params: { author: userId } 
+      });
+      console.log(response);
+      setPassages(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch passages:', error);
+      setError("Failed to fetch passages");
+      setPassages([]);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -140,6 +161,7 @@ export function useStories() {
     stories,
     pStories,
     storyData,
+    passages,
     currentStoryId,
     collabStories,
     loading,
@@ -151,10 +173,12 @@ export function useStories() {
     fetchCollaborativeStories,
     fetchStoryById,
     updateStory,
-
+    fetchPassages,
+    
     // Setters for direct manipulation
     setPStories,
     setStories,
+    setPassages,
     setStoryData,
     setCurrentStoryId,
   };

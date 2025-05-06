@@ -5,9 +5,11 @@ import Image from "next/image";
 import cover from "@/assets/images/boyanddog.webp";
 import StoriesIcon from "@/assets/images/story.svg";
 import { useStories } from "@/hooks/useStories";
+import { useRouter } from "next/navigation";
 
 const MainContent = () => {
   const { pStories, fetchPStories } = useStories();
+  const router = useRouter();
 
   useEffect(() => {
     fetchPStories();
@@ -34,33 +36,6 @@ const MainContent = () => {
       </div>
     );
   }
-  // const stories = [
-  //   {
-  //     title: "The Nature Around",
-  //     author: "Ben",
-  //     cover: cover,
-  //     icon: <StoryIcon className="w-10" />, // Use the SVG component here
-  //   },
-  //   {
-  //     title: "The Nature Around",
-  //     author: "Ben",
-  //     cover: cover,
-  //     icon: <StoryIcon className="w-10" />, // Use the SVG component here
-  //   },
-  //   {
-  //     title: "The Nature Around",
-  //     author: "Ben",
-  //     cover: cover,
-  //     icon: <StoryIcon className="w-10" />, // Use the SVG component here
-  //   },
-  //   {
-  //     title: "The Nature Around",
-  //     author: "Ben",
-  //     cover: cover,
-  //     icon: <StoryIcon className="w-10" />, // Use the SVG component here
-  //   },
-  //   // Add more stories as needed
-  // ];
 
   return (
     <main className="flex flex-col min-h-screen">
@@ -77,24 +52,32 @@ const MainContent = () => {
       <section className="m-32">
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {pStories.map((story, index) => (
-            <div key={index} className="relative block w-full">
+            <div 
+              key={index} 
+              className="relative block w-full cursor-pointer group"
+              onClick={() => router.push(`/create/passage/${story.story_id}/view`)}
+            >
               <Image
                 src={cover}
-                className="w-full h-auto mx-auto rounded-3xl brightness-75"
+                className="w-full h-auto mx-auto rounded-2xl brightness-50"
+                alt={story.title}
               />
-              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 left-4 rounded-xl">
-                <p className="text-xs">{story.genre}</p>
+
+              <div className="absolute top-2 left-4">
+                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
+                  {story.genre}
+                </span>
               </div>
-              <div className="absolute p-2 bg-green-500 bg-opacity-50 top-2 right-4 rounded-xl">
-                <StoriesIcon className="w-10" />
-              </div>
-              <div className="absolute flex justify-between p-2 text-white bg-opacity-40 rounded-xl bottom-2 left-2 right-2">
-                <button className="px-3 py-1 text-sm text-white bg-green-500 bg-opacity-50 rounded-xl">
-                  <h1 className="font-bold">
+
+              <div className="absolute bottom-2 left-2 right-2">
+                <div className="p-2 transition-colors bg-blue-900 rounded-lg bg-opacity-40 backdrop-blur-sm hover:bg-blue-950">
+                  <h3 className="font-bold truncate text-green-50">
                     {story.title.split(":")[0].replace(/^"|"$/g, "")}
-                  </h1>
-                  <p className="text-xs">Read story by {story.author_name}</p>
-                </button>
+                  </h3>
+                  <p className="text-xs text-green-200/80">
+                    Read story by {story.author_name}
+                  </p>
+                </div>
               </div>
             </div>
           ))}

@@ -11,6 +11,8 @@ export const storiesAtom = atom([]);
 
 export const pStoriesAtom = atom([]);
 
+export const passagesAtom = atom([]);
+
 // New atoms for story state
 export const storyDataAtom = atom({
   title: "",

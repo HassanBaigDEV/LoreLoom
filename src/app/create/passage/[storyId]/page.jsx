@@ -133,14 +133,10 @@ export default function PassagePage({ params }) {
 
       const sortedPassages = [...passagesResponse.data]
         .sort((a, b) => {
-          const outlineDiff =
-            parseInt(a.outline_number) - parseInt(b.outline_number);
+          const outlineDiff = parseInt(a.outline_point_id) - parseInt(b.outline_point_id);
           if (outlineDiff !== 0) return outlineDiff;
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-        })
-        .reverse();
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
 
       setPassages(sortedPassages);
       setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));

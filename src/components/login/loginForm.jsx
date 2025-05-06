@@ -17,6 +17,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
+import { toast } from "sonner";
 
 import { createTheme } from "@mui/material/styles";
 import { useAtom } from "jotai";
@@ -101,14 +102,19 @@ export default function LoginForm() {
         console.log("Login successful:", data);
 
         await fetchUserProfile();
+        toast.success("Login successful!");
 
         router.push("/dashboard");
       } else {
         const errorData = await response.json();
-        setError(errorData.message || "Sign in failed. Please try again.");
+        const errorMessage = errorData.message || "Sign in failed. Please try again.";
+        setError(errorMessage);
+        toast.error(errorMessage);
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
       console.error("Login error:", err);
     } finally {
       setSubmitting(false);

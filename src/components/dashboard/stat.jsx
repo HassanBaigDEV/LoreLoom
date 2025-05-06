@@ -1,19 +1,46 @@
-"use client";
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import Image from "next/image";
 import token from "@/assets/images/STBK-token.webp";
 import { BookOpen as StoryIcon } from "lucide-react";
+import { useStories } from "@/hooks/useStories";
 
 const StatisticsSection = () => {
-  let userStories = [];
+  const { stories, passages, fetchStories, fetchPassages } = useStories();
 
-  try {
-    const user = JSON.parse(localStorage.getItem("user") || '{"stories": []}');
-    userStories = user?.stories || [];
-    console.log(userStories);
-  } catch (error) {
-    console.error("Error parsing user data:", error);
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || '{}');
+        if (user?.id) {
+          await fetchStories(user.id);
+          await fetchPassages(user.id);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const totalCharacters = useMemo(() => {
+    return stories?.reduce((total, story) => {
+      return total + (story.characters?.length || 0);
+    }, 0) || 0;
+  }, [stories]);
+
+  const completedPlannings = useMemo(() => {
+    if (!stories) return 0;
+
+    const elements = ["title", "genre", "premise", "setting", "characters", "outline"];
+    
+    return stories.filter((story) => {
+      const completed = elements.filter((elem) =>
+        Array.isArray(story[elem]) ? story[elem].length > 0 : Boolean(story[elem])
+      ).length;
+      return completed === elements.length;
+    }).length;
+  }, [stories]);
 
   return (
     <div className="col-span-4 overflow-hidden bg-white rounded-lg shadow">
@@ -42,22 +69,28 @@ const StatisticsSection = () => {
             />
             <div>
               <div className="text-4xl font-semibold text-blue-900">
-                {userStories.length}
+                {stories?.length || 0}
               </div>
               <div className="text-sm text-gray-500">Stories</div>
             </div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">15</div>
+            <div className="text-4xl font-semibold text-gray-900">
+              {passages?.length || 0}
+            </div>
             <div className="text-sm text-gray-500">Passages</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">13</div>
+            <div className="text-4xl font-semibold text-gray-900">
+              {totalCharacters}
+            </div>
             <div className="text-sm text-gray-500">Characters</div>
           </div>
           <div className="text-center">
-            <div className="text-4xl font-semibold text-gray-900">2</div>
-            <div className="text-sm text-gray-500">plannings Completed</div>
+            <div className="text-4xl font-semibold text-gray-900">
+              {completedPlannings}
+            </div>
+            <div className="text-sm text-gray-500">Plannings Completed</div>
           </div>
         </div>
       </div>
