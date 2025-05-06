@@ -92,8 +92,8 @@ export default function StorySettingsPage() {
 
     try {
       setSaving(true);
-      const response = await apiClient.put(`/author/stories/${storyId}`, {
-        ...formData,
+      const response = await apiClient.put(`/author/stories/${storyId}/privacy`, {
+        privacy: formData.privacy,
         userId: user.id,
       });
 
@@ -109,15 +109,15 @@ export default function StorySettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-t-2 border-b-2 border-gray-900 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 md:px-6">
-      <h1 className="text-3xl font-bold mb-6">Story Settings</h1>
+    <div className="container px-4 py-6 mx-auto md:px-6">
+      <h1 className="mb-6 text-3xl font-bold">Story Settings</h1>
 
       <Tabs defaultValue="general">
         <TabsList className="mb-6">
@@ -142,6 +142,7 @@ export default function StorySettingsPage() {
                   value={formData.title}
                   onChange={handleChange}
                   placeholder="Story title"
+                  disabled
                 />
               </div>
 
@@ -153,6 +154,7 @@ export default function StorySettingsPage() {
                   value={formData.genre}
                   onChange={handleChange}
                   placeholder="e.g. Fantasy, Sci-Fi, Mystery"
+                  disabled
                 />
               </div>
 
@@ -167,9 +169,6 @@ export default function StorySettingsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="private">Private</SelectItem>
-                    <SelectItem value="shared">
-                      Shared with Collaborators
-                    </SelectItem>
                     <SelectItem value="public">Public</SelectItem>
                   </SelectContent>
                 </Select>
