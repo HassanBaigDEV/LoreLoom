@@ -134,6 +134,8 @@ export function useStories() {
       return null;
     } finally {
       setLoading(false);
+    }
+  };
 
   const fetchPassages = async (userId) => {
     try {
@@ -183,3 +185,4 @@ export function useStories() {
     setCurrentStoryId,
   };
 }
+

@@ -73,10 +73,6 @@ export default function Stories() {
   if (isLoading) {
     return (
       <div className="mt-8 mb-48">
-        <div className="flex items-center gap-2 mb-8">
-          <BookOpen className="w-8 h-8 text-blue-900" />
-          <h2 className="text-2xl font-semibold">Your Stories</h2>
-        </div>
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-4">
@@ -95,19 +91,14 @@ export default function Stories() {
   const renderStoryGrid = (storyList, isCollaborative = false) => {
     if (!storyList?.length) {
       return (
-
-      <div className="mt-8 mb-48">
-        <div className="flex items-center gap-2 mb-8">
-          <BookOpen className="w-8 h-8 text-blue-900" />
-          <h2 className="text-2xl font-semibold">Your Stories</h2>
-        </div>
-        
-        <div className="flex items-center justify-center w-full h-64">
-          <p className="text-gray-500">
-            {isCollaborative
-              ? "No collaborative stories found"
-              : "No stories found"}
-          </p>
+        <div className="mt-8 mb-48">          
+          <div className="flex items-center justify-center w-full h-64">
+            <p className="text-gray-500">
+              {isCollaborative
+                ? "No collaborative stories found"
+                : "No stories found"}
+            </p>
+          </div>
         </div>
       );
     }
@@ -136,7 +127,7 @@ export default function Stories() {
 
               {isCollaborative && (
                 <div className="absolute top-2 right-16">
-                  <span className="px-2 py-1 text-xs flex items-center gap-1 bg-blue-600/80 backdrop-blur-sm rounded-lg text-blue-100 transition-colors hover:bg-blue-700/90">
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs text-blue-100 transition-colors rounded-lg bg-blue-600/80 backdrop-blur-sm hover:bg-blue-700/90">
                     <Users className="w-3 h-3" />
                     Collaborative
                   </span>
@@ -192,11 +183,11 @@ export default function Stories() {
               </div>
 
               <div
-                className="absolute bottom-2 left-2 right-2 cursor-pointer"
+                className="absolute cursor-pointer bottom-2 left-2 right-2"
                 onClick={() => handleWriteStory(story)}
               >
                 <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 ">
-//               <div className="absolute bottom-2 left-2 right-2">
+               {/* <div className="absolute bottom-2 left-2 right-2"> */}
                   <h3 className="font-bold truncate text-green-50">
                   {typeof story.title === "string"
                     ? story.title.split(":")[0].replace(/^"|"$/g, "")
