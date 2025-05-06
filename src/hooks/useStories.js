@@ -1,5 +1,5 @@
-import { useAtom } from 'jotai';
-import { useRouter } from 'next/navigation';
+import { useAtom } from "jotai";
+import { useRouter } from "next/navigation";
 import {
   storyDataAtom,
   storyProgressAtom,
@@ -8,13 +8,16 @@ import {
   currentStoryIdAtom,
   storiesAtom,
   pStoriesAtom,
-  passagesAtom
-} from '@/store/atoms';
-import apiClient from '@/lib/axios';
+  passagesAtom,
+} from "@/store/atoms";
+import apiClient from "@/lib/axios";
+import { useState } from "react";
+import storyApiClient from "@/lib/storyApi";
+import { toast } from "react-hot-toast";
 
 export function useStories() {
   const router = useRouter();
-  
+
   // Atoms
   const [storyData, setStoryData] = useAtom(storyDataAtom);
   const [stories, setStories] = useAtom(storiesAtom);
@@ -22,27 +25,30 @@ export function useStories() {
   const [pStories, setPStories] = useAtom(pStoriesAtom);
   const [, setProgress] = useAtom(storyProgressAtom);
   const [, setIsLoading] = useAtom(storyLoadingAtom);
-  const [, setError] = useAtom(storyErrorAtom);
+  const [error, setError] = useAtom(storyErrorAtom);
   const [currentStoryId, setCurrentStoryId] = useAtom(currentStoryIdAtom);
+
+  const [collabStories, setCollabStories] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   // Fetch stories for a user
   const fetchStories = async (userId) => {
+    if (!userId) return [];
+
     try {
       setIsLoading(true);
-      setError("");
-
-      const response = await apiClient.get('author/stories', { 
-        params: { author: userId } 
+      setError(null);
+      const response = await apiClient.get("/author/stories", {
+        params: { author: userId },
       });
-      console.log(response);
       setStories(response.data);
       setProgress(100);
       return response.data;
-    } catch (error) {
-      console.error('Failed to fetch stories:', error);
+    } catch (err) {
       setError("Failed to fetch stories");
+      console.error(err);
       setStories([]);
-      throw error;
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -53,12 +59,12 @@ export function useStories() {
       setIsLoading(true);
       setError("");
 
-      const response = await apiClient.get('author/pStories');
+      const response = await apiClient.get("author/pStories");
       console.log(response.data);
       setPStories(response.data);
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch stories:', error);
+      console.error("Failed to fetch stories:", error);
       setError("Failed to fetch stories");
       setPStories([]);
       throw error;
@@ -66,6 +72,68 @@ export function useStories() {
       setIsLoading(false);
     }
   };
+
+  const fetchCollaborativeStories = async (userId) => {
+    if (!userId) return [];
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.get("/author/collaborative/stories", {
+        params: { author: userId },
+      });
+      setCollabStories(response.data);
+      return response.data;
+    } catch (err) {
+      setError("Failed to fetch collaborative stories");
+      console.error(err);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStoryById = async (storyId, userId) => {
+    if (!storyId || !userId) return null;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.get(`/author/stories/${storyId}`, {
+        params: { user_id: userId },
+      });
+      setStoryData(response.data);
+      return response.data;
+    } catch (err) {
+      setError("Failed to fetch story");
+      console.error(err);
+      toast.error("Failed to load story");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateStory = async (storyId, data, userId) => {
+    if (!storyId || !userId) return null;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await apiClient.put(`/author/stories/${storyId}`, {
+        ...data,
+        user_id: userId,
+      });
+      setStoryData(response.data);
+      toast.success("Story updated successfully");
+      return response.data;
+    } catch (err) {
+      setError("Failed to update story");
+      console.error(err);
+      toast.error("Failed to update story");
+      return null;
+    } finally {
+      setLoading(false);
 
   const fetchPassages = async (userId) => {
     try {
@@ -95,10 +163,16 @@ export function useStories() {
     storyData,
     passages,
     currentStoryId,
-    
+    collabStories,
+    loading,
+    error,
+
     // Methods
     fetchStories,
     fetchPStories,
+    fetchCollaborativeStories,
+    fetchStoryById,
+    updateStory,
     fetchPassages,
     
     // Setters for direct manipulation

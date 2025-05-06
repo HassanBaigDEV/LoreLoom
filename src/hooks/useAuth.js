@@ -79,6 +79,7 @@ export function useAuth() {
 
       const response = await apiClient.get("user/me");
       const userData = response.data;
+      console.log("User data from API:", userData);
       setUser(userData);
       localStorage.setItem("user", JSON.stringify(userData));
       return userData;

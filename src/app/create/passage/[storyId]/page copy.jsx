@@ -18,7 +18,6 @@ import {
   Button,
   useTheme,
   useMediaQuery,
-  Chip,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -100,20 +99,10 @@ export default function PassagePage({ params }) {
     disconnectRef.current = disconnect;
   }, [connect, fetchCollaborators, disconnect]);
 
-  const fetchPassages = useCallback(async (showLoader = true, passageUpdate = null) => {
+  const fetchPassages = useCallback(async () => {
     if (!hasAccess) return;
 
-    // If we have a direct passage update, update it in the current passages array
-    if (passageUpdate) {
-      setPassages(prevPassages => 
-        prevPassages.map(p => 
-          p.passage_id === passageUpdate.passage_id ? { ...p, ...passageUpdate } : p
-        )
-      );
-      return; // Don't fetch from server if we have a direct update
-    }
-
-    if (showLoader) setLoading(true);
+    setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
@@ -133,10 +122,14 @@ export default function PassagePage({ params }) {
 
       const sortedPassages = [...passagesResponse.data]
         .sort((a, b) => {
-          const outlineDiff = parseInt(a.outline_point_id) - parseInt(b.outline_point_id);
+          const outlineDiff =
+            parseInt(a.outline_number) - parseInt(b.outline_number);
           if (outlineDiff !== 0) return outlineDiff;
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-        });
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+        })
+        .reverse();
 
       setPassages(sortedPassages);
       setTotalPages(Math.ceil(countResponse.data.total / ITEMS_PER_PAGE));
@@ -144,7 +137,7 @@ export default function PassagePage({ params }) {
       console.error("Error fetching passages:", error);
       toast.error("Failed to load passages");
     } finally {
-      if (showLoader) setLoading(false);
+      setLoading(false);
     }
   }, [storyId, page, hasAccess]);
 
@@ -208,7 +201,7 @@ export default function PassagePage({ params }) {
           } else {
             setHasAccess(false);
             toast.error("You don't have access to this story");
-            // setTimeout(() => router.push("/dashboard"), 2000);
+            setTimeout(() => router.push("/dashboard"), 2000);
           }
         }
       }
@@ -219,7 +212,7 @@ export default function PassagePage({ params }) {
       console.error("Error checking access:", error);
       setHasAccess(false);
       toast.error("Failed to verify access to this story");
-      // setTimeout(() => router.push("/dashboard"), 2000);
+      setTimeout(() => router.push("/dashboard"), 2000);
     } finally {
       setAccessChecking(false);
     }
@@ -231,149 +224,33 @@ export default function PassagePage({ params }) {
     return () => disconnectRef.current?.();
   }, [checkAccess]);
 
-  // Fix 1: Define the fetchSinglePassage function before any useEffects that depend on it
-  const fetchSinglePassage = useCallback(async (passageId) => {
-    if (!hasAccess || !passageId) return;
-    
-    console.log(`Fetching single passage data for: ${passageId}`);
-    
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user?.id) throw new Error("User not found");
-      
-      // Call API to get the specific passage
-      const response = await storyApiClient.get(`/draft/passage/${passageId}`, {
-        params: { user_id: user?.id }
-      });
-      
-      if (response.data) {
-        console.log(`Received updated passage data:`, response.data);
-        
-        // Update only this specific passage in the state
-        setPassages(prevPassages => 
-          prevPassages.map(p => 
-            p.passage_id === passageId ? { 
-              ...response.data,
-              _highlight: true // Add highlight flag for visual feedback 
-            } : p
-          )
-        );
-        
-        // Remove highlight after animation completes
-        setTimeout(() => {
-          setPassages(currentPassages => 
-            currentPassages.map(p => 
-              p.passage_id === passageId ? { ...p, _highlight: false } : p
-            )
-          );
-        }, 3000);
-      }
-    } catch (error) {
-      console.error(`Error fetching passage ${passageId}:`, error);
-      toast.error("Failed to refresh passage content");
-      
-      // Fall back to full refresh on error
-      fetchPassagesRef.current?.(false);
-    }
-  }, [hasAccess, fetchPassagesRef]);
-
-  // Enhanced approach for passage updates - simplify to just listen for passage unlock events and refetch
+  // Connect to WebSocket once access is granted
   useEffect(() => {
-    // Simple handler for passage unlock events that just refetches all passages
-    const handlePassageUnlock = (event) => {
-      if (hasAccess && !accessChecking) {
-        console.log("Passage unlock event received - refetching passages", event.detail);
-        
-        // Show notification to user
-        toast.success("Content updated. Refreshing passages...", { 
-          duration: 2000,
-        });
-        
-        // Simply refetch all passages to ensure everything is in sync
-        fetchPassagesRef.current?.(false);
+    if (
+      hasAccess &&
+      !accessChecking &&
+      (accessRole === "author" || accessRole === "collaborator")
+    ) {
+      // Only fetch collaborators and connect once when access is granted
+      if (fetchCollaboratorsRef.current) {
+        fetchCollaboratorsRef.current(storyId);
       }
-    };
-    
-    // Also handle WebSocket messages by refetching
-    const handleWebSocketMessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        // If this is a content update or an unlock with content, fetch all passages
-        if ((data.type === 'content_update' || 
-            (data.type === 'passage_unlock' && data.content)) && 
-            hasAccess && !accessChecking) {
-          
-          console.log("Content update via WebSocket - refreshing passages");
-          
-          // Store the last update timestamp to avoid too frequent refetches
-          const now = Date.now();
-          const lastUpdate = window._lastPassageUpdate || 0;
-          
-          // Only refetch if it's been more than 2 seconds since last update
-          if (now - lastUpdate > 2000) {
-            window._lastPassageUpdate = now;
-            fetchPassagesRef.current?.(false);
-          }
-        }
-      } catch (e) {
-        console.error('Error handling WebSocket message:', e);
-      }
-    };
-    
-    // Register event listeners
-    if (typeof window !== 'undefined') {
-      window.addEventListener('passage-unlocked', handlePassageUnlock);
-      
-      // Find and attach to WebSocket if available
-      const wsManager = window.websocketManager;
-      const socket = wsManager?.socket;
-      
-      if (socket && socket.addEventListener) {
-        socket.addEventListener('message', handleWebSocketMessage);
+      if (connectRef.current) {
+        connectRef.current();
       }
     }
-    
-    // Clean up
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('passage-unlocked', handlePassageUnlock);
-        
-        const wsManager = window.websocketManager;
-        const socket = wsManager?.socket;
-        
-        if (socket && socket.removeEventListener) {
-          socket.removeEventListener('message', handleWebSocketMessage);
-        }
-      }
-    };
-  }, [hasAccess, accessChecking, fetchPassagesRef]);
+  }, [hasAccess, accessRole, accessChecking, storyId]);
 
   // Fetch data once access is confirmed
   useEffect(() => {
     if (hasAccess && !accessChecking) {
       fetchStoryElementsRef.current?.();
-      // Only fetch passages if we don't already have them for this page
-      if (passages.length === 0) {
-        fetchPassagesRef.current?.(true);
-      }
+      fetchPassagesRef.current?.();
     }
-  }, [hasAccess, accessChecking, passages.length]);
-
-  // Separate effect for page changes - only fetch when page changes
-  useEffect(() => {
-    if (hasAccess && !accessChecking) {
-      fetchPassagesRef.current?.(true);
-    }
-  }, [page, hasAccess, accessChecking]);
+  }, [hasAccess, accessChecking]);
 
   const handlePageChange = (event, value) => {
-    // Only trigger a fetch if the page actually changes
-    if (value !== page) {
-      setPage(value);
-      // The fetchPassages will be triggered by the useEffect watching page
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    setPage(value);
   };
 
   // Open the wizard modal
@@ -431,22 +308,6 @@ export default function PassagePage({ params }) {
   const highestScorePassage =
     visibleNewPassages.length > 0 ? visibleNewPassages[0] : null;
 
-  // Add a direct passage update handler
-  const handlePassageUpdate = useCallback((updatedPassage) => {
-    if (!updatedPassage) {
-      // If no passage is provided, fetch all passages
-      fetchPassages(false);
-      return;
-    }
-    
-    // Update a single passage without refreshing the entire list
-    setPassages(prevPassages => 
-      prevPassages.map(p => 
-        p.passage_id === updatedPassage.passage_id ? { ...p, ...updatedPassage } : p
-      )
-    );
-  }, [fetchPassages]);
-
   if (accessChecking) {
     return (
       <Box
@@ -502,25 +363,6 @@ export default function PassagePage({ params }) {
         }}
       >
         <Toaster position="top-right" />
-
-        {/* Global CSS for animations */}
-        <style jsx global>{`
-          @keyframes highlightPulse {
-            0% {
-              box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
-            }
-            70% {
-              box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
-            }
-            100% {
-              box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
-            }
-          }
-          
-          .passage-highlight {
-            animation: highlightPulse 2s infinite;
-          }
-        `}</style>
 
         {/* Main Content */}
         <Box
@@ -599,16 +441,7 @@ export default function PassagePage({ params }) {
             {/* Collaboration status */}
             {(accessRole === "author" || accessRole === "collaborator") && (
               <Box sx={{ mb: 3 }}>
-                <Paper elevation={1} sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Collaboration Status
-                  </Typography>
-                  <ActiveCollaborators 
-                    storyId={storyId} 
-                    fetchOnMount={true} 
-                    showUserNames={true}
-                  />
-                </Paper>
+                <ActiveCollaborators storyId={storyId} />
               </Box>
             )}
 
@@ -623,7 +456,7 @@ export default function PassagePage({ params }) {
                     <NewPassageResult
                       passage={visibleNewPassages[0]}
                       outline={selectedOutline}
-                      onUpdate={handlePassageUpdate}
+                      onUpdate={fetchPassages}
                       onClose={handleDismissPassage}
                       isHighestScore={true}
                     />
@@ -632,7 +465,7 @@ export default function PassagePage({ params }) {
                   <ComparisonPassageResults
                     passages={visibleNewPassages}
                     outline={selectedOutline}
-                    onUpdate={handlePassageUpdate}
+                    onUpdate={fetchPassages}
                     onClose={handleDismissPassage}
                   />
                 )}
@@ -647,25 +480,16 @@ export default function PassagePage({ params }) {
                 <Stack spacing={2}>
                   {passages.length > 0 ? (
                     passages.map((passage, index) => {
-                      const isHighlighted = passage._highlight;
                       return (
                         <motion.div
                           key={passage.id || passage.passage_id}
                           initial={{ opacity: 0, y: 20 }}
-                          animate={{ 
-                            opacity: 1, 
-                            y: 0,
-                            boxShadow: isHighlighted ? "0 0 0 2px rgba(34, 197, 94, 0.8)" : "none"
-                          }}
+                          animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0 }}
-                          transition={{ 
-                            delay: index * 0.1,
-                            boxShadow: { duration: 0.5, ease: "easeInOut" }
-                          }}
+                          transition={{ delay: index * 0.1 }}
                         >
                           <Paper
                             elevation={3}
-                            className={isHighlighted ? 'passage-highlight' : ''}
                             sx={{
                               p: { xs: 2, sm: 3 },
                               transition: "all 0.3s ease",
@@ -673,10 +497,6 @@ export default function PassagePage({ params }) {
                                 boxShadow: 3,
                                 transform: "translateY(-2px)",
                               },
-                              ...(isHighlighted && {
-                                boxShadow: "0 0 8px rgba(34, 197, 94, 0.6)",
-                                border: "1px solid rgba(34, 197, 94, 0.5)",
-                              })
                             }}
                           >
                             <Typography
@@ -700,20 +520,11 @@ export default function PassagePage({ params }) {
                                 ).toLocaleDateString()}
                                 )
                               </span>
-                              {isHighlighted && (
-                                <Chip
-                                  size="small"
-                                  label="Just updated"
-                                  color="success"
-                                  variant="outlined"
-                                  sx={{ ml: 1, height: "20px", fontSize: "0.7rem" }}
-                                />
-                              )}
                             </Typography>
 
                             <PassageEditor
                               passage={passage}
-                              onUpdate={handlePassageUpdate}
+                              onUpdate={fetchPassages}
                               isReadOnly={isReadOnly}
                             />
                           </Paper>
@@ -753,7 +564,6 @@ export default function PassagePage({ params }) {
                   size={isMobile ? "small" : "large"}
                   siblingCount={isMobile ? 0 : 1}
                   boundaryCount={isMobile ? 1 : 2}
-                  disabled={page===1}
                   sx={{
                     "& .MuiPaginationItem-root": {
                       color: "rgb(34 197 94)",
