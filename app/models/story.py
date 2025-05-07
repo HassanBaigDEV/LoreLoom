@@ -19,6 +19,7 @@ class StoryResponse(BaseModel):
     outline: Optional[List[Dict]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    cover_image: Optional[str] = None
 
     class Config:
         populate_by_name = True

@@ -10,6 +10,8 @@ from slowapi.util import get_remote_address
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.admin import admin_router
 from app.routes.feedback import feedback_router
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 
 # from fastapi import BackgroundTasks
@@ -45,6 +47,11 @@ app.include_router(story_router, prefix="/author", tags=["Author"])
 app.include_router(subscription_router, prefix="/subscription", tags=["Subscription"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
 app.include_router(feedback_router, prefix="/api", tags=["Feedback"])
+
+# No longer needed as we're using base64 encoding for images
+# uploads_dir = Path("uploads")
+# uploads_dir.mkdir(exist_ok=True)
+# app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 @app.get("/protected-route")

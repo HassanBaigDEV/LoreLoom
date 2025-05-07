@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form
 from typing import List, Optional, Annotated
 from pydantic import BaseModel, Field, AfterValidator
 from bson import ObjectId
@@ -6,6 +6,8 @@ from datetime import datetime
 from app.config.database import db
 from pymongo.errors import OperationFailure
 import logging
+import base64
+import io
 
 # MongoDB Collection
 stories_collection = db["stories"]
@@ -18,6 +20,7 @@ story_router = APIRouter()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 # Custom ObjectId type for validation
 def validate_object_id(v: str) -> str:
@@ -63,6 +66,7 @@ class StoryBase(BaseModel):
     privacy: str
     author_name: Optional[str] = ""
     collaborators: Optional[List[str]] = []  # List of collaborator IDs as strings
+    cover_image: Optional[str] = None  # Base64 encoded image
 
     # ...
 
@@ -99,6 +103,8 @@ class Passage(BaseModel):
 
     class Config:
         json_encoders = {ObjectId: str}
+
+
 # Collaboration request models
 class CollaboratorRequest(BaseModel):
     """Request model for collaborator operations"""
@@ -220,10 +226,10 @@ async def get_passages(author: Optional[str] = None):
     story_query = {}
     if author:
         story_query["author"] = ObjectId(author)
-    
+
     stories = await stories_collection.find(story_query).to_list(length=100)
     story_ids = [str(story["story_id"]) for story in stories]
-    
+
     # Fetch passages for these stories
     passages_query = {"story_id": {"$in": story_ids}}
     passages = await passages_collection.find(passages_query).to_list(length=100)
@@ -232,7 +238,7 @@ async def get_passages(author: Optional[str] = None):
         passage_dict = dict(passage)
         passage_dict = objectid_to_str(passage_dict)
         response.append(passage_dict)
-    
+
     return response
 
 
@@ -248,6 +254,7 @@ async def get_passages(author: Optional[str] = None):
 #     created_story = await stories_collection.find_one({"_id": result.inserted_id})
 #     return objectid_to_str(created_story)
 
+
 @story_router.get("/stories/{story_id}", response_model=StoryResponse)
 async def get_story_by_id(story_id: str):
     """
@@ -256,15 +263,21 @@ async def get_story_by_id(story_id: str):
     try:
         story = await stories_collection.find_one({"story_id": ObjectId(story_id)})
         if not story:
+            logger.error(f"Story not found with ID: {story_id}")
             raise HTTPException(status_code=404, detail="Story not found")
 
         # Ensure author field is properly converted to string
         story_dict = objectid_to_str(story)
+        logger.info(
+            f"Successfully retrieved story: {story_dict.get('title', 'Untitled')}"
+        )
 
         return story_dict
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error retrieving story: {e}")
-        raise HTTPException(status_code=400, detail="Invalid story ID")
+        logger.error(f"Error retrieving story: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid story ID: {str(e)}")
 
 
 @story_router.get("/stories/{story_id}/access", response_model=dict)
@@ -718,36 +731,56 @@ async def remove_story_collaborator_by_email(
 
 @story_router.put("/stories/{story_id}", response_model=StoryResponse)
 async def update_story(story_id: str, story: StoryCreate):
-    """
-    Update an existing story by its ID.
-    """
     try:
-        # Get the existing story to preserve author information
-        existing_story = await stories_collection.find_one({"_id": ObjectId(story_id)})
+        # Find existing story by story_id
+        existing_story = await stories_collection.find_one({"story_id": ObjectId(story_id)})
         if not existing_story:
+            logger.error(f"Story not found with ID: {story_id}")
             raise HTTPException(status_code=404, detail="Story not found")
 
-        # Ensure we keep the original author
-        story_data = story.dict(exclude_unset=True)
-        story_data["updated_at"] = datetime.utcnow()
+        story_oid = existing_story["story_id"]
 
-        # If author field is not in the update, keep the original
-        if "author" not in story_data and "author" in existing_story:
-            story_data["author"] = existing_story["author"]
+        # Dump incoming story data
+        story_data = story.model_dump(exclude_unset=True)
+        story_data["updated_at"] = datetime.now()
+
+        story_data.pop("story_id", None)
+        story_data.pop("author", None)
+        # Force author and story_id fields to stay ObjectId
+        story_data["author"] = ObjectId(existing_story["author"])
+        story_data["story_id"] = ObjectId(existing_story["story_id"])
+        story_data["collaborators"] = [
+            ObjectId(collab) for collab in existing_story.get("collaborators", [])
+        ]
+
+        logger.info(f"Updating story {story_id} with data: {story_data}")
 
         result = await stories_collection.update_one(
-            {"_id": ObjectId(story_id)}, {"$set": story_data}
+            {"story_id": story_oid}, {"$set": story_data}
         )
 
         if result.modified_count == 0 and not result.matched_count:
-            raise HTTPException(status_code=404, detail="Story not found")
+            raise HTTPException(status_code=404, detail="Story not found or no changes made")
 
-        updated_story = await stories_collection.find_one({"_id": ObjectId(story_id)})
+        updated_story = await stories_collection.find_one({"story_id": story_oid})
+
+        # Update references in passages if title changed
+        if "title" in story_data:
+            try:
+                await passages_collection.update_many(
+                    {"story_id": story_oid},
+                    {"$set": {"story_title": story_data["title"]}},
+                )
+            except Exception as e:
+                logger.error(f"Error updating passages with new story title: {e}")
+
+        logger.info(f"Successfully updated story: {updated_story.get('title', 'Untitled')}")
         return objectid_to_str(updated_story)
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error updating story: {e}")
-        raise HTTPException(status_code=400, detail="Failed to update story")
-
+        logger.error(f"Error updating story: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to update story: {str(e)}")
 
 @story_router.put("/stories/{story_id}/privacy", response_model=StoryResponse)
 async def update_story_privacy(story_id: str, data: dict):
@@ -757,30 +790,34 @@ async def update_story_privacy(story_id: str, data: dict):
     try:
         if "privacy" not in data:
             raise HTTPException(status_code=400, detail="Privacy setting is required")
-        
+
         if data["privacy"] not in ["private", "public"]:
-            raise HTTPException(status_code=400, detail="Invalid privacy setting (must be 'private' or 'public')")
-        
-        existing_story = await stories_collection.find_one({"story_id": ObjectId(story_id)})
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid privacy setting (must be 'private' or 'public')",
+            )
+
+        existing_story = await stories_collection.find_one(
+            {"story_id": ObjectId(story_id)}
+        )
         if not existing_story:
             raise HTTPException(status_code=404, detail="Story not found")
-        
-        update_data = {
-            "privacy": data["privacy"],
-            "updated_at": datetime.now()
-        }
-        
+
+        update_data = {"privacy": data["privacy"], "updated_at": datetime.now()}
+
         result = await stories_collection.update_one(
             {"story_id": ObjectId(story_id)}, {"$set": update_data}
         )
-        
+
         if result.modified_count == 0 and not result.matched_count:
             raise HTTPException(status_code=404, detail="Story not found")
-        
+
         # Return the updated story
-        updated_story = await stories_collection.find_one({"_id": ObjectId(story_id)})
+        updated_story = await stories_collection.find_one(
+            {"story_id": ObjectId(story_id)}
+        )
         return objectid_to_str(updated_story)
-    
+
     except Exception as e:
         print(f"Error updating story privacy: {e}")
         raise HTTPException(status_code=400, detail="Failed to update story privacy")
@@ -795,15 +832,10 @@ async def get_collaborative_stories(author: Optional[str] = None):
         query = {}
 
         if author:
-            author_oid = ObjectId(author) 
-            query = {
-                "collaborators": author_oid, 
-                "author": {"$ne": author_oid} 
-            }
+            author_oid = ObjectId(author)
+            query = {"collaborators": author_oid, "author": {"$ne": author_oid}}
         else:
-            query = {
-                "collaborators": {"$exists": True, "$ne": []} 
-            }
+            query = {"collaborators": {"$exists": True, "$ne": []}}
 
         stories = await stories_collection.find(query).to_list(length=100)
         response = []
@@ -811,9 +843,11 @@ async def get_collaborative_stories(author: Optional[str] = None):
         for story in stories:
             story_dict = dict(story)
             story_dict = objectid_to_str(story_dict)
-            
+
             try:
-                author_user = await users_collection.find_one({"_id": ObjectId(story_dict["author"])})
+                author_user = await users_collection.find_one(
+                    {"_id": ObjectId(story_dict["author"])}
+                )
                 if author_user:
                     first_name = author_user.get("first_name", "")
                     last_name = author_user.get("last_name", "")
@@ -833,4 +867,62 @@ async def get_collaborative_stories(author: Optional[str] = None):
         raise HTTPException(status_code=500, detail="Database operation failed")
     except Exception as e:
         print(f"Unexpected error: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch stories: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch stories: {str(e)}"
+        )
+
+
+# Endpoint for uploading cover image
+@story_router.post("/upload-cover", response_model=dict)
+async def upload_cover_image(file: UploadFile = File(...), story_id: str = Form(...)):
+    """
+    Upload a cover image for a story and store it as base64 string.
+    """
+    try:
+        # Validate story exists
+        story = await stories_collection.find_one({"story_id": ObjectId(story_id)})
+
+        if not story:
+            logger.error(f"Story not found with ID: {story_id}")
+            raise HTTPException(status_code=404, detail="Story not found")
+
+        # Ensure the file is an image
+        content_type = file.content_type
+        if not content_type or not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=400, detail="File must be an image (JPEG, PNG, WEBP)"
+            )
+
+        # Read the file content
+        contents = await file.read()
+
+        # Encode the image to base64
+        base64_image = base64.b64encode(contents).decode("utf-8")
+
+        # Create the data URI format
+        image_uri = f"data:{content_type};base64,{base64_image}"
+
+        # Update the story with the base64 image data
+        update_result = await stories_collection.update_one(
+            {"story_id": story["story_id"]},
+            {"$set": {"cover_image": image_uri, "updated_at": datetime.now()}},
+        )
+
+        if update_result.modified_count == 0:
+            logger.warning(f"Cover image not updated in database for story {story_id}")
+
+        logger.info(
+            f"Successfully uploaded cover image for story: {story.get('title', 'Untitled')}"
+        )
+        return {
+            "success": True,
+            "url": image_uri,
+            "message": "Cover image uploaded successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading cover image: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error uploading cover image: {str(e)}"
+        )
