@@ -49,30 +49,37 @@ export default function Stories() {
 
   const handleEditStory = (story) => {
     if (!story?.story_id) return;
-    router.push(`/create/plan/${story.story_id}`);
+    router.push(`/create/plan/${story?.story_id}`);
   };
 
   const handleWriteStory = (story) => {
     if (!story?.story_id) return;
-    router.push(`/create/passage/${story.story_id}`);
+    router.push(`/create/passage/${story?.story_id}`);
   };
 
   const handleStorySettings = (story) => {
     if (!story?.story_id) return;
-    router.push(`/story/${story.story_id}/settings`);
+    router.push(`/story/${story?.story_id}/settings`);
   };
 
   const handleDeleteStory = (story) => {
-    // Add confirmation dialog
     if (!window.confirm("Are you sure you want to delete this story?")) return;
-
-    // Delete story logic would go here
     toast.error("Delete functionality not yet implemented");
+  };
+
+  // Check if a string is a base64 data URI
+  const isBase64Image = (str) => {
+    return typeof str === "string" && str.startsWith("data:image/");
   };
 
   if (isLoading) {
     return (
       <div className="mt-8 mb-48">
+        <div className="flex items-center gap-2 mb-8">
+          <BookOpen className="w-8 h-8 text-green-500" />
+          <h2 className="text-2xl font-semibold">Your Stories</h2>
+        </div>
+
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-4">
@@ -91,43 +98,62 @@ export default function Stories() {
   const renderStoryGrid = (storyList, isCollaborative = false) => {
     if (!storyList?.length) {
       return (
-        <div className="mt-8 mb-48">          
-          <div className="flex items-center justify-center w-full h-64">
-            <p className="text-gray-500">
-              {isCollaborative
-                ? "No collaborative stories found"
-                : "No stories found"}
-            </p>
-          </div>
+        <div className="flex items-center justify-center w-full h-64">
+          <p className="text-gray-500">
+            {isCollaborative
+              ? "No collaborative stories found"
+              : "No stories found"}
+          </p>
         </div>
       );
     }
 
     return (
       <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
-        {storyList.map((story, index) => {
-          const isAuthor = !isCollaborative; // Author of own stories, collaborator otherwise
+        {storyList?.map((story, index) => {
+          const isAuthor = !isCollaborative;
+          const hasCoverImage =
+            story?.cover_image &&
+            (isBase64Image(story.cover_image) ||
+              story.cover_image.startsWith("/"));
 
           return (
             <div
-              key={story.id || index}
+              key={story?.id ?? index}
               className="relative block w-full group"
             >
-              <Image
-                src={cover}
-                className="w-full h-auto mx-auto rounded-2xl brightness-50"
-                alt={story.title}
-              />
+              <div className="relative w-full h-64 rounded-2xl overflow-hidden">
+                {hasCoverImage ? (
+                  // If it's a base64 image or a server URL, use it directly
+                  <div
+                    className="w-full h-full bg-center bg-cover brightness-50"
+                    style={{
+                      backgroundImage: `url(${story.cover_image})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }}
+                  />
+                ) : (
+                  // Otherwise use the default cover
+                  <Image
+                    src={cover}
+                    className="w-full h-full object-cover brightness-50"
+                    alt={story?.title ?? "Story cover"}
+                    fill
+                  />
+                )}
+              </div>
 
               <div className="absolute top-2 left-4">
-                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
-                  {story.genre}
+                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-green-600 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-green-600/80">
+                  {story?.genre ?? "Unknown Genre"}
                 </span>
               </div>
 
               {isCollaborative && (
                 <div className="absolute top-2 right-16">
-                  <span className="flex items-center gap-1 px-2 py-1 text-xs text-blue-100 transition-colors rounded-lg bg-blue-600/80 backdrop-blur-sm hover:bg-blue-700/90">
+                  <span className="px-2 py-1 text-xs flex items-center gap-1 bg-green-600/80 backdrop-blur-sm rounded-lg text-green-100 transition-colors hover:bg-green-700/90">
+
                     <Users className="w-3 h-3" />
                     Collaborative
                   </span>
@@ -140,19 +166,17 @@ export default function Stories() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-green-200 transition-all hover:bg-blue-900/50 backdrop-blur-sm"
+                      className="text-green-200 transition-all hover:bg-green-600/50 backdrop-blur-sm"
                     >
                       •••
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="min-w-[150px]">
-                    {/* Always show Write option - both authors and collaborators can write */}
                     <DropdownMenuItem onClick={() => handleWriteStory(story)}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Write
                     </DropdownMenuItem>
 
-                    {/* Only authors can access the story planning */}
                     {isAuthor && (
                       <DropdownMenuItem onClick={() => handleEditStory(story)}>
                         <BookOpen className="w-4 h-4 mr-2" />
@@ -160,7 +184,6 @@ export default function Stories() {
                       </DropdownMenuItem>
                     )}
 
-                    {/* Both authors and collaborators can view settings, but only authors can change them */}
                     <DropdownMenuItem
                       onClick={() => handleStorySettings(story)}
                     >
@@ -168,7 +191,6 @@ export default function Stories() {
                       Settings
                     </DropdownMenuItem>
 
-                    {/* Only authors can delete their stories */}
                     {isAuthor && (
                       <DropdownMenuItem
                         onClick={() => handleDeleteStory(story)}
@@ -186,19 +208,22 @@ export default function Stories() {
                 className="absolute cursor-pointer bottom-2 left-2 right-2"
                 onClick={() => handleWriteStory(story)}
               >
-                <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 ">
+                <div className="p-2 transition-colors bg-green-700 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-green-800">
+
+                {/* <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 "> */}
                {/* <div className="absolute bottom-2 left-2 right-2"> */}
+
                   <h3 className="font-bold truncate text-green-50">
-                  {typeof story.title === "string"
-                    ? story.title.split(":")[0].replace(/^"|"$/g, "")
-                    : "Untitled"}
+                    {typeof story?.title === "string"
+                      ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
+                      : "Untitled"}
                   </h3>
                   <p className="text-xs text-green-200/80">
                     {isCollaborative
                       ? `Collaborative story with ${
-                          story.author_name || "Author"
+                          story?.author_name ?? "Author"
                         }`
-                      : `Your story by ${user?.last_name || "You"}`}
+                      : `Your story by ${user?.last_name ?? "You"}`}
                   </p>
                 </div>
               </div>
@@ -217,9 +242,19 @@ export default function Stories() {
       </div>
 
       <Tabs defaultValue="mystories" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="mystories">My Stories</TabsTrigger>
-          <TabsTrigger value="collaborative">Collaborative</TabsTrigger>
+        <TabsList className="mb-6 bg-white border border-gray-200">
+          <TabsTrigger
+            value="mystories"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+          >
+            My Stories
+          </TabsTrigger>
+          <TabsTrigger
+            value="collaborative"
+            className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
+          >
+            Collaborative
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="mystories">

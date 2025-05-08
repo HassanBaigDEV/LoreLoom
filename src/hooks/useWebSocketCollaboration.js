@@ -36,19 +36,22 @@ export function useWebSocketCollaboration(storyId) {
       websocketManager
         .onConnect(() => {
           setIsConnected(true);
-          toast.success("Connected to collaboration session");
+          // toast.success("Connected to collaboration session");
+          console.log("Connected to collaboration session");
           setError(null);
         })
         .onDisconnect(() => {
           setIsConnected(false);
           // Show a toast only if we were previously connected
           if (isConnected) {
-            toast.error("Disconnected from collaboration session");
+            // toast.error("Disconnected from collaboration session");
+            console.log("Disconnected from collaboration session");
           }
         })
         .onError((err) => {
           setError(`Connection error: ${err.message}`);
-          toast.error("Collaboration connection error");
+          console.log("WebSocket error:", err);
+          // toast.error("Collaboration connection error");
         })
         .onMessage("user_joined", (message) => {
           const { client_id } = message;

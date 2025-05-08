@@ -148,56 +148,77 @@ export default function PassageEditor({
           if (username !== message.username) {
             // If this unlock includes updated content, update our local state
             if (message.content) {
-              console.log(`[${passage.passage_id}] Unlock includes updated content, updating local state`);
-              console.log(`[${passage.passage_id}] New content:`, message.content.substring(0, 50) + "...");
-              
+              console.log(
+                `[${passage.passage_id}] Unlock includes updated content, updating local state`
+              );
+              console.log(
+                `[${passage.passage_id}] New content:`,
+                message.content.substring(0, 50) + "..."
+              );
+
               // Create an updated passage object with the new content
               const updatedPassage = {
                 ...localPassage,
                 content: message.content,
                 updated_at: new Date().toISOString(),
               };
-              
+
               // Update our local UI
-              console.log(`[${passage.passage_id}] Setting new content to state`);
+              console.log(
+                `[${passage.passage_id}] Setting new content to state`
+              );
               setContent(message.content);
               setLocalPassage(updatedPassage);
               setLastSaved(new Date());
-              
+
               // Update the parent component to ensure the change is visible there too
-              console.log(`[${passage.passage_id}] Updating parent component via callback`);
+              console.log(
+                `[${passage.passage_id}] Updating parent component via callback`
+              );
               updateParentWithPassage(updatedPassage);
-              
+
               // Show toast with indication that content was updated
               toast.success(`${message.username} updated this passage`, {
                 icon: "🔄",
                 duration: 3000,
               });
-              
+
               // Add animation to highlight the content change
-              const passageElement = document.getElementById(`passage-${passage.passage_id}`);
+              const passageElement = document.getElementById(
+                `passage-${passage.passage_id}`
+              );
               if (passageElement) {
-                console.log(`[${passage.passage_id}] Adding animation class for content update`);
-                passageElement.classList.add('content-updated');
+                console.log(
+                  `[${passage.passage_id}] Adding animation class for content update`
+                );
+                passageElement.classList.add("content-updated");
                 setTimeout(() => {
-                  passageElement.classList.remove('content-updated');
+                  passageElement.classList.remove("content-updated");
                 }, 3000);
               } else {
-                console.warn(`[${passage.passage_id}] Passage element not found for animation`);
+                console.warn(
+                  `[${passage.passage_id}] Passage element not found for animation`
+                );
               }
             } else {
               // Regular unlock notification without content update
-              console.log(`[${passage.passage_id}] Regular unlock without content`);
+              console.log(
+                `[${passage.passage_id}] Regular unlock without content`
+              );
               toast(`${message.username} finished editing this passage`, {
                 duration: 2000,
               });
             }
           } else {
-            console.log(`[${passage.passage_id}] Ignoring our own unlock notification`);
+            console.log(
+              `[${passage.passage_id}] Ignoring our own unlock notification`
+            );
           }
         }
       } else {
-        console.log(`[${passage.passage_id}] Ignoring unlock for different passage: ${message.section}`);
+        console.log(
+          `[${passage.passage_id}] Ignoring unlock for different passage: ${message.section}`
+        );
       }
     };
 
@@ -207,29 +228,40 @@ export default function PassageEditor({
 
       // Only update if the update is for this passage
       if (message.section === passage.passage_id) {
-        console.log(`[${passage.passage_id}] Received content update for this passage`);
+        console.log(
+          `[${passage.passage_id}] Received content update for this passage`
+        );
 
         // Don't update if we're editing this passage
         if (!isEditing) {
-          console.log(`[${passage.passage_id}] Not currently editing, applying update`);
-          
+          console.log(
+            `[${passage.passage_id}] Not currently editing, applying update`
+          );
+
           // Save the current scroll position
-          const scrollableElement = document.querySelector('.MuiContainer-root') || window;
+          const scrollableElement =
+            document.querySelector(".MuiContainer-root") || window;
           const scrollPosition = scrollableElement.scrollTop;
-          
+
           // Mark element for animation
-          const passageElement = document.getElementById(`passage-${passage.passage_id}`);
+          const passageElement = document.getElementById(
+            `passage-${passage.passage_id}`
+          );
           if (passageElement) {
-            console.log(`[${passage.passage_id}] Adding animation class to passage element`);
-            passageElement.classList.add('content-updated');
+            console.log(
+              `[${passage.passage_id}] Adding animation class to passage element`
+            );
+            passageElement.classList.add("content-updated");
             // Remove the class after animation completes
             setTimeout(() => {
-              passageElement.classList.remove('content-updated');
+              passageElement.classList.remove("content-updated");
             }, 3000);
           } else {
-            console.warn(`[${passage.passage_id}] Passage element not found in DOM for animation`);
+            console.warn(
+              `[${passage.passage_id}] Passage element not found in DOM for animation`
+            );
           }
-          
+
           // Create an updated passage object
           const updatedPassage = {
             ...localPassage,
@@ -243,9 +275,11 @@ export default function PassageEditor({
           setLastSaved(new Date());
 
           // Update the parent component to prevent refresh
-          console.log(`[${passage.passage_id}] Updating parent component with new content`);
+          console.log(
+            `[${passage.passage_id}] Updating parent component with new content`
+          );
           updateParentWithPassage(updatedPassage);
-          
+
           // Restore scroll position after state update
           setTimeout(() => {
             scrollableElement.scrollTop = scrollPosition;
@@ -259,12 +293,14 @@ export default function PassageEditor({
               `${message.username || "A collaborator"} updated this passage`,
               {
                 duration: 3000,
-                icon: "🔄"
+                icon: "🔄",
               }
             );
           }
         } else {
-          console.log(`[${passage.passage_id}] Currently editing, ignoring content update`);
+          console.log(
+            `[${passage.passage_id}] Currently editing, ignoring content update`
+          );
         }
       }
     };
@@ -824,7 +860,7 @@ export default function PassageEditor({
     setLoading(true);
     let saveSuccess = false;
     let saveError = null;
-    
+
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
@@ -839,7 +875,7 @@ export default function PassageEditor({
       // First, update our local state immediately for optimistic UI update
       setLocalPassage(updatedPassage);
       setLastSaved(new Date());
-      
+
       // Update parent component without triggering a full page refresh
       updateParentWithPassage(updatedPassage);
 
@@ -847,51 +883,68 @@ export default function PassageEditor({
       let retryCount = 0;
       const maxRetries = 2;
       let savedSuccessfully = false;
-      
+
       while (!savedSuccessfully && retryCount <= maxRetries) {
         try {
           // Send the update via WebSocket to notify other users
           if (isConnected && sendContentUpdate) {
-            console.log(`[${passage.passage_id}] Sending content update via WebSocket (attempt ${retryCount + 1})`);
+            console.log(
+              `[${
+                passage.passage_id
+              }] Sending content update via WebSocket (attempt ${
+                retryCount + 1
+              })`
+            );
             sendContentUpdate(passage.passage_id, content);
           }
-          
+
           // Save to backend
-          console.log(`[${passage.passage_id}] Saving to backend (attempt ${retryCount + 1})`);
-          await storyApiClient.put(
-            `/draft/passage/${passage.passage_id}`,
-            {
-              content,
-              title,
-              user_id: user.id,
-            }
+          console.log(
+            `[${passage.passage_id}] Saving to backend (attempt ${
+              retryCount + 1
+            })`
           );
-          
+          await storyApiClient.put(`/draft/passage/${passage.passage_id}`, {
+            content,
+            title,
+            user_id: user.id,
+          });
+
           savedSuccessfully = true;
           saveSuccess = true;
-          console.log(`[${passage.passage_id}] Successfully saved passage content (attempt ${retryCount + 1})`);
+          console.log(
+            `[${
+              passage.passage_id
+            }] Successfully saved passage content (attempt ${retryCount + 1})`
+          );
         } catch (err) {
           retryCount++;
-          console.error(`[${passage.passage_id}] Error saving content (attempt ${retryCount}):`, err);
-          
+          console.error(
+            `[${passage.passage_id}] Error saving content (attempt ${retryCount}):`,
+            err
+          );
+
           if (retryCount > maxRetries) {
             saveError = err;
             throw err;
           }
-          
+
           // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * retryCount)
+          );
         }
       }
-      
+
       // Exit editing mode BEFORE sending unlock message
       setIsEditing(false);
-      
+
       // Include the updated content in the unlock message for real-time updates
-      const userName = user.first_name && user.last_name
-        ? `${user.first_name} ${user.last_name}`
-        : user.username || user.email || "Unknown user";
-      
+      const userName =
+        user.first_name && user.last_name
+          ? `${user.first_name} ${user.last_name}`
+          : user.username || user.email || "Unknown user";
+
       // Create a combined message with both unlock and content info
       const unlockWithContentMessage = {
         type: "passage_unlock",
@@ -901,19 +954,27 @@ export default function PassageEditor({
         content: content, // Include content in unlock message
         timestamp: new Date().toISOString(),
       };
-      
-      console.log(`[${passage.passage_id}] Sending unlock with content:`, unlockWithContentMessage);
-      
+
+      console.log(
+        `[${passage.passage_id}] Sending unlock with content:`,
+        unlockWithContentMessage
+      );
+
       // 1. Send WebSocket message with content
       if (isConnected && websocketManager && websocketManager.socket) {
         try {
           websocketManager.send(unlockWithContentMessage);
-          console.log(`[${passage.passage_id}] Unlock with content sent successfully via WebSocket`);
+          console.log(
+            `[${passage.passage_id}] Unlock with content sent successfully via WebSocket`
+          );
         } catch (err) {
-          console.error(`[${passage.passage_id}] Error sending unlock with content via WebSocket:`, err);
+          console.error(
+            `[${passage.passage_id}] Error sending unlock with content via WebSocket:`,
+            err
+          );
         }
       }
-      
+
       // 2. Dispatch a DOM event for local listeners
       try {
         const unlockEvent = new CustomEvent("passage-unlocked", {
@@ -922,40 +983,51 @@ export default function PassageEditor({
             username: userName,
             content: content,
             timestamp: new Date().toISOString(),
-            source: "local-save"
-          }
+            source: "local-save",
+          },
         });
         window.dispatchEvent(unlockEvent);
-        console.log(`[${passage.passage_id}] Dispatched local passage-unlocked event`);
+        console.log(
+          `[${passage.passage_id}] Dispatched local passage-unlocked event`
+        );
       } catch (err) {
-        console.error(`[${passage.passage_id}] Error dispatching passage-unlocked event:`, err);
+        console.error(
+          `[${passage.passage_id}] Error dispatching passage-unlocked event:`,
+          err
+        );
       }
-      
+
       // 3. Also use the regular unlock process as a backup
       await releasePassageLock();
-      
+
       toast.success("Passage saved");
     } catch (error) {
       console.error("Error saving passage:", error);
       toast.error("Failed to save passage");
-      
+
       // If we failed to save but the content changed,
       // still try to sync with other clients
       if (!saveSuccess && content !== passage.content) {
         try {
           // Dispatch an event to notify clients of the content change
           // even though the save failed
-          const contentUpdateEvent = new CustomEvent("passage-content-changed", {
-            detail: {
-              passageId: passage.passage_id,
-              content: content,
-              timestamp: new Date().toISOString(),
-              success: false
+          const contentUpdateEvent = new CustomEvent(
+            "passage-content-changed",
+            {
+              detail: {
+                passageId: passage.passage_id,
+                content: content,
+                timestamp: new Date().toISOString(),
+                success: false,
+              },
             }
-          });
+          );
           window.dispatchEvent(contentUpdateEvent);
         } catch (err) {
-          console.error("Error dispatching content update after save failure:", err);
+          console.error(
+            "Error dispatching content update after save failure:",
+            err
+          );
         }
       }
     } finally {
@@ -966,32 +1038,29 @@ export default function PassageEditor({
   // Add auto-save functionality
   useEffect(() => {
     let autoSaveTimeout;
-    
+
     if (isEditing && content !== passage.content) {
       // Auto-save after 3 seconds of inactivity while editing
       autoSaveTimeout = setTimeout(async () => {
         try {
           const user = JSON.parse(localStorage.getItem("user"));
           if (!user?.id) return;
-          
+
           // Only send to backend, don't change UI state
-          await storyApiClient.put(
-            `/draft/passage/${passage.passage_id}`,
-            {
-              content,
-              title,
-              user_id: user.id,
-            }
-          );
-          
+          await storyApiClient.put(`/draft/passage/${passage.passage_id}`, {
+            content,
+            title,
+            user_id: user.id,
+          });
+
           // Update last saved time
           setLastSaved(new Date());
-          
+
           // Notify other users via WebSocket
           if (isConnected && sendContentUpdate) {
             sendContentUpdate(passage.passage_id, content);
           }
-          
+
           // Show subtle notification
           toast.success("Auto-saved", { duration: 2000 });
         } catch (error) {
@@ -999,7 +1068,7 @@ export default function PassageEditor({
         }
       }, 3000);
     }
-    
+
     return () => {
       if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     };
@@ -1641,8 +1710,8 @@ export default function PassageEditor({
               }),
               transition: "background-color 0.3s ease-in-out",
               "&.content-updated": {
-                animation: "content-highlight 3s ease-in-out"
-              }
+                animation: "content-highlight 3s ease-in-out",
+              },
             }}
           >
             <Typography
@@ -1673,7 +1742,7 @@ export default function PassageEditor({
             opacity: 0.4;
           }
         }
-        
+
         @keyframes content-highlight {
           0% {
             background-color: rgba(34, 197, 94, 0.15);
@@ -1685,7 +1754,7 @@ export default function PassageEditor({
             background-color: transparent;
           }
         }
-        
+
         .content-updated {
           animation: content-highlight 3s ease-in-out;
         }

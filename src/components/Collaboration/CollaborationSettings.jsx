@@ -110,7 +110,7 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
   // Handle navigation to the edit page
   const handleViewStory = () => {
     if (storyId) {
-      router.push(`/story/${storyId}`);
+      router.push(`/create/passage/${storyId}/view`);
     }
   };
 

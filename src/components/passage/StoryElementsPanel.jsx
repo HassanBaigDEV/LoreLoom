@@ -40,7 +40,10 @@ import {
   ExpandLess as ExpandLessIcon,
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
+  OpenInNew as OpenInNewIcon,
+
   Lock as LockIcon,
+
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import { toast } from "react-hot-toast";
@@ -58,49 +61,33 @@ export default function StoryElementsPanel({
   storyElements,
   onUpdate,
   storyId,
-  isReadOnly,
-  authorId,
+  storyAuthorId,
+
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState({});
   const [characterDialog, setCharacterDialog] = useState(null);
   const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
   const [outlineDialog, setOutlineDialog] = useState(null);
-  const [userIsAuthor, setUserIsAuthor] = useState(false);
 
+  const [isAuthor, setIsAuthor] = useState(false);
+
+  // Check if current user is the author
   useEffect(() => {
-    // Check if user is the author of the story
-    const checkUserIsAuthor = () => {
+    const checkAuthorStatus = () => {
       try {
-        // If isReadOnly is true, we know the user doesn't have edit access
-        if (isReadOnly) {
-          setUserIsAuthor(false);
-          return;
-        }
-        
-        // If no authorId was provided, user can't be the author
-        if (!authorId) {
-          setUserIsAuthor(false);
-          return;
-        }
-        
         const user = JSON.parse(localStorage.getItem("user"));
-        if (!user?.id) {
-          setUserIsAuthor(false);
-          return;
+        if (user && user.id && storyAuthorId) {
+          setIsAuthor(user.id === storyAuthorId);
         }
-
-        // Direct comparison of user ID with author ID
-        const isAuthor = authorId === user.id;
-        setUserIsAuthor(isAuthor);
       } catch (error) {
-        console.error("Error checking if user is author:", error);
-        setUserIsAuthor(false);
+        console.error("Error checking author status:", error);
+        setIsAuthor(false);
       }
     };
 
-    checkUserIsAuthor();
-  }, [authorId, isReadOnly]);
+    checkAuthorStatus();
+  }, [storyAuthorId]);
 
   const handleExpandToggle = (field) => {
     setExpanded((prev) => ({ ...prev, [field]: !prev[field] }));
@@ -399,37 +386,49 @@ export default function StoryElementsPanel({
 
   const renderHeader = () => (
     <Box
-      component={userIsAuthor ? "a" : "div"}
-      href={userIsAuthor ? `/create/plan/${storyId}` : undefined}
-      target={userIsAuthor ? "_blank" : undefined}
-      rel={userIsAuthor ? "noopener noreferrer" : undefined}
+      component={isAuthor ? "a" : "div"}
+      href={isAuthor ? `/create/plan/${storyId}` : undefined}
+      target={isAuthor ? "_blank" : undefined}
+      rel={isAuthor ? "noopener noreferrer" : undefined}
       sx={{
         p: 3,
         borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-        cursor: userIsAuthor ? "pointer" : "default",
+        cursor: isAuthor ? "pointer" : "default",
         textDecoration: "none",
         "&:hover": {
-          backgroundColor: userIsAuthor ? "rgba(255, 255, 255, 0.05)" : "transparent",
+          backgroundColor: isAuthor
+            ? "rgba(255, 255, 255, 0.05)"
+            : "transparent",
+
         },
         display: "flex",
         flexDirection: "column",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center" }}>
-        <Typography variant="h6" sx={{ color: "white", fontWeight: 600, flex: 1 }}>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <Typography variant="h6" sx={{ color: "white", fontWeight: 600 }}>
           Story Elements
         </Typography>
-        {!userIsAuthor && (
-          <Tooltip title="Only the story author can edit story elements">
-            <LockIcon sx={{ color: "grey.500", ml: 1 }} />
+        {isAuthor && (
+          <Tooltip title="Edit story elements (opens in new tab)">
+            <OpenInNewIcon sx={{ color: "grey.400", fontSize: 18 }} />
           </Tooltip>
         )}
-      </Box>
-      <Typography variant="body2" sx={{ color: "grey.400", mt: 1 }}>
-        {userIsAuthor 
-          ? "Click to manage story elements (opens in new tab)" 
-          : "Only the story author can edit story elements"}
-      </Typography>
+      </Stack>
+
+      {isAuthor ? (
+        <Typography variant="body2" sx={{ color: "grey.400", mt: 1,fontSize: "13px" }}>
+          Click to manage story elements
+        </Typography>
+      ) : (
+        <Typography
+          variant="body2"
+          sx={{ color: "grey.400", mt: 1, fontSize: "13px" }}
+        >
+          Only the author can edit story elements
+        </Typography>
+      )}
+
     </Box>
   );
 
