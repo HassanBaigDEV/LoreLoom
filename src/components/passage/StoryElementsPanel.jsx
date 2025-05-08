@@ -41,6 +41,9 @@ import {
   Refresh as RefreshIcon,
   Delete as DeleteIcon,
   OpenInNew as OpenInNewIcon,
+
+  Lock as LockIcon,
+
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
 import { toast } from "react-hot-toast";
@@ -59,12 +62,14 @@ export default function StoryElementsPanel({
   onUpdate,
   storyId,
   storyAuthorId,
+
 }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState({});
   const [characterDialog, setCharacterDialog] = useState(null);
   const [selectedOutlinePoint, setSelectedOutlinePoint] = useState(null);
   const [outlineDialog, setOutlineDialog] = useState(null);
+
   const [isAuthor, setIsAuthor] = useState(false);
 
   // Check if current user is the author
@@ -394,7 +399,10 @@ export default function StoryElementsPanel({
           backgroundColor: isAuthor
             ? "rgba(255, 255, 255, 0.05)"
             : "transparent",
+
         },
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1}>
@@ -420,6 +428,7 @@ export default function StoryElementsPanel({
           Only the author can edit story elements
         </Typography>
       )}
+
     </Box>
   );
 

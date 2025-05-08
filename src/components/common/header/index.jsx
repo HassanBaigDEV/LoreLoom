@@ -69,7 +69,7 @@ export default function Header() {
       href: "#features",
     },
     { label: "Pricing", href: "/subscription" },
-    { label: "How it works", href: "/about" },
+    { label: "How it works", href: "/" },
   ];
 
   const drawer = (

@@ -828,6 +828,7 @@ export default function PassagePage({ params }) {
             storyId={storyId}
             isReadOnly={isReadOnly}
             storyAuthorId={story?.author}
+
           />
         </Drawer>
 
@@ -874,6 +875,7 @@ export default function PassagePage({ params }) {
             storyId={storyId}
             isReadOnly={isReadOnly}
             storyAuthorId={story?.author}
+
           />
         </Drawer>
 

@@ -79,6 +79,7 @@ export default function Stories() {
           <BookOpen className="w-8 h-8 text-green-500" />
           <h2 className="text-2xl font-semibold">Your Stories</h2>
         </div>
+
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="space-y-4">
@@ -152,6 +153,7 @@ export default function Stories() {
               {isCollaborative && (
                 <div className="absolute top-2 right-16">
                   <span className="px-2 py-1 text-xs flex items-center gap-1 bg-green-600/80 backdrop-blur-sm rounded-lg text-green-100 transition-colors hover:bg-green-700/90">
+
                     <Users className="w-3 h-3" />
                     Collaborative
                   </span>
@@ -203,10 +205,14 @@ export default function Stories() {
               </div>
 
               <div
-                className="absolute bottom-2 left-2 right-2 cursor-pointer"
+                className="absolute cursor-pointer bottom-2 left-2 right-2"
                 onClick={() => handleWriteStory(story)}
               >
                 <div className="p-2 transition-colors bg-green-700 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-green-800">
+
+                {/* <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 "> */}
+               {/* <div className="absolute bottom-2 left-2 right-2"> */}
+
                   <h3 className="font-bold truncate text-green-50">
                     {typeof story?.title === "string"
                       ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
