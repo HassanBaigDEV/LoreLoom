@@ -56,8 +56,6 @@ export default function CollaboratorList({ storyId, isAuthor }) {
 
       if (isMounted.current) {
         setEmail("");
-        // Show success message
-        toast.success(`Successfully added collaborator: ${email}`);
       }
     } catch (err) {
       console.error("Failed to add collaborator:", err);
@@ -96,7 +94,7 @@ export default function CollaboratorList({ storyId, isAuthor }) {
   }
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-md p-4 space-y-4">
+    <div className="w-full p-4 space-y-4 bg-white rounded-lg shadow-md">
       <h2 className="text-xl font-semibold">Collaborators</h2>
 
       {isAuthor ? (
@@ -116,7 +114,7 @@ export default function CollaboratorList({ storyId, isAuthor }) {
             {isAdding ? (
               <span className="flex items-center">
                 <svg
-                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                  className="w-4 h-4 mr-2 -ml-1 text-white animate-spin"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
@@ -139,13 +137,13 @@ export default function CollaboratorList({ storyId, isAuthor }) {
               </span>
             ) : (
               <span className="flex items-center">
-                <Plus className="h-4 w-4 mr-1" /> Add
+                <Plus className="w-4 h-4 mr-1" /> Add
               </span>
             )}
           </Button>
         </form>
       ) : (
-        <div className="bg-gray-100 p-3 rounded-md text-sm text-gray-600">
+        <div className="p-3 text-sm text-gray-600 bg-gray-100 rounded-md">
           Only the story owner can add collaborators
         </div>
       )}
@@ -158,7 +156,7 @@ export default function CollaboratorList({ storyId, isAuthor }) {
         {loading ? (
           <div className="flex justify-center p-4">
             <svg
-              className="animate-spin h-6 w-6 text-gray-500"
+              className="w-6 h-6 text-gray-500 animate-spin"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -179,7 +177,7 @@ export default function CollaboratorList({ storyId, isAuthor }) {
             </svg>
           </div>
         ) : collaborators.length === 0 ? (
-          <div className="text-sm text-gray-500 text-center py-4">
+          <div className="py-4 text-sm text-center text-gray-500">
             No collaborators added yet
           </div>
         ) : (
@@ -187,10 +185,10 @@ export default function CollaboratorList({ storyId, isAuthor }) {
             {collaborators.map((collaborator) => (
               <li
                 key={collaborator._id}
-                className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md"
+                className="flex items-center justify-between px-3 py-2 rounded-md bg-gray-50"
               >
                 <div className="flex items-center space-x-2">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="w-5 h-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium">
                       {collaborator.first_name} {collaborator.last_name}
@@ -208,7 +206,7 @@ export default function CollaboratorList({ storyId, isAuthor }) {
                     onClick={() => handleRemoveCollaborator(collaborator._id)}
                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
               </li>

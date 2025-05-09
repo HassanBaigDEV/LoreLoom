@@ -243,8 +243,8 @@ export default function StorySettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-b from-green-50 to-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-green-50 to-white">
+        <div className="w-12 h-12 border-t-2 border-b-2 border-green-500 rounded-full animate-spin"></div>
 
       </div>
     );
@@ -255,11 +255,11 @@ export default function StorySettingsPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-gradient-to-b from-green-50 to-white py-6 px-4 md:px-6"
+      className="min-h-screen px-4 py-6 bg-gradient-to-b from-green-50 to-white md:px-6"
     >
       <Toaster position="top-right" />
       <div className="container mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800">
+        <h1 className="mb-6 text-3xl font-bold text-gray-800">
           Story Settings
         </h1>
 
@@ -289,7 +289,7 @@ export default function StorySettingsPage() {
                   Update your story details and visibility
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6 pt-6">
+              <CardContent className="pt-6 space-y-6">
                 {/* Cover Image Upload */}
                 <div className="space-y-2">
                   <Label htmlFor="cover-image" className="font-medium">
@@ -297,7 +297,7 @@ export default function StorySettingsPage() {
                   </Label>
                   <div className="flex flex-col items-center space-y-4">
                     {coverImagePreview ? (
-                      <div className="relative w-full max-w-md h-64 bg-gray-100 rounded-lg overflow-hidden">
+                      <div className="relative w-full h-64 max-w-md overflow-hidden bg-gray-100 rounded-lg">
                         {isBase64Image(coverImagePreview) ? (
                           <div
                             className="w-full h-full bg-center bg-cover"
@@ -329,12 +329,12 @@ export default function StorySettingsPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white"
+                          className="absolute text-white bg-red-500 top-2 right-2 hover:bg-red-600"
                           onClick={handleRemoveCoverImage}
                           disabled={!isAuthor}
                           type="button"
                         >
-                          <Trash className="h-4 w-4" />
+                          <Trash className="w-4 h-4" />
                         </Button>
                       </div>
                     ) : (
@@ -392,7 +392,7 @@ export default function StorySettingsPage() {
                     onChange={handleChange}
                     placeholder="Story title"
                     className="border-gray-300 focus:border-green-500 focus:ring-green-500"
-                    disabled={!isAuthor}
+                    disabled={true}
                   />
                 </div>
 
@@ -407,7 +407,7 @@ export default function StorySettingsPage() {
                     onChange={handleChange}
                     placeholder="e.g. Fantasy, Sci-Fi, Mystery"
                     className="border-gray-300 focus:border-green-500 focus:ring-green-500"
-                    disabled={!isAuthor}
+                    disabled={true}
                   />
                 </div>
 
@@ -431,7 +431,7 @@ export default function StorySettingsPage() {
                 </div>
 
                 {!isAuthor && (
-                  <p className="text-amber-500 text-sm mt-4">
+                  <p className="mt-4 text-sm text-amber-500">
                     Only the author can modify story settings
                   </p>
                 )}
@@ -439,12 +439,12 @@ export default function StorySettingsPage() {
                 <Button
                   onClick={handleSave}
                   disabled={saving || uploadingImage || !isAuthor}
-                  className="mt-6 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+                  className="mt-6 text-white bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                   type="button"
                 >
                   {saving || uploadingImage ? (
                     <>
-                      <span className="animate-spin mr-2">⟳</span>
+                      <span className="mr-2 animate-spin">⟳</span>
                       {uploadingImage ? "Uploading..." : "Saving..."}
                     </>
                   ) : (

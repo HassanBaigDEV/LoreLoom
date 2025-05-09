@@ -55,7 +55,7 @@ storyApiClient.interceptors.response.use(
         toast.error(error.response.data.detail || 'Invalid request');
         break;
       case 404:
-        toast.error('Resource not found');
+        // toast.error('Resource not found');
         break;
       case 500:
         toast.error('Server error - please try again later');

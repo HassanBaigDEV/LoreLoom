@@ -11,6 +11,11 @@ const MainContent = () => {
   const { pStories, fetchPStories } = useStories();
   const router = useRouter();
 
+  // Check if a string is a base64 data URI
+  const isBase64Image = (str) => {
+    return typeof str === "string" && str.startsWith("data:image/");
+  };
+
   useEffect(() => {
     fetchPStories();
   }, []);
@@ -51,36 +56,52 @@ const MainContent = () => {
       </div>
       <section className="m-32">
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
-          {pStories.map((story, index) => (
-            <div 
-              key={index} 
-              className="relative block w-full cursor-pointer group"
-              onClick={() => router.push(`/create/passage/${story.story_id}/view`)}
-            >
-              <Image
-                src={cover}
-                className="w-full h-auto mx-auto rounded-2xl brightness-50"
-                alt={story.title}
-              />
+          {pStories.map((story, index) => {
+            const hasCoverImage = story?.cover_image && 
+              (isBase64Image(story.cover_image) || story.cover_image.startsWith("/"));
 
-              <div className="absolute top-2 left-4">
-                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
-                  {story.genre}
-                </span>
-              </div>
+            return (
+              <div 
+                key={index} 
+                className="relative block w-full cursor-pointer group"
+                onClick={() => router.push(`/create/passage/${story.story_id}/view`)}
+              >
+                {hasCoverImage ? (
+                  <div
+                    className="w-full h-64 bg-center bg-cover rounded-2xl brightness-50"
+                    style={{
+                      backgroundImage: `url(${story.cover_image})`,
+                      backgroundPosition: "center",
+                      backgroundSize: "cover",
+                    }}
+                  />
+                ) : (
+                  <Image
+                    src={cover}
+                    className="object-cover w-full h-64 rounded-2xl brightness-50"
+                    alt={story.title}
+                  />
+                )}
 
-              <div className="absolute bottom-2 left-2 right-2">
-                <div className="p-2 transition-colors bg-blue-900 rounded-lg bg-opacity-40 backdrop-blur-sm hover:bg-blue-950">
-                  <h3 className="font-bold truncate text-green-50">
-                    {story.title.split(":")[0].replace(/^"|"$/g, "")}
-                  </h3>
-                  <p className="text-xs text-green-200/80">
-                    Read story by {story.author_name}
-                  </p>
+                <div className="absolute top-2 left-4">
+                  <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
+                    {story.genre}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-2 left-2 right-2">
+                  <div className="p-2 transition-colors bg-blue-900 rounded-lg bg-opacity-40 backdrop-blur-sm hover:bg-blue-950">
+                    <h3 className="font-bold truncate text-green-50">
+                      {story.title.split(":")[0].replace(/^"|"$/g, "")}
+                    </h3>
+                    <p className="text-xs text-green-200/80">
+                      Read story by {story.author_name}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </main>

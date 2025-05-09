@@ -22,7 +22,7 @@ export default function DashboardOverview() {
   };
 
   return (
-    <div className="col-span-2 row-span-2 overflow-hidden bg-white rounded-lg shadow">
+    <div className="h-full col-span-2 row-span-2 overflow-hidden bg-white rounded-lg shadow">
       <div className="px-4 py-5 sm:p-6">
         <h3 className="text-lg font-medium leading-6 text-gray-900">
           Hey {user?.first_name}!

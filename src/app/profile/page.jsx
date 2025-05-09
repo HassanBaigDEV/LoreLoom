@@ -16,9 +16,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useSubscription } from "@/hooks/useSubscription";
 import ConfirmDialog from "@/components/common/ConfirmDialog";
+import { useAtom } from "jotai";
+import { storiesAtom } from "@/store/atoms";
 
 export default function ProfilePage() {
   const { user, checkAuth } = useAuth();
+  const [stories] = useAtom(storiesAtom);
   const [formData, setFormData] = useState({
     username: "",
     first_name: "",
@@ -175,23 +178,23 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen p-8 bg-gray-50">
       <Toaster position="top-right" richColors />
-      <div className="max-w-7xl mx-auto">
+      <div className="mx-auto max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             {/* Profile Section */}
-            <div className="lg:col-span-2 space-y-8">
-              <Card className="bg-gray-800 text-white border-gray-700">
+            <div className="space-y-8 lg:col-span-2">
+              <Card className="text-white bg-gray-800 border-gray-700">
                 <CardHeader>
                   <CardTitle className="text-2xl">Profile Settings</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
+                  <div className="flex flex-col items-center gap-6 mb-8 md:flex-row">
                     <div className="relative group">
                       <Avatar className="w-24 h-24 border-4 border-green-500">
                         <AvatarImage src={user?.photo} />
@@ -199,7 +202,7 @@ export default function ProfilePage() {
                           {user?.username?.[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-full flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center transition-opacity rounded-full opacity-0 bg-black/50 group-hover:opacity-100">
                         <label className="cursor-pointer">
                           <input
                             type="file"
@@ -247,14 +250,14 @@ export default function ProfilePage() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label className="text-gray-300">Username</Label>
                         <Input
                           value={formData.username}
                           onChange={handleChange}
                           name="username"
-                          className="bg-gray-700 border-gray-600 text-white"
+                          className="text-white bg-gray-700 border-gray-600"
                         />
                       </div>
                       <div className="space-y-2">
@@ -263,7 +266,7 @@ export default function ProfilePage() {
                           value={formData.first_name}
                           onChange={handleChange}
                           name="first_name"
-                          className="bg-gray-700 border-gray-600 text-white"
+                          className="text-white bg-gray-700 border-gray-600"
                         />
                       </div>
                       <div className="space-y-2">
@@ -272,7 +275,7 @@ export default function ProfilePage() {
                           value={formData.last_name}
                           onChange={handleChange}
                           name="last_name"
-                          className="bg-gray-700 border-gray-600 text-white"
+                          className="text-white bg-gray-700 border-gray-600"
                         />
                       </div>
                       <div className="space-y-2">
@@ -280,7 +283,7 @@ export default function ProfilePage() {
                         <Input
                           value={formData.email}
                           disabled
-                          className="bg-gray-700 border-gray-600 text-gray-400"
+                          className="text-gray-400 bg-gray-700 border-gray-600"
                         />
                         <p className="text-sm text-gray-400">
                           Email cannot be changed
@@ -294,14 +297,14 @@ export default function ProfilePage() {
                         value={formData.bio}
                         onChange={handleChange}
                         name="bio"
-                        className="bg-gray-700 border-gray-600 text-white h-32"
+                        className="h-32 text-white bg-gray-700 border-gray-600"
                       />
                     </div>
 
                     <div className="flex justify-end">
                       <Button
                         type="submit"
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="text-white bg-green-600 hover:bg-green-700"
                         disabled={loading}
                       >
                         {loading ? "Saving..." : "Save Changes"}
@@ -313,12 +316,12 @@ export default function ProfilePage() {
                   <div className="mt-12 space-y-6">
                     <h3 className="text-xl font-semibold">Change Password</h3>
                     {passwordError && (
-                      <div className="p-4 bg-red-500/10 text-red-500 rounded-lg">
+                      <div className="p-4 text-red-500 rounded-lg bg-red-500/10">
                         {passwordError}
                       </div>
                     )}
                     <form onSubmit={handlePasswordChange} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label className="text-gray-300">
                             Current Password
@@ -332,7 +335,7 @@ export default function ProfilePage() {
                                 current_password: e.target.value,
                               }))
                             }
-                            className="bg-gray-700 border-gray-600 text-white"
+                            className="text-white bg-gray-700 border-gray-600"
                           />
                         </div>
                         <div className="space-y-2">
@@ -346,7 +349,7 @@ export default function ProfilePage() {
                                 new_password: e.target.value,
                               }))
                             }
-                            className="bg-gray-700 border-gray-600 text-white"
+                            className="text-white bg-gray-700 border-gray-600"
                           />
                         </div>
                         <div className="space-y-2">
@@ -362,14 +365,14 @@ export default function ProfilePage() {
                                 confirm_password: e.target.value,
                               }))
                             }
-                            className="bg-gray-700 border-gray-600 text-white"
+                            className="text-white bg-gray-700 border-gray-600"
                           />
                         </div>
                       </div>
                       <div className="flex justify-end">
                         <Button
                           type="submit"
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          className="text-white bg-green-600 hover:bg-green-700"
                           disabled={passwordLoading}
                         >
                           {passwordLoading ? "Updating..." : "Change Password"}
@@ -383,7 +386,7 @@ export default function ProfilePage() {
 
             {/* Subscription Section */}
             <div className="space-y-8">
-              <Card className="bg-gray-900 text-white border-gray-700">
+              <Card className="text-white bg-gray-900 border-gray-700">
                 <CardHeader>
                   <CardTitle className="text-2xl">Subscription</CardTitle>
                 </CardHeader>
@@ -418,7 +421,7 @@ export default function ProfilePage() {
                     )}
                     <div className="flex justify-between">
                       <span className="text-gray-400">Stories Created</span>
-                      <span>{subscription?.story_count || 0}</span>
+                      <span>{stories?.length || 0}</span>
                     </div>
                   </div>
 

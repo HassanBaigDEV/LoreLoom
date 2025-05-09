@@ -36,13 +36,19 @@ function DashboardContent() {
   }
 
   return (
-    <div className="py-6 bg-gray-100">
+    <div className="py-2 bg-gray-100">
       <main >
         <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="grid grid-cols-6 gap-6 mt-32">
-            <DashboardOverview />
-            <StatisticsSection />
-            <Feedback />
+          <div className="grid grid-cols-1 gap-6 mt-32 md:grid-cols-1 lg:grid-cols-6">
+            <div className="lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1">
+              <DashboardOverview />
+            </div>
+            <div className="lg:col-span-4 lg:row-span-1 lg:col-start-3">
+              <StatisticsSection />
+            </div>
+            <div className="lg:col-span-2 lg:col-start-3 lg:row-start-2">
+              <Feedback />
+            </div>
             {/* <Notifications /> */}
           </div>
           <hr className="mt-20 mb-10 border-t border-gray-300" />
