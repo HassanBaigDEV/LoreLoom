@@ -278,11 +278,6 @@ const SignUpForm = React.memo(() => {
                     {errors.username}
                   </FormHelperText>
                 )}
-                {!errors.username && values.username && (
-                  <FormHelperText sx={{ color: "success.main" }}>
-                    Username format is valid
-                  </FormHelperText>
-                )}
               </FormControl>
               <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
                 <Grid container spacing={2}>
@@ -381,11 +376,6 @@ const SignUpForm = React.memo(() => {
                     {errors.email}
                   </FormHelperText>
                 )}
-                {!errors.email && values.email && (
-                  <FormHelperText sx={{ color: "success.main" }}>
-                    Email format is valid
-                  </FormHelperText>
-                )}
               </FormControl>
 
               <FormControl sx={{ width: "100%", mt: 2 }} variant="outlined">
@@ -411,7 +401,9 @@ const SignUpForm = React.memo(() => {
                     setShowPasswordCriteria(true);
                   }}
                   onBlur={handleBlur}
-                  error={touched.password && Boolean(errors.password)}
+                  error={touched.password && Boolean(errors.password) && !(
+                    showPasswordCriteria && values.password && passwordValidationStatus.some(criterion => !criterion.valid)
+                  )}
                   margin="normal"
                   variant="outlined"
                   InputLabelProps={{ shrink: true }}
@@ -434,14 +426,16 @@ const SignUpForm = React.memo(() => {
                     </InputAdornment>
                   }
                 />
-                {touched.password && errors.password && (
+                {touched.password && errors.password && !(
+                  showPasswordCriteria && values.password && passwordValidationStatus.some(criterion => !criterion.valid)
+                ) && (
                   <FormHelperText error id="password-helper-text">
                     {errors.password}
                   </FormHelperText>
                 )}
 
                 {/* Password criteria checklist */}
-                {passwordValidationStatus.some((criterion) => !criterion.valid) && (
+                {showPasswordCriteria && values.password && passwordValidationStatus.some(criterion => !criterion.valid) && (
                   <Box
                     sx={{
                       mt: 1,
@@ -464,7 +458,7 @@ const SignUpForm = React.memo(() => {
                       Password must:
                     </Typography>
                     {passwordValidationStatus
-                      .filter((criterion) => !criterion.valid)
+                      .filter(criterion => !criterion.valid)
                       .map((criterion) => (
                         <Box key={criterion.id} sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
                           <CancelOutlinedIcon color="error" fontSize="small" sx={{ mr: 1 }} />
@@ -473,7 +467,6 @@ const SignUpForm = React.memo(() => {
                           </Typography>
                         </Box>
                     ))}
-
                   </Box>
                 )}
               </FormControl>

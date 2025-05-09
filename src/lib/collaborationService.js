@@ -16,7 +16,7 @@ export const collaborationService = {
       return response.data;
     } catch (error) {
       console.error("Error adding collaborator:", error);
-      toast.error(error.response?.data?.detail || "Failed to add collaborator");
+      toast.error("Failed to add collaborator");
       throw error;
     }
   },
@@ -34,8 +34,6 @@ export const collaborationService = {
       toast.success("Collaborator added successfully");
       return response.data;
     } catch (error) {
-      console.error("Error adding collaborator by email:", error);
-      toast.error(error.response?.data?.detail || "Failed to add collaborator");
       throw error;
     }
   },

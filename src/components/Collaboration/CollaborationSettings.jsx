@@ -116,8 +116,8 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
 
   if (isCheckingAuthor) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+      <div className="flex items-center justify-center py-8">
+        <div className="w-8 h-8 border-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
       </div>
     );
   }
@@ -137,11 +137,11 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
         </CardHeader>
         <CardContent>
           {shouldShowAuthorWarning && (
-            <div className="bg-yellow-50 p-4 rounded-md mb-4">
+            <div className="p-4 mb-4 rounded-md bg-yellow-50">
               <div className="flex">
                 <div className="flex-shrink-0">
                   <Info
-                    className="h-5 w-5 text-yellow-400"
+                    className="w-5 h-5 text-yellow-400"
                     aria-hidden="true"
                   />
                 </div>
@@ -161,10 +161,10 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
           )}
 
           {isAuthor && (
-            <div className="bg-green-50 p-4 rounded-md mb-4">
+            <div className="p-4 mb-4 rounded-md bg-green-50">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <Info className="h-5 w-5 text-green-500" aria-hidden="true" />
+                  <Info className="w-5 h-5 text-green-500" aria-hidden="true" />
                 </div>
                 <div className="ml-3">
                   <h3 className="text-sm font-medium text-green-800">
@@ -210,7 +210,7 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
                       onClick={copyCollaborationLink}
                       className="flex items-center"
                     >
-                      <Share2 className="h-4 w-4 mr-1" /> Copy
+                      <Share2 className="w-4 h-4 mr-1" /> Copy
                     </Button>
                   </div>
                 </div>
@@ -221,15 +221,15 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
                     onClick={handleViewStory}
                     className="flex items-center"
                   >
-                    <LinkIcon className="h-4 w-4 mr-1" /> View Story
+                    <LinkIcon className="w-4 h-4 mr-1" /> View Story
                   </Button>
                 </div>
 
-                <div className="border-t pt-4 space-y-2">
+                <div className="pt-4 space-y-2 border-t">
                   <h3 className="text-sm font-medium">
                     Collaboration Guidelines
                   </h3>
-                  <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                  <ul className="pl-5 space-y-1 text-sm text-gray-600 list-disc">
                     <li>
                       Only the story author can add or remove collaborators
                     </li>

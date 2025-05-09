@@ -61,9 +61,18 @@ export default function CollaboratorList({ storyId, isAuthor }) {
       }
     } catch (err) {
       console.error("Failed to add collaborator:", err);
-      toast.error(
-        "Failed to add collaborator. Make sure the email is registered."
-      );
+      // Check for user not found error
+      const errorMsg = err?.response?.data?.detail || err?.message || "";
+      if (
+        errorMsg.toLowerCase().includes("user not found") ||
+        errorMsg.toLowerCase().includes("no user found")
+      ) {
+        toast.error("User not found", { position: "top-right" });
+      } else {
+        toast.error(
+          "Failed to add collaborator. Make sure the email is registered."
+        );
+      }
     } finally {
       if (isMounted.current) {
         setIsAdding(false);

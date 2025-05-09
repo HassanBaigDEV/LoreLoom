@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "./useAuth";
 import collaborationService from "@/lib/collaborationService";
+import { toast } from "react-hot-toast";
 
 export function useCollaboration() {
   const { user } = useAuth();
@@ -14,7 +15,6 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       const collaboratorsList = await collaborationService.getCollaborators(
         storyId,
         user.id
@@ -22,7 +22,7 @@ export function useCollaboration() {
       setCollaborators(collaboratorsList);
       return collaboratorsList;
     } catch (err) {
-      setError("Failed to fetch collaborators");
+      toast.error("Failed to fetch collaborators");
       console.error(err);
       return [];
     } finally {
@@ -36,7 +36,6 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       const result = await collaborationService.addCollaborator(
         storyId,
         user.id,
@@ -45,7 +44,7 @@ export function useCollaboration() {
       await fetchCollaborators(storyId);
       return result;
     } catch (err) {
-      setError("Failed to add collaborator");
+      toast.error("Failed to add collaborator");
       console.error(err);
       return null;
     } finally {
@@ -59,7 +58,6 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       const result = await collaborationService.addCollaboratorByEmail(
         storyId,
         user.id,
@@ -68,8 +66,12 @@ export function useCollaboration() {
       await fetchCollaborators(storyId);
       return result;
     } catch (err) {
-      setError("Failed to add collaborator");
-      console.error(err);
+      if (err?.response?.status == 404) {
+        toast.error('No user found with that email.');
+      } else {
+        toast.error('Failed to add collaborator');
+        console.error(err);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -82,7 +84,6 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       const result = await collaborationService.removeCollaborator(
         storyId,
         user.id,
@@ -91,7 +92,7 @@ export function useCollaboration() {
       await fetchCollaborators(storyId);
       return result;
     } catch (err) {
-      setError("Failed to remove collaborator");
+      toast.error("Failed to remove collaborator");
       console.error(err);
       return null;
     } finally {
@@ -105,7 +106,6 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       const result = await collaborationService.removeCollaboratorByEmail(
         storyId,
         user.id,
@@ -114,7 +114,7 @@ export function useCollaboration() {
       await fetchCollaborators(storyId);
       return result;
     } catch (err) {
-      setError("Failed to remove collaborator");
+      toast.error("Failed to remove collaborator");
       console.error(err);
       return null;
     } finally {
@@ -145,10 +145,9 @@ export function useCollaboration() {
 
     try {
       setLoading(true);
-      setError(null);
       return await collaborationService.findUserByEmail(email);
     } catch (err) {
-      setError("User not found");
+      toast.error("Failed to find user");
       console.error(err);
       return null;
     } finally {

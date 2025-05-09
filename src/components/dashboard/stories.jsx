@@ -122,7 +122,7 @@ export default function Stories() {
               key={story?.id ?? index}
               className="relative block w-full group"
             >
-              <div className="relative w-full h-64 rounded-2xl overflow-hidden">
+              <div className="relative w-full h-64 overflow-hidden rounded-2xl">
                 {hasCoverImage ? (
                   // If it's a base64 image or a server URL, use it directly
                   <div
@@ -137,7 +137,7 @@ export default function Stories() {
                   // Otherwise use the default cover
                   <Image
                     src={cover}
-                    className="w-full h-full object-cover brightness-50"
+                    className="object-cover w-full h-full brightness-50"
                     alt={story?.title ?? "Story cover"}
                     fill
                   />
@@ -145,14 +145,14 @@ export default function Stories() {
               </div>
 
               <div className="absolute top-2 left-4">
-                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-green-600 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-green-600/80">
+                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
                   {story?.genre ?? "Unknown Genre"}
                 </span>
               </div>
 
               {isCollaborative && (
                 <div className="absolute top-2 right-16">
-                  <span className="px-2 py-1 text-xs flex items-center gap-1 bg-green-600/80 backdrop-blur-sm rounded-lg text-green-100 transition-colors hover:bg-green-700/90">
+                  <span className="flex items-center gap-1 px-2 py-1 text-xs text-green-100 transition-colors rounded-lg bg-blue-900/60 backdrop-blur-sm hover:bg-blue-900/90">
 
                     <Users className="w-3 h-3" />
                     Collaborative
@@ -166,7 +166,7 @@ export default function Stories() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-green-200 transition-all hover:bg-green-600/50 backdrop-blur-sm"
+                      className="text-green-200 transition-all bg-opacity-50 hover:bg-blue-900 backdrop-blur-sm"
                     >
                       •••
                     </Button>
@@ -208,7 +208,7 @@ export default function Stories() {
                 className="absolute cursor-pointer bottom-2 left-2 right-2"
                 onClick={() => handleWriteStory(story)}
               >
-                <div className="p-2 transition-colors bg-green-700 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-green-800">
+                <div className="p-2 transition-colors bg-blue-900 rounded-lg bg-opacity-40 backdrop-blur-sm hover:bg-blue-950">
 
                 {/* <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 "> */}
                {/* <div className="absolute bottom-2 left-2 right-2"> */}
