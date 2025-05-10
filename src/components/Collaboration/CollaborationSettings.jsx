@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCollaboration } from "@/hooks/useCollaboration";
+import { useStories } from "@/hooks/useStories";
+import { useAtom } from "jotai";
+import { passagesAtom } from "@/store/atoms";
 import {
   Card,
   CardContent,
@@ -16,13 +19,17 @@ import { Info, Share2, LinkIcon } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import apiClient from "@/lib/axios";
+import storyApiClient from "@/lib/storyApi";
 
 export default function CollaborationSettings({ storyId, storyAuthorId }) {
   const { user } = useAuth();
+  const { fetchPassages } = useStories();
+  const [passages] = useAtom(passagesAtom);
   const [isAuthor, setIsAuthor] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   const [isCheckingAuthor, setIsCheckingAuthor] = useState(true);
   const [fetchedAuthorId, setFetchedAuthorId] = useState(null);
+  const [isPublic, setIsPublic] = useState(false);
   const router = useRouter();
   const hasCheckedAuthor = useRef(false);
 
@@ -94,6 +101,28 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
       setShareUrl(`${window.location.origin}/create/passage/${storyId}/view`);
     }
   }, [storyId]);
+
+  // Check story public status and fetch passages
+  useEffect(() => {
+    const checkStoryStatus = async () => {
+      if (!storyId || !user?.id) return;
+
+      try {
+        const storyResponse = await apiClient.get(`/author/stories/${storyId}`);
+        setIsPublic(storyResponse.data.privacy === "public");
+        
+        // Fetch passages for the current story
+        await fetchPassages(user.id);
+      } catch (error) {
+        console.error("Error checking story status:", error);
+      }
+    };
+
+    checkStoryStatus();
+  }, [storyId, user?.id, fetchPassages]);
+
+  // Check if story has passages
+  const hasPassages = passages.some(passage => passage.story_id === storyId);
 
   // Function to copy a collaboration link to clipboard
   const copyCollaborationLink = () => {
@@ -194,25 +223,64 @@ export default function CollaborationSettings({ storyId, storyAuthorId }) {
             <TabsContent value="sharing" className="mt-4">
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <h3 className="text-sm font-medium">Collaboration Link</h3>
-                  <p className="text-sm text-gray-500">
-                    Share this link with collaborators. They will need to be
-                    added as collaborators before they can edit.
-                  </p>
+                  <h3 className="text-sm font-medium">Reading Link</h3>
+                  {!isPublic ? (
+                    <div className="p-4 mb-4 rounded-md bg-yellow-50">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <Info className="w-5 h-5 text-yellow-400" aria-hidden="true" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-yellow-800">
+                            Story is not public
+                          </h3>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p>
+                              Make the story public in story settings to enable sharing.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : !hasPassages ? (
+                    <div className="p-4 mb-4 rounded-md bg-yellow-50">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <Info className="w-5 h-5 text-yellow-400" aria-hidden="true" />
+                        </div>
+                        <div className="ml-3">
+                          <h3 className="text-sm font-medium text-yellow-800">
+                            No passages available
+                          </h3>
+                          <div className="mt-2 text-sm text-yellow-700">
+                            <p>
+                              Generate at least one passage before sharing the story.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-500">
+                        Share this link with anyone. They will be able to view and read the story.
+                      </p>
 
-                  <div className="flex space-x-2">
-                    <Input
-                      readOnly
-                      value={shareUrl}
-                      className="flex-grow font-mono text-sm"
-                    />
-                    <Button
-                      onClick={copyCollaborationLink}
-                      className="flex items-center"
-                    >
-                      <Share2 className="w-4 h-4 mr-1" /> Copy
-                    </Button>
-                  </div>
+                      <div className="flex space-x-2">
+                        <Input
+                          readOnly
+                          value={shareUrl}
+                          className="flex-grow font-mono text-sm"
+                        />
+                        <Button
+                          onClick={copyCollaborationLink}
+                          className="flex items-center"
+                        >
+                          <Share2 className="w-4 h-4 mr-1" /> Copy
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-6">
