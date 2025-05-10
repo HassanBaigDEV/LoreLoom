@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "react-hot-toast";
+import apiClient from "@/lib/axios";
 
 export default function Stories() {
   const [user] = useAtom(userAtom);
@@ -32,6 +33,27 @@ export default function Stories() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStory, setSelectedStory] = useState(null);
+  const [authorNames, setAuthorNames] = useState({});
+
+  // Add a function to get author info
+  const getAuthorInfo = async (authorId) => {
+    if (!authorId) return "Unknown Author";
+    try {
+      const response = await apiClient.get(`/user/author/${authorId}`);
+      const authorData = response.data;
+      // Create author name from first and last name, or use username
+      let authorName = `${authorData.first_name || ""} ${
+        authorData.last_name || ""
+      }`.trim();
+      if (!authorName) {
+        authorName = authorData.username || "Unknown Author";
+      }
+      return authorName;
+    } catch (error) {
+      console.error(`Error fetching author for story:`, error);
+      return "Unknown Author";
+    }
+  };
 
   useEffect(() => {
     if (user?.id) {
@@ -46,6 +68,34 @@ export default function Stories() {
       loadData();
     }
   }, [user]);
+
+  // Add effect to load author names for all stories
+  useEffect(() => {
+    const fetchAllAuthorNames = async () => {
+      const allStories = [...(stories || []), ...(collabStories || [])];
+      if (allStories.length === 0) return;
+
+      // Create a copy of the current authorNames
+      const nameMap = { ...authorNames };
+      let hasNewAuthors = false;
+
+      // Only fetch authors we don't already have
+      for (const story of allStories) {
+        if (story.author && !nameMap[story.author]) {
+          hasNewAuthors = true;
+          const name = await getAuthorInfo(story.author);
+          nameMap[story.author] = name;
+        }
+      }
+
+      // Only update state if we have new authors
+      if (hasNewAuthors) {
+        setAuthorNames(nameMap);
+      }
+    };
+
+    fetchAllAuthorNames();
+  }, [stories, collabStories]); // Remove authorNames dependency
 
   const handleEditStory = (story) => {
     if (!story?.story_id) return;
@@ -114,21 +164,26 @@ export default function Stories() {
           const isAuthor = !isCollaborative;
           const hasCoverImage =
             story?.cover_image &&
-            (isBase64Image(story.cover_image) ||
-              story.cover_image.startsWith("/"));
+            (isBase64Image(story.cover_image));
+
+          // Get author name either from story.author_name or from our cached authorNames
+          const storyAuthorName =
+            story?.author_name ||
+            (story?.author && authorNames[story?.author]) ||
+            "Unknown Author";
 
           return (
             <div
               key={story?.id ?? index}
               className="relative block w-full group"
             >
-              <div className="relative w-full h-64 overflow-hidden rounded-2xl">
+              <div className="relative w-full h-64 overflow-hidden cursor-pointer rounded-2xl">
                 {hasCoverImage ? (
                   // If it's a base64 image or a server URL, use it directly
                   <div
                     className="w-full h-full bg-center bg-cover brightness-50"
                     style={{
-                      backgroundImage: `url(${story.cover_image})`,
+                      backgroundImage: `url(${story?.cover_image})`,
                       backgroundPosition: "center",
                       backgroundSize: "cover",
                     }}
@@ -220,10 +275,10 @@ export default function Stories() {
                   </h3>
                   <p className="text-xs text-green-200/80">
                     {isCollaborative
-                      ? `Collaborative story with ${
-                          story?.author_name ?? "Author"
-                        }`
-                      : `Your story by ${user?.last_name ?? "You"}`}
+                      ? `Collaborative story with ${storyAuthorName}`
+                      : `Your story by ${
+                          storyAuthorName || user?.last_name || "You"
+                        }`}
                   </p>
                 </div>
               </div>

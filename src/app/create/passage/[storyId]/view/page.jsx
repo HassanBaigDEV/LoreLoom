@@ -34,18 +34,19 @@ export default function PassageViewPage({ params }) {
   const [storyDetails, setStoryDetails] = useState({ title: "", genre: "" });
   const [currentPage, setCurrentPage] = useState(0);
   const [cameFromDiscover, setCameFromDiscover] = useState(false);
+  const [authorName, setAuthorName] = useState("");
 
   useEffect(() => {
     // Check if user came from discover page
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const referrer = document.referrer;
-      setCameFromDiscover(referrer.includes('/discover'));
+      setCameFromDiscover(referrer.includes("/discover"));
     }
   }, []);
 
   const handleBack = () => {
     if (cameFromDiscover) {
-      router.push('/discover');
+      router.push("/discover");
     } else {
       router.back();
     }
@@ -82,6 +83,7 @@ export default function PassageViewPage({ params }) {
         premise: storyResponse.data.premise,
         setting: storyResponse.data.setting,
         outline: storyResponse.data.outline,
+        author: storyResponse.data.author,
       });
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -94,137 +96,239 @@ export default function PassageViewPage({ params }) {
   useEffect(() => {
     fetchPassages();
   }, [fetchPassages]);
-
-  const handleDownloadPDF = async () => {
+  async function handleDownloadPDF() {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) throw new Error("User not found");
 
-      // Create PDF container
+      // Page and margin settings (in mm)
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = {
+        top: 20,
+        bottom: 20,
+        left: 15,
+        right: 15,
+      };
+      const contentWidth = pageWidth - margin.left - margin.right;
+      const contentHeight = pageHeight - margin.top - margin.bottom;
+
+      // Create off-screen container
       const pdfContainer = document.createElement("div");
       pdfContainer.style.position = "absolute";
       pdfContainer.style.left = "-9999px";
-      pdfContainer.style.width = "210mm";
+      pdfContainer.style.width = `${contentWidth}mm`;
       document.body.appendChild(pdfContainer);
 
-      // Generate all pages content
-      const allPagesContent = document.createElement("div");
-      allPagesContent.className = "pdf-content-container";
-      allPagesContent.style.width = "210mm";
-      allPagesContent.style.minHeight = "297mm";
+      // Helper to build a page section
+      function createSection(html) {
+        const section = document.createElement("div");
+        section.style.boxSizing = "border-box";
+        section.style.width = "100%";
+        section.style.padding = "0";
+        section.innerHTML = html;
+        return section;
+      }
 
-      // 1. Add cover page
-      const coverPage = document.createElement("div");
-      coverPage.innerHTML = `
-        <div style="height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
-          <h1 style="font-size: 4rem; margin-bottom: 20px; font-family: 'Playfair Display', serif;">
-            ${storyDetails.title}
-          </h1>
-          <h4 style="color: #4b5563; margin-bottom: 40px; font-style: italic;">
-            ${storyDetails.genre}
-          </h4>
-          <div style="width: 200px; border-bottom: 1px solid #1f2937; margin: 40px 0;"></div>
-          <h6 style="color: #6b7280; text-transform: uppercase; letter-spacing: 4px;">
-            A Novel by ${user.first_name} ${user.last_name}
-          </h6>
+      // Fetch author information
+      try {
+        // Get author ID from story details
+        const authorId = storyDetails.author || "";
+        if (authorId) {
+          const authorResponse = await storyApiClient.get(
+            `/user/author/${authorId}`
+          );
+          const authorData = authorResponse.data;
+          setAuthorName(
+            `${authorData.first_name} ${authorData.last_name}`.trim()
+          );
+          if (!authorName) {
+            setAuthorName(authorData.username || "Unknown Author");
+          }
+        } else {
+          setAuthorName(
+            `${user.first_name} ${user.last_name}`.trim() || "Unknown Author"
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching author information:", error);
+        setAuthorName(
+          `${user.first_name} ${user.last_name}`.trim() || "Unknown Author"
+        );
+      }
+
+      // 1. Cover
+      const coverHTML = `
+        <div style="height:${contentHeight}mm; display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;page-break-after:avoid;">
+          <h1 style="font-size:4rem;margin-bottom:20px;font-family:'Playfair Display',serif;">${
+            storyDetails.title
+          }</h1>
+          <h4 style="color:#4b5563;margin-bottom:40px;font-style:italic;">${
+            storyDetails.genre
+          }</h4>
+          <div style="width:200px;border-bottom:1px solid #1f2937;margin:40px 0;"></div>
+          <h6 style="color:#6b7280;text-transform:uppercase;letter-spacing:4px;">A Novel by ${
+            authorName || "Unknown Author"
+          }</h6>
         </div>
       `;
-      allPagesContent.appendChild(coverPage);
+      pdfContainer.appendChild(createSection(coverHTML));
 
-      // 2. Add abstract page
-      const abstractPage = document.createElement("div");
-      abstractPage.innerHTML = `
-        <div style="padding: 20mm; min-height: 297mm;">
-          <h3 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; text-align: center; margin-bottom: 40px;">
-            Abstract
-          </h3>
-          <div style="max-width: 800px; margin: 0 auto; background-color: #f9fafb; padding: 20px; border-radius: 8px;">
-            <p style="font-style: italic; font-size: 1.2rem; line-height: 1.8; text-align: justify;">
-              ${storyDetails.premise}
-            </p>
+      // 2. Abstract - fix height to avoid overflow
+      const abstractHTML = `
+        <div style="display:flex;flex-direction:column;justify-content:flex-start;padding:10mm 10mm 30mm;box-sizing:border-box;page-break-before:avoid;page-break-after:always;">
+          <h3 style="font-family:'Playfair Display',serif;font-size:2.5rem;text-align:center;margin-bottom:30px;">Abstract</h3>
+          <div style="max-width:800px;margin:0 auto;background-color:#f9fafb;padding:20px;border-radius:8px;">
+            <p style="font-style:italic;font-size:1.2rem;line-height:1.8;text-align:justify;">${storyDetails.premise}</p>
           </div>
         </div>
       `;
-      allPagesContent.appendChild(abstractPage);
+      pdfContainer.appendChild(createSection(abstractHTML));
 
-      // 3. Add chapter pages
-      const chapters = passages.reduce((acc, passage) => {
-        const key = passage.outline_point_id;
-        if (!acc[key]) {
-          acc[key] = {
+      // 3. Chapters
+      const chapters = passages.reduce((acc, p) => {
+        const id = p.outline_point_id;
+        if (!acc[id])
+          acc[id] = {
+            title:
+              storyDetails.outline.find((o) => o.number === id)?.title ||
+              "Untitled",
+            number: id,
             passages: [],
-            outlineTitle:
-              storyDetails.outline?.find((o) => o.number === key)?.title ||
-              "Untitled Chapter",
-            outlineNumber: key,
           };
-        }
-        acc[key].passages.push(passage);
+        acc[id].passages.push(p);
         return acc;
       }, {});
-
-      Object.values(chapters).forEach((chapter) => {
-        const chapterPage = document.createElement("div");
-        chapterPage.innerHTML = `
-          <div style="padding: 20mm; min-height: 297mm;">
-            <div style="margin-bottom: 40px; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px;">
-              <h3 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; color: #1f2937;">
-                ${chapter.outlineTitle}
-              </h3>
-              <h5 style="color: #4b5563; font-style: italic; margin-top: 10px;">
-                Chapter ${chapter.outlineNumber}
-              </h5>
+      Object.values(chapters).forEach((ch) => {
+        const passagesHTML = ch.passages
+          .map(
+            (p) =>
+              `<div style="margin-bottom:10px;text-align:justify;text-indent:2em;">${p.content
+                .split("\n")
+                .map((l) => `<p>${l}</p>`)
+                .join("")}</div>`
+          )
+          .join("");
+        const chapterHTML = `
+          <div style="padding:0 10mm; box-sizing:border-box;">
+            <div style="margin-bottom:20px;border-bottom:2px solid #e5e7eb;padding-bottom:10px;">
+              <h3 style="font-family:'Playfair Display',serif;font-size:2rem;color:#1f2937;">${ch.title}</h3>
+              <h5 style="color:#4b5563;font-style:italic;margin-top:5px;">Chapter ${ch.number}</h5>
             </div>
-            ${chapter.passages
-              .map(
-                (p) => `
-              <div style="margin-bottom: 20px; text-align: justify; text-indent: 2em;">
-                ${p.content
-                  .split("\n")
-                  .map((line) => `<p>${line}</p>`)
-                  .join("")}
-              </div>
-            `
-              )
-              .join("")}
+            ${passagesHTML}
           </div>
         `;
-        allPagesContent.appendChild(chapterPage);
+        pdfContainer.appendChild(createSection(chapterHTML));
       });
-
-      pdfContainer.appendChild(allPagesContent);
 
       // Generate PDF
       const pdf = new jsPDF("p", "mm", "a4");
-      const pages = Array.from(
-        pdfContainer.querySelectorAll(".pdf-content-container > div")
-      );
+      const sections = Array.from(pdfContainer.children);
 
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        const canvas = await html2canvas(page, {
+      // Process each section one by one with better page control
+      for (let i = 0; i < sections.length; i++) {
+        const sec = sections[i];
+
+        // Render section to canvas
+        const canvas = await html2canvas(sec, {
           scale: 2,
           useCORS: true,
-          allowTaint: true,
-          logging: true,
-          backgroundColor: "#ffffff",
+          backgroundColor: "#fff",
         });
 
-        const imgData = canvas.toDataURL("image/png");
-        const imgWidth = 210; // A4 width in mm
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const pxWidth = canvas.width;
+        const pxPerMm = pxWidth / contentWidth;
+        const pagePxHeight = Math.ceil(contentHeight * pxPerMm);
 
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+        // Skip empty canvases
+        if (canvas.height < 20) continue;
+
+        // Process page slices for this section
+        const pageCount = Math.ceil(canvas.height / pagePxHeight);
+
+        for (let pageNum = 0; pageNum < pageCount; pageNum++) {
+          // Calculate slice dimensions
+          const y = pageNum * pagePxHeight;
+          const sliceH = Math.min(pagePxHeight, canvas.height - y);
+
+          // Skip tiny slices
+          if (sliceH < 20) continue;
+
+          // Create page canvas
+          const pageCanvas = document.createElement("canvas");
+          pageCanvas.width = pxWidth;
+          pageCanvas.height = sliceH;
+          const ctx = pageCanvas.getContext("2d");
+          ctx.drawImage(canvas, 0, y, pxWidth, sliceH, 0, 0, pxWidth, sliceH);
+
+          // Check if slice is empty (all white)
+          const imageData = ctx.getImageData(
+            0,
+            0,
+            pageCanvas.width,
+            pageCanvas.height
+          ).data;
+          let hasContent = false;
+          // Sample the image data (check every 100th pixel to save processing time)
+          for (let p = 0; p < imageData.length; p += 400) {
+            // If RGB != white or alpha != 0, then there's content
+            if (
+              (imageData[p] !== 255 ||
+                imageData[p + 1] !== 255 ||
+                imageData[p + 2] !== 255) &&
+              imageData[p + 3] !== 0
+            ) {
+              hasContent = true;
+              break;
+            }
+          }
+
+          // Skip empty slices
+          if (!hasContent) continue;
+
+          // Add a new page for all except the first page of the document
+          if (!(i === 0 && pageNum === 0)) {
+            pdf.addPage();
+          }
+
+          // Add image to PDF
+          const imgData = pageCanvas.toDataURL("image/png");
+          pdf.addImage(
+            imgData,
+            "PNG",
+            margin.left,
+            margin.top,
+            contentWidth,
+            sliceH / pxPerMm
+          );
+
+          // Add footer for chapters (not cover or abstract)
+          if (i >= 2) {
+            pdf.setFontSize(9);
+            pdf.setTextColor(107, 114, 128);
+            pdf.text(
+              storyDetails.title,
+              margin.left,
+              pageHeight - margin.bottom + 5
+            );
+            const currentPage = pdf.getNumberOfPages();
+            pdf.text(
+              `Page ${currentPage - 2}`, // Subtract cover & abstract
+              pageWidth / 2,
+              pageHeight - margin.bottom + 5,
+              { align: "center" }
+            );
+          }
+        }
       }
 
       pdf.save(`${storyDetails.title || "story"}.pdf`);
       document.body.removeChild(pdfContainer);
-    } catch (error) {
-      console.error("Error generating PDF:", error);
+    } catch (err) {
+      console.error("PDF error:", err);
       toast.error("Failed to generate PDF");
     }
-  };
+  }
 
   const handleDownloadWord = async () => {
     try {
@@ -364,13 +468,7 @@ export default function PassageViewPage({ params }) {
                   letterSpacing: 4,
                 }}
               >
-                A Novel by{" "}
-                {JSON.parse(localStorage.getItem("user"))?.first_name &&
-                JSON.parse(localStorage.getItem("user"))?.last_name
-                  ? `${JSON.parse(localStorage.getItem("user"))?.first_name} ${
-                      JSON.parse(localStorage.getItem("user"))?.last_name
-                    }`
-                  : "Author"}
+                A Novel by {authorName || "Unknown Author"}
               </Typography>
             </Box>
           </Box>
@@ -622,7 +720,17 @@ export default function PassageViewPage({ params }) {
               alignItems: "center",
             }}
           >
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              sx={{
+                background: "linear-gradient(45deg, #22c55e, #16a34a)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                color: "transparent",
+              }}
+            >
               <IconButton onClick={handleBack}>
                 <ArrowBackIcon />
               </IconButton>
@@ -633,10 +741,14 @@ export default function PassageViewPage({ params }) {
             <Stack direction="row" spacing={2}>
               <Tooltip title="Download as PDF">
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   startIcon={<PdfIcon />}
                   onClick={handleDownloadPDF}
                   disabled={loading}
+                  sx={{
+                    bgcolor: "rgb(34 197 94)",
+                    "&:hover": { bgcolor: "rgb(22 163 74)" },
+                  }}
                 >
                   PDF
                 </Button>
