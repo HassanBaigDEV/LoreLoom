@@ -27,7 +27,7 @@ subscription_collection = db["subscriptions"]
 
 async def verify_admin(payload):
     user_id = payload["sub"]
-    user = await users_collection.find_one({"_id": user_id})
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
     if not user or user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
@@ -121,7 +121,9 @@ async def update_feedback(
 async def get_admin_dashboard(payload: dict = Depends(get_current_admin)):
     user_id = payload["sub"]
     print(user_id)
-    user = await users_collection.find_one({"_id": user_id})
+    user = await users_collection.find_one({"_id": ObjectId(user_id)})
+    logging.info(f"User: {user}")
+  
     if not user or user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     total_users = await users_collection.count_documents({})
@@ -144,25 +146,36 @@ class AdminLoginRequest(BaseModel):
 
 @admin_router.post("/login")
 async def admin_login(request: AdminLoginRequest):
-    user = await users_collection.find_one({"email": request.email})
-    if not user or user.get("role") != "admin":
-        raise HTTPException(
-            status_code=401, detail="Invalid credentials or not an admin"
-        )
+    try:
+        user = await users_collection.find_one({"email": request.email})
+        if not user or user.get("role") != "admin":
+            raise HTTPException(
+                status_code=401, detail="Invalid credentials or not an admin"
+            )
 
-    if not verify_password(request.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        if not verify_password(request.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    user_id = str(user["_id"])
+        user_id = str(user["_id"])
 
-    access_token = create_access_token(data={"sub": user_id})
-    refresh_token = create_refresh_token(data={"sub": user_id})
+        # Create a user dict without the password
+        user_data = dict(user)
+        user_data.pop("password", None)
+        user_data["id"] = user_id
+        user_data["_id"] = user_id
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-    }
+        access_token = create_access_token(data={"sub": user_id})
+        refresh_token = create_refresh_token(data={"sub": user_id})
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": user_data,  # Return user data
+        }
+    except Exception as e:
+        logging.error(f"Error during admin login: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # get all stories
@@ -205,7 +218,7 @@ async def get_pstories():
 
         if author_id:
             # Now we can query with string ID
-            author = await users_collection.find_one({"_id": author_id})
+            author = await users_collection.find_one({"_id": ObjectId(author_id)})
             story_dict["author_name"] = (
                 author.get("username", "Unknown Author") if author else "Unknown Author"
             )
@@ -274,7 +287,7 @@ async def get_admin_pstories(payload: dict = Depends(get_current_admin)):
 
         author_id = story_dict.get("author")
         if author_id:
-            author = await users_collection.find_one({"_id": author_id})
+            author = await users_collection.find_one({"_id": ObjectId(author_id)})
             story_dict["author_name"] = (
                 author.get("username", "Unknown Author") if author else "Unknown Author"
             )

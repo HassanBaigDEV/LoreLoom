@@ -20,7 +20,6 @@ async def create_default_admin():
         return
 
     admin_user = {
-        "_id": str(ObjectId()),
         "first_name": "Admin",
         "last_name": "User",
         "username": "admin",

@@ -7,6 +7,7 @@ from app.config.settings import oauth2_scheme
 from app.models.user import Role, User
 from typing import Union
 from app.config.database import db
+from bson.objectid import ObjectId
 
 users_collection = db["users"]
 
@@ -33,20 +34,41 @@ async def get_current_user(
 
 async def get_current_admin(token: str = Depends(oauth2_scheme)):
     try:
-        print(token)
         payload = await decode_token(token)
-        print(payload)
-        # user_id = payload.get("sub")
-        # print(user_id)
         if not payload:
             raise HTTPException(
                 status_code=401,
                 detail="Invalid authentication credentials",
             )
 
-        # user = await users_collection.find_one({"_id": user_id})
-        # if not user or user.get("role") != "admin":
-        #     raise HTTPException(status_code=403, detail="Not an admin user")
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token payload",
+            )
+
+        # Convert string user_id to ObjectId for MongoDB query
+        try:
+            user_id_obj = ObjectId(user_id)
+        except:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid user ID format",
+            )
+
+        user = await users_collection.find_one({"_id": user_id_obj})
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found",
+            )
+
+        if user.get("role") != "admin":
+            raise HTTPException(
+                status_code=403,
+                detail="Not an admin user",
+            )
 
         return payload
     except JWTError:
