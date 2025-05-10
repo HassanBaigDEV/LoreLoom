@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { adminService } from '@/lib/adminService';
-import FeedbackDetail from '@/components/admin/dashboard/FeedbackDetail';
-import AdminProtectedRoute from '@/components/auth/AdminProtectedRoute';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { adminService } from "@/lib/adminService";
+import FeedbackDetail from "@/components/admin/dashboard/FeedbackDetail";
+import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
 
 export default function FeedbackDetailPage({ params }) {
   const [feedback, setFeedback] = useState(null);
@@ -16,8 +16,8 @@ export default function FeedbackDetailPage({ params }) {
         const data = await adminService.getFeedback(params.id);
         setFeedback(data);
       } catch (error) {
-        console.error('Error fetching feedback:', error);
-        router.push('/admin/feedback');
+        console.error("Error fetching feedback:", error);
+        router.push("/admin/dashboard");
       } finally {
         setLoading(false);
       }
@@ -28,19 +28,22 @@ export default function FeedbackDetailPage({ params }) {
 
   const handleRespond = async (feedbackId, responseData) => {
     try {
-      const updatedFeedback = await adminService.respondToFeedback(feedbackId, responseData);
+      const updatedFeedback = await adminService.respondToFeedback(
+        feedbackId,
+        responseData
+      );
       setFeedback(updatedFeedback);
     } catch (error) {
-      console.error('Error responding to feedback:', error);
+      console.error("Error responding to feedback:", error);
     }
   };
 
   const handleDelete = async (feedbackId) => {
     try {
       await adminService.deleteFeedback(feedbackId);
-      router.push('/admin/feedback');
+      router.push("/admin/dashboard");
     } catch (error) {
-      console.error('Error deleting feedback:', error);
+      console.error("Error deleting feedback:", error);
     }
   };
 
@@ -57,4 +60,4 @@ export default function FeedbackDetailPage({ params }) {
       />
     </AdminProtectedRoute>
   );
-} 
+}

@@ -8,7 +8,7 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { email, password } = body;
-    const api_uri = process.env.API_URI || 'http://localhost:8081';
+    const api_uri = process.env.API_URI || "http://localhost:8081";
     const uri = `${api_uri}/admin/login`;
 
     const res = await fetch(uri, {
@@ -20,9 +20,21 @@ export async function POST(request) {
         email,
         password,
       }),
-      credentials: 'include',
-      mode: 'cors',
+      credentials: "include",
+      mode: "cors",
     });
+
+    // Check if the response is JSON
+    const contentType = res.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      // If not JSON, log the response for debugging
+      const text = await res.text();
+      console.error("Non-JSON response:", text);
+      return NextResponse.json(
+        { message: "Server returned an invalid response format" },
+        { status: 500 }
+      );
+    }
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -63,7 +75,7 @@ export async function POST(request) {
     );
 
     // Set all cookies
-    cookies.forEach(cookie => {
+    cookies.forEach((cookie) => {
       response.headers.append("Set-Cookie", cookie);
     });
 
@@ -75,4 +87,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-} 
+}

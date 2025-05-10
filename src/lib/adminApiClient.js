@@ -2,6 +2,19 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 const isServer = typeof window === "undefined";
+let router;
+
+// Import router dynamically to avoid module initialization issues
+if (!isServer) {
+  import("next/navigation")
+    .then((module) => {
+      const { useRouter } = module;
+      router = useRouter();
+    })
+    .catch((error) => {
+      console.error("Failed to import router:", error);
+    });
+}
 
 // Function to get admin token
 export const getAdminToken = async (name) => {
@@ -41,8 +54,7 @@ adminApiClient.interceptors.request.use(
     } else {
       // If no token, redirect to admin login
       if (!isServer && !window.location.pathname.includes("/admin/login")) {
-        // window.location.href = "/admin/login";
-        router.push("/admin/login");
+        window.location.href = "/admin/login";
       }
     }
     console.log("Admin API Client Token:", token);
@@ -101,8 +113,7 @@ adminApiClient.interceptors.response.use(
 
           // Redirect to admin login instead of user login
           if (!window.location.pathname.includes("/admin/login")) {
-            // window.location.href = "/admin/login";
-            router.push("/admin/login");
+            window.location.href = "/admin/login";
           }
         }
 

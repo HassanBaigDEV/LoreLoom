@@ -39,21 +39,34 @@ export const adminService = {
 
   // Admin Login
   login: async (email, password) => {
-    // Use the Next.js API route for login
-    const response = await fetch("/api/admin/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      // Use the Next.js API route for login
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
+      if (!response.ok) {
+        // Get the content type to check if it's JSON
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const error = await response.json();
+          throw error;
+        } else {
+          // Handle non-JSON responses (like HTML)
+          const text = await response.text();
+          throw new Error(`Server error: ${response.status}`);
+        }
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error("Login error:", error);
       throw error;
     }
-
-    return response.json();
   },
 
   // Get all stories
@@ -85,12 +98,14 @@ export const adminService = {
   },
 
   markFeedbackAsRead: async (feedbackId) => {
-    const response = await adminApiClient.put(`/api/feedback/${feedbackId}/mark-read`);
+    const response = await adminApiClient.put(
+      `/api/feedback/${feedbackId}/mark-read`
+    );
     return response.data;
   },
 
   getUnreadFeedbackCount: async () => {
-    const response = await adminApiClient.get('/api/feedback/unread/count');
+    const response = await adminApiClient.get("/api/feedback/unread/count");
     return response.data;
   },
 };

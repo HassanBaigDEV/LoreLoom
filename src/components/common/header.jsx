@@ -34,7 +34,7 @@ import Logo from "./logo";
 const publicPages = [
   { name: "Discover", href: "/discover" },
   { name: "Pricing", href: "/subscription" },
-  { name: "About", href: "/" },
+  { name: "About", href: "/about" },
   // { name: 'Contact', href: '/contact' },
 ];
 
