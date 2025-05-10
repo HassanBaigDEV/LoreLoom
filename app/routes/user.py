@@ -31,56 +31,48 @@ async def get_my_profile(payload: dict = Depends(get_current_user)):
 
         user_dict = dict(user)
         user_dict["id"] = str(user_dict.pop("_id"))
-        user_dict["stories"] = [str(story_id) for story_id in user_dict.get("stories", [])]
+        user_dict["stories"] = [
+            str(story_id) for story_id in user_dict.get("stories", [])
+        ]
 
         return UserResponse(**user_dict)
     except Exception as e:
         logging.error(f"Error in get_my_profile: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @user_router.put("/me", response_model=UserResponse)
 async def update_my_profile(
-    update_data: UpdateUserRequest,
-    payload: dict = Depends(get_current_user)
+    update_data: UpdateUserRequest, payload: dict = Depends(get_current_user)
 ):
     try:
         user_id = ObjectId(payload["sub"])
-        
+
         # Check if username is being updated and is unique
         if update_data.username:
-            existing_user = await users_collection.find_one({
-                "username": update_data.username,
-                "_id": {"$ne": user_id}
-            })
+            existing_user = await users_collection.find_one(
+                {"username": update_data.username, "_id": {"$ne": user_id}}
+            )
             if existing_user:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Username already taken"
-                )
+                raise HTTPException(status_code=400, detail="Username already taken")
         # Check if email is being updated and is unique
         if update_data.email:
-            existing_user = await users_collection.find_one({
-                "email": update_data.email,
-                "_id": {"$ne": user_id}
-            })
+            existing_user = await users_collection.find_one(
+                {"email": update_data.email, "_id": {"$ne": user_id}}
+            )
             if existing_user:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Email already taken"
-                )
-        
+                raise HTTPException(status_code=400, detail="Email already taken")
 
         # Prepare update data
         update_dict = update_data.model_dump(exclude_unset=True)
         if update_dict:
             update_dict["updated_at"] = datetime.now()
-            
+
             # Update user
             result = await users_collection.update_one(
-                {"_id": user_id},
-                {"$set": update_dict}
+                {"_id": user_id}, {"$set": update_dict}
             )
-            
+
             if result.modified_count == 0:
                 raise HTTPException(status_code=404, detail="User not found")
 
@@ -101,21 +93,21 @@ async def update_my_profile(
         logging.error(f"Error in update_my_profile: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @user_router.delete("/me")
-async def delete_my_account(
-    payload: dict = Depends(get_current_user)
-):
+async def delete_my_account(payload: dict = Depends(get_current_user)):
     try:
         user_id = ObjectId(payload["sub"])
         result = await users_collection.delete_one({"_id": user_id})
-        
+
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
-            
+
         return {"message": "Account successfully deleted"}
     except Exception as e:
         logging.error(f"Error in delete_my_account: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @user_router.get("/users/{username}", response_model=UserResponse)
 async def get_user_by_username(username: str):
@@ -126,81 +118,99 @@ async def get_user_by_username(username: str):
 
         user_dict = dict(user)
         user_dict["id"] = str(user_dict.pop("_id"))
-        user_dict["stories"] = [str(story_id) for story_id in user_dict.get("stories", [])]
+        user_dict["stories"] = [
+            str(story_id) for story_id in user_dict.get("stories", [])
+        ]
 
         return UserResponse(**user_dict)
     except Exception as e:
         logging.error(f"Error in get_user_by_username: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @user_router.post("/me/photo")
 async def update_profile_photo(
-    photo: UploadFile = File(...),
-    payload: dict = Depends(get_current_user)
+    photo: UploadFile = File(...), payload: dict = Depends(get_current_user)
 ):
     try:
         user_id = ObjectId(payload["sub"])
-        
+
         # Read and encode the image
         contents = await photo.read()
-        encoded_photo = base64.b64encode(contents).decode('utf-8')
-        
+        encoded_photo = base64.b64encode(contents).decode("utf-8")
+
         # Validate file size (e.g., 5MB limit)
         if len(contents) > 5 * 1024 * 1024:  # 5MB in bytes
             raise HTTPException(
-                status_code=400,
-                detail="File size too large. Maximum size is 5MB"
+                status_code=400, detail="File size too large. Maximum size is 5MB"
             )
-            
+
         # Validate file type
         if photo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
             raise HTTPException(
-                status_code=400,
-                detail="Only JPEG and PNG files are allowed"
+                status_code=400, detail="Only JPEG and PNG files are allowed"
             )
-            
+
         # Update user's photo in database
         result = await users_collection.update_one(
             {"_id": user_id},
             {
                 "$set": {
                     "photo": f"data:{photo.content_type};base64,{encoded_photo}",
-                    "updated_at": datetime.now()
+                    "updated_at": datetime.now(),
                 }
-            }
+            },
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
-            
+
         return {"message": "Profile photo updated successfully"}
-        
+
     except Exception as e:
         logging.error(f"Error in update_profile_photo: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @user_router.delete("/me/photo")
-async def remove_profile_photo(
-    payload: dict = Depends(get_current_user)
-):
+async def remove_profile_photo(payload: dict = Depends(get_current_user)):
     try:
         user_id = ObjectId(payload["sub"])
-        
+
         result = await users_collection.update_one(
-            {"_id": user_id},
-            {
-                "$set": {
-                    "photo": None,
-                    "updated_at": datetime.now()
-                }
-            }
+            {"_id": user_id}, {"$set": {"photo": None, "updated_at": datetime.now()}}
         )
-        
+
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
-            
+
         return {"message": "Profile photo removed successfully"}
-        
     except Exception as e:
         logging.error(f"Error in remove_profile_photo: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@user_router.get("/author/{author_id}", response_model=dict)
+async def get_author_by_id(author_id: str):
+    """Get author's name by ID"""
+    try:
+        # Validate ObjectId format
+        if not ObjectId.is_valid(author_id):
+            raise HTTPException(status_code=400, detail="Invalid author ID format")
+
+        user = await users_collection.find_one({"_id": ObjectId(author_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="Author not found")
+
+        # Return only the necessary author information
+        return {
+            "id": str(user["_id"]),
+            "first_name": user.get("first_name", ""),
+            "last_name": user.get("last_name", ""),
+            "username": user.get("username", ""),
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logging.error(f"Error in get_author_by_id: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

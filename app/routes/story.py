@@ -733,7 +733,9 @@ async def remove_story_collaborator_by_email(
 async def update_story(story_id: str, story: StoryCreate):
     try:
         # Find existing story by story_id
-        existing_story = await stories_collection.find_one({"story_id": ObjectId(story_id)})
+        existing_story = await stories_collection.find_one(
+            {"story_id": ObjectId(story_id)}
+        )
         if not existing_story:
             logger.error(f"Story not found with ID: {story_id}")
             raise HTTPException(status_code=404, detail="Story not found")
@@ -760,7 +762,9 @@ async def update_story(story_id: str, story: StoryCreate):
         )
 
         if result.modified_count == 0 and not result.matched_count:
-            raise HTTPException(status_code=404, detail="Story not found or no changes made")
+            raise HTTPException(
+                status_code=404, detail="Story not found or no changes made"
+            )
 
         updated_story = await stories_collection.find_one({"story_id": story_oid})
 
@@ -774,13 +778,16 @@ async def update_story(story_id: str, story: StoryCreate):
             except Exception as e:
                 logger.error(f"Error updating passages with new story title: {e}")
 
-        logger.info(f"Successfully updated story: {updated_story.get('title', 'Untitled')}")
+        logger.info(
+            f"Successfully updated story: {updated_story.get('title', 'Untitled')}"
+        )
         return objectid_to_str(updated_story)
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error updating story: {e}")
         raise HTTPException(status_code=400, detail=f"Failed to update story: {str(e)}")
+
 
 @story_router.put("/stories/{story_id}/privacy", response_model=StoryResponse)
 async def update_story_privacy(story_id: str, data: dict):
