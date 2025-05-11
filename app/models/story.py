@@ -20,6 +20,8 @@ class StoryResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     cover_image: Optional[str] = None
+    author_details: Optional[Dict] = None  # New field for author details
+    collaborators: Optional[List[Dict]] = []  # New field for collaborators
 
     class Config:
         populate_by_name = True

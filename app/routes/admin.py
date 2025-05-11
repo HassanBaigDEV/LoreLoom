@@ -23,6 +23,7 @@ users_collection = db["users"]
 feedback_collection = db["feedback"]
 stories_collection = db["stories"]
 subscription_collection = db["subscriptions"]
+passages_collection = db["passages"]
 
 
 async def verify_admin(payload):
@@ -127,15 +128,18 @@ async def get_admin_dashboard(payload: dict = Depends(get_current_admin)):
     if not user or user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     total_users = await users_collection.count_documents({})
-    active_users = await users_collection.count_documents({"is_active": True})
-    pending_feedback = await feedback_collection.count_documents({"status": "pending"})
-    print(
-        f"Total users: {total_users}, Active users: {active_users}, Pending feedback: {pending_feedback}"
-    )
+    total_stories = await stories_collection.count_documents({})
+    total_collaborations = await stories_collection.count_documents({"collaborators": {"$exists": True, "$ne": []}})
+    total_active_users = await users_collection.count_documents({"is_active": True})
+    total_pending_feedback = await feedback_collection.count_documents({"status": "pending"})
+    total_paid_users = await subscription_collection.count_documents({"tier": "premium"})
     return {
         "total_users": total_users,
-        "active_users": active_users,
-        "pending_feedback": pending_feedback,
+        "total_active_users": total_active_users,
+        "total_pending_feedback": total_pending_feedback,
+        "total_stories": total_stories,
+        "total_collaborations": total_collaborations,
+        "total_paid_users": total_paid_users,
     }
 
 
@@ -178,21 +182,73 @@ async def admin_login(request: AdminLoginRequest):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-# get all stories
 @admin_router.get("/stories", response_model=List[StoryResponse])
 async def get_all_stories(payload: dict = Depends(get_current_admin)):
-    await verify_admin(payload)
-    stories = await stories_collection.find().to_list(length=None)
+    try:
+        await verify_admin(payload)
+        logging.info("Fetching all stories from database")
+        stories = await stories_collection.find().to_list(length=None)
+        logging.info(f"Found {len(stories)} stories")
 
-    response = []
-    for story in stories:
-        # Convert MongoDB document to dictionary first
-        story_dict = dict(story)
-        # Apply ObjectId conversions
-        story_dict = objectid_to_str(story_dict)
-        response.append(story_dict)
+        response = []
+        for story in stories:
+            try:
+                # Convert MongoDB document to dictionary first
+                story_dict = dict(story)
+                # Apply ObjectId conversions
+                story_dict = objectid_to_str(story_dict)
 
-    return response
+                # --- Always add author_details ---
+                author_id = story_dict.get("author")
+                author_details = None
+                if author_id and ObjectId.is_valid(author_id):
+                    try:
+                        author = await users_collection.find_one({"_id": ObjectId(author_id)})
+                        if author:
+                            author_details = {
+                                "id": str(author["_id"]),
+                                "username": author.get("username"),
+                                "email": author.get("email"),
+                                "first_name": author.get("first_name"),
+                                "last_name": author.get("last_name"),
+                            }
+                            logging.info(f"Found author details for story {story_dict.get('title')}: {author_details['username']}")
+                    except Exception as e:
+                        logging.error(f"Error fetching author details for story {story_dict.get('title')}: {str(e)}")
+                        author_details = None
+                story_dict["author_details"] = author_details
+
+                # --- Always add collaborators as a list of details ---
+                collaborators = story_dict.get("collaborators", [])
+                collaborator_details = []
+                for collab_id in collaborators:
+                    if ObjectId.is_valid(collab_id):
+                        try:
+                            user = await users_collection.find_one({"_id": ObjectId(collab_id)})
+                            if user:
+                                collab_detail = {
+                                    "id": str(user["_id"]),
+                                    "username": user.get("username"),
+                                    "email": user.get("email"),
+                                    "first_name": user.get("first_name"),
+                                    "last_name": user.get("last_name"),
+                                }
+                                collaborator_details.append(collab_detail)
+                                logging.info(f"Added collaborator {collab_detail['username']} to story {story_dict.get('title')}")
+                        except Exception as e:
+                            logging.error(f"Error fetching collaborator details for story {story_dict.get('title')}: {str(e)}")
+                story_dict["collaborators"] = collaborator_details
+
+                response.append(story_dict)
+            except Exception as e:
+                logging.error(f"Error processing story: {str(e)}")
+                continue
+
+        logging.info(f"Successfully processed {len(response)} stories")
+        return response
+    except Exception as e:
+        logging.error(f"Error in get_all_stories: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching stories")
 
 
 @admin_router.get("/pStories", response_model=List[StoryResponse])
@@ -268,6 +324,51 @@ async def get_unread_feedback_count(payload: dict = Depends(get_current_admin)):
     count = await feedback_collection.count_documents({"status": FeedbackStatus.UNREAD})
     return {"unread_count": count}
 
+@admin_router.get("/collaborations/stats")
+async def get_collaboration_stats(payload: dict = Depends(get_current_admin)):
+    await verify_admin(payload)
+    
+    # Get all stories with collaborators
+    stories = await stories_collection.find({"collaborators": {"$exists": True, "$ne": []}}).to_list(length=None)
+    
+    total_collaborations = 0
+    active_collaborations = 0
+    collaboration_details = []
+    
+    for story in stories:
+        story_id = str(story["_id"])
+        story_title = story.get("title", "Untitled")
+        collaborators = story.get("collaborators", [])
+        
+        for collab_id in collaborators:
+            total_collaborations += 1
+            user = await users_collection.find_one({"_id": collab_id})
+            
+            if user and user.get("is_active", False):
+                active_collaborations += 1
+                collaboration_details.append({
+                    "story_id": story_id,
+                    "story_title": story_title,
+                    "collaborator_id": str(collab_id),
+                    "collaborator_name": f"{user.get('first_name', '')} {user.get('last_name', '')}".strip(),
+                    "collaborator_email": user.get("email", ""),
+                    "is_active": True
+                })
+            else:
+                collaboration_details.append({
+                    "story_id": story_id,
+                    "story_title": story_title,
+                    "collaborator_id": str(collab_id),
+                    "collaborator_name": "Unknown User",
+                    "collaborator_email": "N/A",
+                    "is_active": False
+                })
+    
+    return {
+        "total": total_collaborations,
+        "active": active_collaborations,
+        "details": collaboration_details
+    }
 
 # Add new endpoint for public stories in admin router
 @admin_router.get("/pStories", response_model=List[StoryResponse])
@@ -297,3 +398,136 @@ async def get_admin_pstories(payload: dict = Depends(get_current_admin)):
         stories_with_author.append(story_dict)
 
     return stories_with_author
+
+
+class UserActiveStatus(BaseModel):
+    is_active: bool
+
+@admin_router.put("/users/{user_id}/active")
+async def update_user_active_status(
+    user_id: str,
+    status: UserActiveStatus,
+    payload: dict = Depends(get_current_admin)
+):
+    try:
+        await verify_admin(payload)
+        
+        # Validate user exists
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Update user's active status
+        result = await users_collection.update_one(
+            {"_id": ObjectId(user_id)},
+            {
+                "$set": {
+                    "is_active": status.is_active,
+                    "updated_at": datetime.now()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="Failed to update user status")
+            
+        logging.info(f"Updated active status for user {user_id} to {status.is_active}")
+        
+        return {
+            "message": f"User active status updated to {status.is_active}",
+            "user_id": user_id,
+            "is_active": status.is_active
+        }
+        
+    except Exception as e:
+        logging.error(f"Error updating user active status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error while updating user status")
+
+
+@admin_router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    payload: dict = Depends(get_current_admin)
+):
+    try:
+        await verify_admin(payload)
+        
+        # Validate user exists
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+            
+        # Check if user is an admin
+        if user.get("role") == "admin":
+            raise HTTPException(status_code=403, detail="Cannot delete an admin user")
+            
+        # Get user's stories
+        user_stories = user.get("stories", [])
+        
+        # Delete user's stories
+        if user_stories:
+            try:
+                await stories_collection.delete_many({"_id": {"$in": user_stories}})
+                logging.info(f"Deleted {len(user_stories)} stories for user {user_id}")
+            except Exception as e:
+                logging.error(f"Error deleting user's stories: {str(e)}")
+        
+        # Delete user
+        result = await users_collection.delete_one({"_id": ObjectId(user_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=400, detail="Failed to delete user")
+            
+        logging.info(f"Successfully deleted user {user_id}")
+        
+        return {
+            "message": "User deleted successfully",
+            "user_id": user_id,
+            "deleted_stories": len(user_stories)
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logging.error(f"Error deleting user: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error while deleting user")
+
+@admin_router.delete("/stories/{story_id}")
+async def delete_story(
+    story_id: str,
+    payload: dict = Depends(get_current_admin)
+):
+    try:
+        await verify_admin(payload)
+        
+        story = await stories_collection.find_one({"_id": ObjectId(story_id)})
+        if not story:
+            raise HTTPException(status_code=404, detail="Story not found")
+              
+        passages = await passages_collection.find({"story_id": story_id}).to_list(length=None)
+        
+        if passages:
+            try:
+                await passages_collection.delete_many({"story_id": story_id})
+                logging.info(f"Deleted {len(passages)} passages for story {story_id}")
+            except Exception as e:
+                logging.error(f"Error deleting story's passages: {str(e)}")
+                raise HTTPException(status_code=500, detail="Failed to delete story's passages")
+        
+        result = await stories_collection.delete_one({"_id": ObjectId(story_id)})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Story not found")
+        
+        return {
+            "message": "Story deleted successfully",
+            "story_id": story_id,
+            "deleted_passages": len(passages) if passages else 0
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logging.error(f"Error deleting story: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error while deleting story")
+

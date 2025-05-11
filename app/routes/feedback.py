@@ -143,6 +143,49 @@ async def mark_feedback_as_read(
     return {"message": "Feedback marked as read"}
 
 
+@feedback_router.put("/feedback/{feedback_id}/status", response_model=FeedbackResponse)
+async def update_feedback_status(
+    feedback_id: str,
+    status_data: dict = Body(...),
+    payload: dict = Depends(get_current_admin),
+):
+    try:
+        feedback = await feedback_collection.find_one({"_id": ObjectId(feedback_id)})
+        if not feedback:
+            raise HTTPException(status_code=404, detail="Feedback not found")
+
+        status = status_data.get("status")
+        if not status:
+            raise HTTPException(status_code=400, detail="Status is required")
+
+        # Validate status
+        if status not in FeedbackStatus.__members__.values():
+            raise HTTPException(status_code=400, detail="Invalid status")
+
+        update_dict = {
+            "status": status,
+            "updated_at": datetime.now(),
+        }
+
+        await feedback_collection.update_one(
+            {"_id": ObjectId(feedback_id)}, {"$set": update_dict}
+        )
+
+        updated_feedback = await feedback_collection.find_one(
+            {"_id": ObjectId(feedback_id)}
+        )
+        if not updated_feedback:
+            raise HTTPException(status_code=404, detail="Feedback not found")
+
+        return {
+            **dict(updated_feedback),
+            "id": str(updated_feedback["_id"]),
+            "user_id": str(updated_feedback["user_id"]),
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+
 # delete feedback
 @feedback_router.delete("/feedback/{feedback_id}")
 async def delete_feedback(feedback_id: str):
