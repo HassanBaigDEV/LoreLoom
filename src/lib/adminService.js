@@ -72,6 +72,7 @@ export const adminService = {
   // Get all stories
   getAllStories: async () => {
     const response = await adminApiClient.get("/author/stories");
+    console.log("Fetched stories:", response.data);
     return response.data;
   },
   getAllSubmissions: async () => {
@@ -85,10 +86,25 @@ export const adminService = {
   },
 
   respondToFeedback: async (feedbackId, responseData) => {
+    // First update the response
     const response = await adminApiClient.put(
       `/api/feedback/${feedbackId}/response`,
-      responseData
+      { response: responseData.response,
+        status: responseData.status
+      }
     );
+
+    return response.data;
+  },
+
+  statusUP: async (feedbackId, responseData) => {
+    const response = await adminApiClient.put(
+      `/api/feedback/${feedbackId}/status`,
+      { 
+        status: responseData.status
+      }
+    );
+
     return response.data;
   },
 
@@ -106,6 +122,38 @@ export const adminService = {
 
   getUnreadFeedbackCount: async () => {
     const response = await adminApiClient.get("/api/feedback/unread/count");
+    return response.data;
+  },
+
+  getAllSubscriptions: async () => {
+    const res = await fetch("/api/admin/subscription-plans");
+    if (!res.ok) throw new Error("Failed to fetch subscriptions");
+    return res.json();
+  },
+
+  getCollaborationStats: async () => {
+    const res = await fetch("/api/admin/collaborations/stats");
+    if (!res.ok) throw new Error("Failed to fetch collaboration stats");
+    return res.json();
+  },
+
+  // Update user active status
+  updateUserActiveStatus: async (userId, isActive) => {
+    const response = await adminApiClient.put(`/admin/users/${userId}/active`, {
+      is_active: isActive,
+    });
+    return response.data;
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    const response = await adminApiClient.delete(`/admin/users/${userId}`);
+    return response.data;
+  },
+
+  // Delete story
+  deleteStory: async (storyId) => {
+    const response = await adminApiClient.delete(`/admin/stories/${storyId}`);
     return response.data;
   },
 };

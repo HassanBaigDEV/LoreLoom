@@ -13,6 +13,8 @@ import {
   CardContent,
   Link,
   Alert,
+  Snackbar,
+  Alert as MuiAlert,
 } from "@mui/material";
 import {
   ArrowBack as ArrowBackIcon,
@@ -54,6 +56,8 @@ export default function FeedbackDetail({ feedback, onRespond, onDelete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState("");
 
   const handleSubmitResponse = async () => {
     setLoading(true);
@@ -63,12 +67,16 @@ export default function FeedbackDetail({ feedback, onRespond, onDelete }) {
     try {
       await onRespond(feedback.id, {
         response,
-        status,
+        status: "resolved",
       });
       setSuccess(true);
       setResponse("");
+      setSnackbarMsg("Response sent and feedback marked as resolved!");
+      setSnackbarOpen(true);
     } catch (err) {
       setError(err.message || "Failed to submit response");
+      setSnackbarMsg("Failed to send response");
+      setSnackbarOpen(true);
     } finally {
       setLoading(false);
     }
@@ -263,6 +271,16 @@ export default function FeedbackDetail({ feedback, onRespond, onDelete }) {
           </Box>
         </CardContent>
       </Card>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <MuiAlert onClose={() => setSnackbarOpen(false)} severity={snackbarMsg.includes('Failed') ? 'error' : 'success'} sx={{ width: '100%' }}>
+          {snackbarMsg}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 }

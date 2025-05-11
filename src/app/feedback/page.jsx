@@ -49,29 +49,6 @@ export default function FeedbackPage() {
         }}
       >
         <Container maxWidth="lg">
-          {/* Breadcrumbs */}
-          <Breadcrumbs 
-            sx={{ mb: 4, px: 2 }}
-            separator="›"
-            aria-label="breadcrumb"
-          >
-            <MuiLink
-              component={Link}
-              href="/"
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center',
-                color: 'text.secondary',
-                textDecoration: 'none',
-                '&:hover': { color: 'primary.main' }
-              }}
-            >
-              <HomeIcon sx={{ mr: 0.5 }} fontSize="small" />
-              Home
-            </MuiLink>
-            <Typography color="text.primary">Feedback</Typography>
-          </Breadcrumbs>
-
           {/* Page Header */}
           <Box 
             sx={{ 

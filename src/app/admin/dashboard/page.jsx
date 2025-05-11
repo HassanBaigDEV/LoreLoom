@@ -59,10 +59,6 @@ export default function Dashboard() {
         adminService.getAllFeedback(),
         adminService.getAllStories(),
       ]);
-
-      console.log("Dashboard Stats:", stats);
-      console.log("Users Data:", usersData);
-      console.log("Feedback Data:", feedbackData);
       console.log("Stories Data:", storiesData);
 
       setDashboardStats(stats);
@@ -138,7 +134,7 @@ export default function Dashboard() {
       case "dashboard":
         return (
           <>
-            <div className="p-6 bg-purple-500">
+            <div className="p-8 mb-8 bg-purple-500 shadow-md rounded-xl">
               <StatsHeader stats={dashboardStats} />
             </div>
             <div className="grid grid-cols-12 gap-6 p-6">
@@ -149,7 +145,7 @@ export default function Dashboard() {
           </>
         );
       case "users":
-        return <UsersPage users={users} onUpdateRole={handleUpdateUserRole} />;
+        return <UsersPage users={users} stories={stories} onUpdateRole={handleUpdateUserRole} />;
       case "stories":
         return (
           <div className="p-6">

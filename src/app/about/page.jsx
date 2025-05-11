@@ -2,6 +2,7 @@
 import React from "react";
 import HeroSection from "@/components/about/heroSection";
 import StepsSection from "@/components/about/stepSection";
+import FAQSection from "@/components/about/faqSection";
 import { Box } from '@mui/material';
 
 export default function Page() {
@@ -13,6 +14,7 @@ export default function Page() {
     }}>
       <HeroSection />
       <StepsSection />
+      <FAQSection />
     </Box>
   );
 }

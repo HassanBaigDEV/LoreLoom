@@ -16,6 +16,8 @@ import {
   Menu,
   Chip,
   Tooltip,
+  Snackbar,
+  Alert as MuiAlert,
 } from '@mui/material';
 import { 
   MoreVert as MoreVertIcon,
@@ -23,6 +25,7 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { useRouter } from 'next/navigation';
+import { adminService } from '@/lib/adminService';
 
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -49,11 +52,12 @@ const getFeedbackTypeLabel = (type) => {
 };
 
 export default function FeedbackList({ feedback = [], onUpdateFeedback, onDeleteFeedback }) {
-  console.log("Feedback data:", feedback);
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState('all');
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMsg, setSnackbarMsg] = useState('');
 
   const handleMenuClick = (event, feedback) => {
     setAnchorEl(event.currentTarget);
@@ -74,6 +78,19 @@ export default function FeedbackList({ feedback = [], onUpdateFeedback, onDelete
     handleMenuClose();
     if (window.confirm('Are you sure you want to delete this feedback?')) {
       await onDeleteFeedback(feedbackId);
+    }
+  };
+
+  const handleStatusUpdate = async (feedbackId, newStatus) => {
+    try {
+      const updatedFeedback = await adminService.statusUP(feedbackId, { status: newStatus });
+      onUpdateFeedback(updatedFeedback);
+      setSnackbarMsg('Feedback status updated successfully!');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Error updating feedback status:', error);
+      setSnackbarMsg('Failed to update status');
+      setSnackbarOpen(true);
     }
   };
 
@@ -166,6 +183,11 @@ export default function FeedbackList({ feedback = [], onUpdateFeedback, onDelete
         <MenuItem onClick={() => handleViewFeedback(selectedFeedback?.id)}>
           <VisibilityIcon sx={{ mr: 1 }} /> View Details
         </MenuItem>
+        {selectedFeedback?.status !== 'resolved' && (
+          <MenuItem onClick={() => handleStatusUpdate(selectedFeedback?.id, 'resolved')}>
+            Mark as Resolved
+          </MenuItem>
+        )}
         <MenuItem 
           onClick={() => handleDeleteFeedback(selectedFeedback?.id)}
           sx={{ color: 'error.main' }}
@@ -173,6 +195,17 @@ export default function FeedbackList({ feedback = [], onUpdateFeedback, onDelete
           <DeleteIcon sx={{ mr: 1 }} /> Delete
         </MenuItem>
       </Menu>
+
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <MuiAlert onClose={() => setSnackbarOpen(false)} severity={snackbarMsg.includes('Failed') ? 'error' : 'success'} sx={{ width: '100%' }}>
+          {snackbarMsg}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 } 

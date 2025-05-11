@@ -6,36 +6,36 @@ import {
   Speed as SpeedIcon,
 } from "@mui/icons-material";
 
-export default function StatsHeader() {
+export default function StatsHeader({ stats }) {
   return (
-    <div className="p-6 bg-purple-500">
+    <div className="bg-white rounded-xl shadow-md p-8 mb-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Statistics</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Statistics</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Stories"
-          value={<span className="text-purple-500" >8</span>}
-          subtitle="8 InProgress"
+          value={<span className="text-purple-500">{stats?.total_stories ?? 0}</span>}
+          subtitle={`${stats?.total_stories ?? 0} Total`}
           icon={<AssignmentIcon />}
         />
         <StatCard
           title="Users"
-          value={<span className="text-purple-500" >9</span>}
-          subtitle="9 Active"
+          value={<span className="text-purple-500">{stats?.total_users ?? 0}</span>}
+          subtitle={`${stats?.total_active_users ?? 0} Active`}
           icon={<GroupsIcon />}
         />
         <StatCard
           title="Collaborations"
-          value={<span className="text-purple-500" >0</span>}
-          subtitle="None"
+          value={<span className="text-purple-500">{stats?.total_collaborations ?? 0}</span>}
+          subtitle={`${stats?.total_collaborations ?? 0} Active`}
           icon={<GroupsIcon />}
         />
         <StatCard
           title="Subscriptions"
-          value={<span className="text-purple-500" >0%</span>}
-          subtitle="0% Completed"
+          value={<span className="text-purple-500">{stats?.total_paid_users ? `${stats.total_paid_users}` : '0'}</span>}
+          subtitle={`${stats?.total_paid_users ?? 0} Premium`}
           icon={<SpeedIcon />}
         />
       </div>
