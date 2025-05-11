@@ -26,7 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "react-hot-toast";
 import apiClient from "@/lib/axios";
 
-export default function Stories() {
+export default function Stories({ hideHeader = false, filterParams = {} }) {
   const [user] = useAtom(userAtom);
   const { stories, collabStories, fetchStories, fetchCollaborativeStories } =
     useStories();
@@ -34,6 +34,7 @@ export default function Stories() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStory, setSelectedStory] = useState(null);
   const [authorNames, setAuthorNames] = useState({});
+  const { searchTerm = "", selectedGenre = null } = filterParams;
 
   // Add a function to get author info
   const getAuthorInfo = async (authorId) => {
@@ -122,13 +123,44 @@ export default function Stories() {
     return typeof str === "string" && str.startsWith("data:image/");
   };
 
+  // Filter stories based on search term and genre
+  const filterStories = (storyList) => {
+    if (!storyList) return [];
+
+    // If no filters are applied, return all stories
+    if (!searchTerm && !selectedGenre) {
+      return storyList;
+    }
+
+    return storyList.filter((story) => {
+      // Handle title search
+      let titleMatch = true;
+      if (searchTerm) {
+        const storyTitle =
+          typeof story?.title === "string" ? story.title.toLowerCase() : "";
+        titleMatch = storyTitle.includes(searchTerm.toLowerCase());
+      }
+
+      // Handle genre filter
+      let genreMatch = true;
+      if (selectedGenre) {
+        const storyGenre = story?.genre ? story.genre.toLowerCase() : "";
+        genreMatch = storyGenre === selectedGenre.toLowerCase();
+      }
+
+      return titleMatch && genreMatch;
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="mt-8 mb-48">
-        <div className="flex items-center gap-2 mb-8">
-          <BookOpen className="w-8 h-8 text-green-500" />
-          <h2 className="text-2xl font-semibold">Your Stories</h2>
-        </div>
+        {!hideHeader && (
+          <div className="flex items-center gap-2 mb-8">
+            <BookOpen className="w-8 h-8 text-green-500" />
+            <h2 className="text-2xl font-semibold">Your Stories</h2>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
@@ -146,11 +178,15 @@ export default function Stories() {
   }
 
   const renderStoryGrid = (storyList, isCollaborative = false) => {
-    if (!storyList?.length) {
+    const filteredStories = filterStories(storyList);
+
+    if (!filteredStories?.length) {
       return (
         <div className="flex items-center justify-center w-full h-64">
           <p className="text-gray-500">
-            {isCollaborative
+            {searchTerm || selectedGenre
+              ? "No stories found matching your filters"
+              : isCollaborative
               ? "No collaborative stories found"
               : "No stories found"}
           </p>
@@ -160,11 +196,10 @@ export default function Stories() {
 
     return (
       <div className="grid grid-cols-1 gap-8 mx-auto sm:grid-cols-2 lg:grid-cols-3">
-        {storyList?.map((story, index) => {
+        {filteredStories?.map((story, index) => {
           const isAuthor = !isCollaborative;
           const hasCoverImage =
-            story?.cover_image &&
-            (isBase64Image(story.cover_image));
+            story?.cover_image && isBase64Image(story.cover_image);
 
           // Get author name either from story.author_name or from our cached authorNames
           const storyAuthorName =
@@ -175,13 +210,15 @@ export default function Stories() {
           return (
             <div
               key={story?.id ?? index}
-              className="relative block w-full group"
+              className="relative block w-full group transform transition-all duration-300 hover:translate-y-[-5px]"
+              onClick={() =>
+                router.push(`/create/passage/${story?.story_id}/view`)
+              }
             >
-              <div className="relative w-full h-64 overflow-hidden cursor-pointer rounded-2xl">
+              <div className="relative w-full h-64 overflow-hidden cursor-pointer rounded-xl shadow-md hover:shadow-lg transition-shadow">
                 {hasCoverImage ? (
-                  // If it's a base64 image or a server URL, use it directly
                   <div
-                    className="w-full h-full bg-center bg-cover brightness-50"
+                    className="w-full h-full bg-center bg-cover brightness-50 transition-transform duration-700 group-hover:scale-110"
                     style={{
                       backgroundImage: `url(${story?.cover_image})`,
                       backgroundPosition: "center",
@@ -189,39 +226,39 @@ export default function Stories() {
                     }}
                   />
                 ) : (
-                  // Otherwise use the default cover
-                  <Image
-                    src={cover}
-                    className="object-cover w-full h-full brightness-50"
-                    alt={story?.title ?? "Story cover"}
-                    fill
-                  />
+                  <div className="relative w-full h-full">
+                    <Image
+                      src={cover}
+                      className="object-cover w-full h-full brightness-50 transition-transform duration-700 group-hover:scale-110"
+                      alt={story?.title ?? "Story cover"}
+                      fill
+                    />
+                  </div>
                 )}
               </div>
 
-              <div className="absolute top-2 left-4">
-                <span className="px-2 py-1 text-xs text-green-100 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
-                  {story?.genre ?? "Unknown Genre"}
+              <div className="absolute top-3 left-3">
+                <span className="px-2.5 py-1 text-xs font-medium text-green-100 transition-colors bg-blue-900 bg-opacity-70 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
+                  {story?.genre ?? "Other"}
                 </span>
               </div>
 
               {isCollaborative && (
-                <div className="absolute top-2 right-16">
-                  <span className="flex items-center gap-1 px-2 py-1 text-xs text-green-100 transition-colors rounded-lg bg-blue-900/60 backdrop-blur-sm hover:bg-blue-900/90">
-
+                <div className="absolute top-3 right-16">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-green-100 transition-colors rounded-lg bg-blue-900/60 backdrop-blur-sm hover:bg-blue-900/90">
                     <Users className="w-3 h-3" />
                     Collaborative
                   </span>
                 </div>
               )}
 
-              <div className="absolute top-2 right-4">
+              <div className="absolute top-3 right-3">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-green-200 transition-all bg-opacity-50 hover:bg-blue-900 backdrop-blur-sm"
+                      className="text-white transition-all bg-gray-800/50 hover:bg-gray-800/70 backdrop-blur-sm"
                     >
                       •••
                     </Button>
@@ -260,20 +297,16 @@ export default function Stories() {
               </div>
 
               <div
-                className="absolute cursor-pointer bottom-2 left-2 right-2"
+                className="absolute cursor-pointer bottom-3 left-3 right-3"
                 onClick={() => handleWriteStory(story)}
               >
-                <div className="p-2 transition-colors bg-blue-900 rounded-lg bg-opacity-40 backdrop-blur-sm hover:bg-blue-950">
-
-                {/* <div className="p-2 transition-colors bg-blue-900 bg-opacity-50 rounded-lg backdrop-blur-sm hover:bg-blue-950 "> */}
-               {/* <div className="absolute bottom-2 left-2 right-2"> */}
-
-                  <h3 className="font-bold truncate text-green-50">
+                <div className="p-3 transition-colors bg-gradient-to-t from-blue-950 to-blue-900/70 rounded-lg backdrop-blur-sm group-hover:from-blue-900 group-hover:to-blue-800/80">
+                  <h3 className="font-bold truncate text-white">
                     {typeof story?.title === "string"
                       ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
                       : "Untitled"}
                   </h3>
-                  <p className="text-xs text-green-200/80">
+                  <p className="text-xs text-blue-100/90 mt-1">
                     {isCollaborative
                       ? `Collaborative story with ${storyAuthorName}`
                       : `Your story by ${
@@ -291,13 +324,23 @@ export default function Stories() {
 
   return (
     <div className="mt-8 mb-48">
-      <div className="flex items-center gap-2 mb-8">
-        <BookOpen className="w-6 h-6 text-green-500" />
-        <h2 className="text-2xl font-semibold">Stories</h2>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-6 h-6 text-green-500" strokeWidth={1.5} />
+            <h2 className="text-2xl font-semibold">Stories</h2>
+          </div>
+          <button
+            onClick={() => router.push("/stories")}
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-500 bg-green-50 border border-transparent rounded-lg hover:bg-green-100 transition-colors"
+          >
+            View All Stories
+          </button>
+        </div>
+      )}
 
       <Tabs defaultValue="mystories" className="w-full">
-        <TabsList className="mb-6 bg-white border border-gray-200">
+        <TabsList className="mb-6 bg-white border border-gray-200 rounded-lg">
           <TabsTrigger
             value="mystories"
             className="data-[state=active]:bg-green-500 data-[state=active]:text-white"
@@ -313,13 +356,11 @@ export default function Stories() {
         </TabsList>
 
         <TabsContent value="mystories">
-          <section className="m-8">{renderStoryGrid(stories)}</section>
+          <section>{renderStoryGrid(stories)}</section>
         </TabsContent>
 
         <TabsContent value="collaborative">
-          <section className="m-8">
-            {renderStoryGrid(collabStories, true)}
-          </section>
+          <section>{renderStoryGrid(collabStories, true)}</section>
         </TabsContent>
       </Tabs>
     </div>

@@ -29,6 +29,8 @@ import FeaturesIcon from "@mui/icons-material/Stars";
 import PricingIcon from "@mui/icons-material/Payment";
 import InfoIcon from "@mui/icons-material/Info";
 import CloseIcon from "@mui/icons-material/Close";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import BookOpenIcon from "@mui/icons-material/BookOpen";
 
 export default function Header() {
   const theme = useTheme();
@@ -71,6 +73,14 @@ export default function Header() {
     { label: "Pricing", href: "/subscription" },
     { label: "How it works", href: "/" },
   ];
+
+  // Add user-specific navigation items when logged in
+  const userNavigationItems = user
+    ? [
+        { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon /> },
+        { label: "My Stories", href: "/stories", icon: <BookOpenIcon /> },
+      ]
+    : [];
 
   const drawer = (
     <Box
@@ -155,6 +165,31 @@ export default function Header() {
             )}
           </React.Fragment>
         ))}
+
+        {/* User-specific navigation items when logged in */}
+        {user &&
+          userNavigationItems.map((item) => (
+            <ListItem
+              key={item.label}
+              button
+              component={Link}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              sx={{
+                mb: 1,
+                borderRadius: 1,
+                "&:hover": {
+                  backgroundColor: "rgba(0,0,0,0.04)",
+                },
+              }}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+            </ListItem>
+          ))}
       </List>
 
       {!user && (
@@ -250,6 +285,20 @@ export default function Header() {
                     )}
                   </Box>
                 ))}
+
+                {/* User-specific navigation when logged in */}
+                {user &&
+                  userNavigationItems.map((item) => (
+                    <Box key={item.label}>
+                      <Button
+                        component={Link}
+                        href={item.href}
+                        sx={{ color: "rgb(55 65 81)" }}
+                      >
+                        {item.label}
+                      </Button>
+                    </Box>
+                  ))}
               </Box>
 
               {/* User Menu or Auth Button */}

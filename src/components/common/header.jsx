@@ -27,7 +27,7 @@ import {
   KeyboardArrowDown as ArrowDownIcon,
 } from "@mui/icons-material";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Logo from "./logo";
 
@@ -41,6 +41,7 @@ const publicPages = [
 const userPages = [
   { name: "Dashboard", href: "/dashboard" },
   { name: "Create Story", href: "/create" },
+  { name: "My Stories", href: "/stories" },
 ];
 
 function Header() {
@@ -48,6 +49,7 @@ function Header() {
   const [anchorElUser, setAnchorElUser] = useState(null);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const trigger = useScrollTrigger({
     disableHysteresis: true,
     threshold: 0,
@@ -134,7 +136,7 @@ function Header() {
                   component={Link}
                   href={page.href}
                   sx={{
-                    color: "white",
+                    color: pathname === page.href ? "rgb(34 197 94)" : "white",
                     "&:hover": {
                       color: "rgb(34 197 94)",
                     },
@@ -149,7 +151,7 @@ function Header() {
                 component={Link}
                 href={page.href}
                 sx={{
-                  color: "white",
+                  color: pathname === page.href ? "rgb(34 197 94)" : "white",
                   "&:hover": {
                     color: "rgb(34 197 94)",
                   },
@@ -265,6 +267,7 @@ function Header() {
               href={page.href}
               onClick={toggleMobileMenu}
               sx={{
+                color: pathname === page.href ? "rgb(34 197 94)" : "white",
                 "&:hover": {
                   color: "rgb(34 197 94)",
                 },
@@ -285,6 +288,7 @@ function Header() {
                   href={page.href}
                   onClick={toggleMobileMenu}
                   sx={{
+                    color: pathname === page.href ? "rgb(34 197 94)" : "white",
                     "&:hover": {
                       color: "rgb(34 197 94)",
                     },

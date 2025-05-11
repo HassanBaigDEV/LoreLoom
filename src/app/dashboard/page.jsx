@@ -36,26 +36,38 @@ function DashboardContent() {
   }
 
   return (
-    <div className="py-2 bg-gray-100">
-      <main >
-        <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-6 mt-32 md:grid-cols-1 lg:grid-cols-6">
-            <div className="lg:col-span-2 lg:row-span-2 lg:col-start-1 lg:row-start-1">
+    <div className="py-8 bg-gray-50 min-h-screen">
+      <main>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Grid */}
+          <div className="grid grid-cols-1 gap-8 mt-16 md:grid-cols-2">
+            {/* Overview Section */}
+            <div className="transform transition-all duration-300 hover:translate-y-[-5px]">
               <DashboardOverview />
             </div>
-            <div className="lg:col-span-4 lg:row-span-1 lg:col-start-3">
+
+            {/* Statistics Section */}
+            <div className="transform transition-all duration-300 hover:shadow-lg">
               <StatisticsSection />
             </div>
-            <div className="lg:col-span-2 lg:col-start-3 lg:row-start-2">
+
+            {/* Feedback Section */}
+            <div className="md:col-span-2 transform transition-all duration-300 hover:translate-y-[-5px]">
               <Feedback />
             </div>
-            {/* <Notifications /> */}
           </div>
-          <hr className="mt-20 mb-10 border-t border-gray-300" />
+
+          {/* Divider */}
+          <div className="flex items-center my-12">
+            <div className="flex-grow h-0.5 bg-gray-200"></div>
+            <div className="mx-4 text-gray-500 font-medium">Your Stories</div>
+            <div className="flex-grow h-0.5 bg-gray-200"></div>
+          </div>
+
+          {/* Stories Section */}
           <StoriesSection />
         </div>
       </main>
-      {/* <Footer /> */}
     </div>
   );
 }
