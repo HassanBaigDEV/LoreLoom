@@ -19,7 +19,7 @@ export async function middleware(request) {
     '/dashboard',
     '/settings',
     '/generator',
-    '/subscription'
+    '/subscription/checkout',
   ];
 
   if (protectedRoutes.some(route => path.startsWith(route))) {
@@ -40,7 +40,7 @@ export const config = {
     '/dashboard/:path*',
     '/settings/:path*',
     '/generator/:path*',
-    '/subscription/:path*',
+    '/subscription/checkout',
     '/login',
     '/register',
     '/forgot-password',

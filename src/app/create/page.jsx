@@ -22,8 +22,10 @@ import {
   Brush as BrushIcon,
 } from "@mui/icons-material";
 import storyApiClient from "@/lib/storyApi";
+import { subscriptionService } from "@/lib/subscriptionService";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import GenerationOptions from "@/components/generation/GenerationOptions";
+import toast from "react-hot-toast";
 
 const steps = [
   { label: "Choose Creation Method", icon: CreateIcon },
@@ -41,11 +43,34 @@ export default function CreatePage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const checkSubscriptionLimits = async () => {
+    try {
+      const limits = await subscriptionService.checkLimits();
+      if (limits.limit_reached) {
+        toast.error("You've reached your story limit for this month. Please upgrade your plan to continue creating stories.");
+        router.push("/subscription");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error checking subscription limits:", error);
+      toast.error("Failed to check subscription limits");
+      return false;
+    }
+  };
+
   const handleCreateStory = async (generatedContent = null) => {
     setIsLoading(true);
     setError("");
 
     try {
+      // Check subscription limits before creating story
+      const canCreate = await checkSubscriptionLimits();
+      if (!canCreate) {
+        setIsLoading(false);
+        return;
+      }
+
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) {
         throw new Error("User not found");

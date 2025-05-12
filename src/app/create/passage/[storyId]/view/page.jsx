@@ -12,6 +12,10 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Download as DownloadIcon,
@@ -35,6 +39,7 @@ export default function PassageViewPage({ params }) {
   const [currentPage, setCurrentPage] = useState(0);
   const [cameFromDiscover, setCameFromDiscover] = useState(false);
   const [authorName, setAuthorName] = useState("");
+  const [showNoPassagesModal, setShowNoPassagesModal] = useState(false);
 
   useEffect(() => {
     // Check if user came from discover page
@@ -96,6 +101,18 @@ export default function PassageViewPage({ params }) {
   useEffect(() => {
     fetchPassages();
   }, [fetchPassages]);
+
+  useEffect(() => {
+    if (!loading && passages.length === 0) {
+      setShowNoPassagesModal(true);
+    }
+  }, [loading, passages]);
+
+  const handleNoPassagesModalClose = () => {
+    setShowNoPassagesModal(false);
+    router.back();
+  };
+
   async function handleDownloadPDF() {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -753,16 +770,6 @@ export default function PassageViewPage({ params }) {
                   PDF
                 </Button>
               </Tooltip>
-              {/* <Tooltip title="Download as Word">
-                <Button
-                  variant="outlined"
-                  startIcon={<WordIcon />}
-                  onClick={handleDownloadWord}
-                  disabled={loading}
-                >
-                  Word
-                </Button>
-              </Tooltip> */}
             </Stack>
           </Box>
 
@@ -796,6 +803,56 @@ export default function PassageViewPage({ params }) {
               {renderPDFContent()}
             </Paper>
           )}
+
+          {/* No Passages Modal */}
+          <Dialog
+            open={showNoPassagesModal}
+            onClose={handleNoPassagesModalClose}
+            aria-labelledby="no-passages-dialog-title"
+            PaperProps={{
+              sx: {
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+                maxWidth: '400px',
+                width: '100%'
+              }
+            }}
+          >
+            <DialogTitle 
+              id="no-passages-dialog-title"
+              sx={{
+                textAlign: 'center',
+                color: 'rgb(34 197 94)',
+                fontWeight: 600,
+                fontSize: '1.25rem',
+                pt: 3
+              }}
+            >
+              Story Not Written
+            </DialogTitle>
+            <DialogContent sx={{ textAlign: 'center', px: 4, py: 2 }}>
+              <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+                This story has not been written yet. Please write some passages first.
+              </Typography>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3 }}>
+              <Button 
+                onClick={handleNoPassagesModalClose} 
+                variant="contained"
+                sx={{
+                  bgcolor: 'rgb(34 197 94)',
+                  '&:hover': { bgcolor: 'rgb(22 163 74)' },
+                  px: 4,
+                  py: 1,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '1rem'
+                }}
+              >
+                Go Back
+              </Button>
+            </DialogActions>
+          </Dialog>
         </Container>
       </Box>
     </ProtectedRoute>

@@ -8,6 +8,8 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import CircularProgress from "@mui/material/CircularProgress";
 import storyApiClient from "@/lib/storyApi";
+import { subscriptionService } from "@/lib/subscriptionService";
+import toast from "react-hot-toast";
 
 export default function CreateStory() {
   const router = useRouter();
@@ -24,6 +26,22 @@ export default function CreateStory() {
     outline: [],
   });
 
+  const checkSubscriptionLimits = async () => {
+    try {
+      const limits = await subscriptionService.checkLimits();
+      if (limits.limit_reached) {
+        toast.error("You've reached your story limit for this month. Please upgrade your plan to continue creating stories.");
+        router.push("/subscription");
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Error checking subscription limits:", error);
+      toast.error("Failed to check subscription limits");
+      return false;
+    }
+  };
+
   const handlePrivacyChange = (e) => {
     if (!e || !e.target) {
       console.error("Event or event target is undefined");
@@ -32,7 +50,7 @@ export default function CreateStory() {
     const { value } = e.target;
     setStoryData((prevData) => ({
       ...prevData,
-      privacy: value, // Update privacy in story data
+      privacy: value,
     }));
   };
 
@@ -41,6 +59,13 @@ export default function CreateStory() {
     setError("");
 
     try {
+      // Check subscription limits before creating story
+      const canCreate = await checkSubscriptionLimits();
+      if (!canCreate) {
+        setIsLoading(false);
+        return;
+      }
+
       const user = JSON.parse(localStorage.getItem("user"));
       if (!user?.id) {
         throw new Error("User not found");
@@ -59,7 +84,7 @@ export default function CreateStory() {
           title: storyData.title,
           genre: storyData.genre,
           privacy: storyData.privacy,
-        }, // Sending user_id as URL params
+        },
       });
       console.log(response);
 

@@ -19,6 +19,10 @@ import {
   useTheme,
   useMediaQuery,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Add as AddIcon,
@@ -80,6 +84,7 @@ export default function PassagePage({ params }) {
   const [newPassages, setNewPassages] = useState([]);
   const [selectedOutline, setSelectedOutline] = useState(null);
   const [dismissedPassages, setDismissedPassages] = useState(new Set());
+  const [showPlanningModal, setShowPlanningModal] = useState(false);
 
   // Create refs at the top level of the component
   const connectRef = useRef(null);
@@ -369,7 +374,20 @@ export default function PassagePage({ params }) {
     };
   }, [hasAccess, accessChecking, fetchPassagesRef]);
 
-  // Fetch data once access is confirmed
+  // Add function to check if planning is complete
+  const isPlanningComplete = useCallback((storyElements) => {
+    if (!storyElements) return false;
+    
+    const requiredElements = ['title', 'premise', 'setting', 'outline', 'characters'];
+    return requiredElements.every(element => {
+      if (Array.isArray(storyElements[element])) {
+        return storyElements[element].length > 0;
+      }
+      return Boolean(storyElements[element]);
+    });
+  }, []);
+
+  // Modify the useEffect that fetches story elements to check planning completion
   useEffect(() => {
     if (hasAccess && !accessChecking) {
       fetchStoryElementsRef.current?.();
@@ -379,6 +397,19 @@ export default function PassagePage({ params }) {
       }
     }
   }, [hasAccess, accessChecking, passages.length]);
+
+  // Add effect to check planning completion when story elements are loaded
+  useEffect(() => {
+    if (storyElements && !isPlanningComplete(storyElements)) {
+      setShowPlanningModal(true);
+    }
+  }, [storyElements, isPlanningComplete]);
+
+  // Add handler for planning modal
+  const handlePlanningModalClose = () => {
+    setShowPlanningModal(false);
+    router.push(`/create/plan/${storyId}`);
+  };
 
   // Separate effect for page changes - only fetch when page changes
   useEffect(() => {
@@ -889,6 +920,56 @@ export default function PassagePage({ params }) {
             onPassageCreated={handlePassageCreated}
           />
         )}
+
+        {/* Planning Modal */}
+        <Dialog
+          open={showPlanningModal}
+          onClose={handlePlanningModalClose}
+          aria-labelledby="planning-dialog-title"
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+              maxWidth: '400px',
+              width: '100%'
+            }
+          }}
+        >
+          <DialogTitle 
+            id="planning-dialog-title"
+            sx={{
+              textAlign: 'center',
+              color: 'rgb(34 197 94)',
+              fontWeight: 600,
+              fontSize: '1.25rem',
+              pt: 3
+            }}
+          >
+            Planning Not Complete
+          </DialogTitle>
+          <DialogContent sx={{ textAlign: 'center', px: 4, py: 2 }}>
+            <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+              Please complete your story planning before writing passages.
+            </Typography>
+          </DialogContent>
+          <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3 }}>
+            <Button 
+              onClick={handlePlanningModalClose} 
+              variant="contained"
+              sx={{
+                bgcolor: 'rgb(34 197 94)',
+                '&:hover': { bgcolor: 'rgb(22 163 74)' },
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontSize: '1rem'
+              }}
+            >
+              Go to Planning
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </>
   );

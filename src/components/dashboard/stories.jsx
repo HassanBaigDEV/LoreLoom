@@ -25,6 +25,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "react-hot-toast";
 import apiClient from "@/lib/axios";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+} from "@mui/material";
 
 export default function Stories({ hideHeader = false, filterParams = {} }) {
   const [user] = useAtom(userAtom);
@@ -35,6 +42,8 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
   const [selectedStory, setSelectedStory] = useState(null);
   const [authorNames, setAuthorNames] = useState({});
   const { searchTerm = "", selectedGenre = null } = filterParams;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [storyToDelete, setStoryToDelete] = useState(null);
 
   // Add a function to get author info
   const getAuthorInfo = async (authorId) => {
@@ -114,8 +123,44 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
   };
 
   const handleDeleteStory = (story) => {
-    if (!window.confirm("Are you sure you want to delete this story?")) return;
-    toast.error("Delete functionality not yet implemented");
+    setStoryToDelete(story);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!storyToDelete?.story_id || !user?.id) {
+      toast.error("Missing required information to delete story");
+      return;
+    }
+
+    try {
+      const response = await apiClient.delete(`/author/stories/${storyToDelete.story_id}`, {
+        params: {
+          user_id: user.id
+        }
+      });
+
+      if (response.data) {
+        toast.success("Story deleted successfully");
+        // Refresh the stories list
+        await Promise.all([
+          fetchStories(user.id),
+          fetchCollaborativeStories(user.id)
+        ]);
+      }
+    } catch (error) {
+      console.error("Error deleting story:", error);
+      const errorMessage = error.response?.data?.detail || "Failed to delete story";
+      toast.error(errorMessage);
+    } finally {
+      setShowDeleteModal(false);
+      setStoryToDelete(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteModal(false);
+    setStoryToDelete(null);
   };
 
   // Check if a string is a base64 data URI
@@ -297,11 +342,11 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
                     {isAuthor && (
                       <DropdownMenuItem
                         onClick={e => {
-                      e.stopPropagation();
-                      handleWriteStory(story)
-                      }}
+                        e.stopPropagation();
+                        handleDeleteStory(story)
+                        }}
                         className="text-red-500 hover:text-red-700 focus:text-red-700"
-                      >
+                        >
                         <Trash className="w-4 h-4 mr-2" />
                         Delete
                       </DropdownMenuItem>
@@ -377,6 +422,73 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
           <section>{renderStoryGrid(collabStories, true)}</section>
         </TabsContent>
       </Tabs>
+
+      {/* Add Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteModal}
+        onClose={handleCancelDelete}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+            maxWidth: '400px',
+            width: '100%'
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{
+            textAlign: 'center',
+            color: 'rgb(239 68 68)',
+            fontWeight: 600,
+            fontSize: '1.25rem',
+            pt: 3
+          }}
+        >
+          Delete Story
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', px: 4, py: 2 }}>
+          <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+            Are you sure you want to delete "{storyToDelete?.title?.split(":")[0]?.replace(/^"|"$/g, "") || 'Untitled'}"? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3, gap: 2 }}>
+          <Button 
+            onClick={handleCancelDelete} 
+            variant="outlined"
+            sx={{
+              borderColor: 'rgb(156 163 175)',
+              color: 'rgb(75 85 99)',
+              '&:hover': { 
+                borderColor: 'rgb(107 114 128)',
+                bgcolor: 'rgb(243 244 246)'
+              },
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '1rem'
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            variant="contained"
+            sx={{
+              bgcolor: 'rgb(239 68 68)',
+              '&:hover': { bgcolor: 'rgb(220 38 38)' },
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '1rem'
+            }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }

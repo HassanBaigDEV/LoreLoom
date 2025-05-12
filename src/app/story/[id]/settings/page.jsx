@@ -25,9 +25,17 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast, Toaster } from "react-hot-toast";
 import apiClient from "@/lib/axios";
+import storyApiClient from "@/lib/storyApi";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, Trash } from "lucide-react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+} from "@mui/material";
 
 export default function StorySettingsPage() {
   const params = useParams();
@@ -48,8 +56,24 @@ export default function StorySettingsPage() {
   const [coverImage, setCoverImage] = useState(null);
   const [coverImagePreview, setCoverImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [hasPassages, setHasPassages] = useState(false);
+  const [showPrivacyWarning, setShowPrivacyWarning] = useState(false);
 
-  // Fetch story data
+  // Add function to check for passages
+  const checkPassages = async () => {
+    if (!storyId || !user) return;
+
+    try {
+      const response = await storyApiClient.get(`/draft/passages/${storyId}`, {
+        params: { user_id: user?.id },
+      });
+      setHasPassages(response.data.length > 0);
+    } catch (error) {
+      console.error("Failed to check passages:", error);
+    }
+  };
+
+  // Modify the useEffect to also check for passages
   useEffect(() => {
     const fetchStory = async () => {
       if (!storyId || !user) return;
@@ -57,11 +81,17 @@ export default function StorySettingsPage() {
       try {
         setLoading(true);
         console.log("Fetching story with ID:", storyId);
-        const response = await apiClient.get(`/author/stories/${storyId}`);
-        const storyData = response.data;
-
+        const [storyResponse, passagesResponse] = await Promise.all([
+          apiClient.get(`/author/stories/${storyId}`),
+          storyApiClient.get(`/draft/passages/${storyId}`, {
+            params: { user_id: user?.id },
+          })
+        ]);
+        
+        const storyData = storyResponse.data;
         console.log("Fetched story data:", storyData);
         setStory(storyData);
+        setHasPassages(passagesResponse.data.length > 0);
 
         // Check if user is the author
         setIsAuthor(user.id === storyData.author);
@@ -96,8 +126,12 @@ export default function StorySettingsPage() {
     }));
   };
 
-  // Handle privacy selection
+  // Modify the privacy change handler
   const handlePrivacyChange = (value) => {
+    if (value === "public" && !hasPassages) {
+      setShowPrivacyWarning(true);
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       privacy: value,
@@ -129,6 +163,11 @@ export default function StorySettingsPage() {
   const handleRemoveCoverImage = () => {
     setCoverImage(null);
     setCoverImagePreview(null);
+  };
+
+  // Add handler for privacy warning dialog
+  const handlePrivacyWarningClose = () => {
+    setShowPrivacyWarning(false);
   };
 
   // Save story settings - fixed and simplified
@@ -463,6 +502,54 @@ export default function StorySettingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Add Privacy Warning Dialog */}
+      <Dialog
+        open={showPrivacyWarning}
+        onClose={handlePrivacyWarningClose}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+            maxWidth: '400px',
+            width: '100%'
+          }
+        }}
+      >
+        <DialogTitle 
+          sx={{
+            textAlign: 'center',
+            color: 'rgb(34 197 94)',
+            fontWeight: 600,
+            fontSize: '1.25rem',
+            pt: 3
+          }}
+        >
+          Cannot Make Story Public
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', px: 4, py: 2 }}>
+          <Typography sx={{ color: 'text.secondary', mb: 2 }}>
+            You need to write at least one passage before making your story public.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', pb: 3, px: 3 }}>
+          <Button 
+            onClick={handlePrivacyWarningClose} 
+            variant="contained"
+            sx={{
+              bgcolor: 'rgb(34 197 94)',
+              '&:hover': { bgcolor: 'rgb(22 163 74)' },
+              px: 4,
+              py: 1,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontSize: '1rem'
+            }}
+          >
+            Got it
+          </Button>
+        </DialogActions>
+      </Dialog>
     </motion.div>
 
   );

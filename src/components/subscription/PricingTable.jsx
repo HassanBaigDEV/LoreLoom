@@ -9,6 +9,7 @@ import {
   ListItemText,
   Container,
   Box,
+  CircularProgress,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -90,13 +91,13 @@ export default function PricingTable() {
     content: "",
     onConfirm: null,
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchCurrentPlan = async () => {
       if (isAuthenticated) {
         try {
-          const subscription =
-            await subscriptionService.getCurrentSubscription();
+          const subscription = await subscriptionService.getCurrentSubscription();
           setCurrentPlan(subscription.tier);
         } catch (error) {
           console.error("Error fetching subscription:", error);
@@ -105,6 +106,19 @@ export default function PricingTable() {
     };
 
     fetchCurrentPlan();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLoading(true);
+      subscriptionService.getCurrentSubscription()
+        .then((subscription) => setCurrentPlan(subscription.tier))
+        .catch((error) => console.error("Error fetching subscription:", error))
+        .finally(() => setLoading(false));
+    } else {
+      setCurrentPlan(null);
+      setLoading(false);
+    }
   }, [isAuthenticated]);
 
   const handleUpgrade = async (tier) => {
@@ -149,6 +163,7 @@ export default function PricingTable() {
     const plan = plans[tier];
     const isCurrentPlan = currentPlan === plan.tier;
     const isBasic = tier === "BASIC";
+    const disableButton = loading || isCurrentPlan;
 
     return (
       <div
@@ -224,11 +239,11 @@ export default function PricingTable() {
               <Button
                 fullWidth
                 variant={tier === "FREE" ? "outlined" : "contained"}
-                disabled={isCurrentPlan}
+                disabled={disableButton}
                 onClick={() => handleUpgrade(plan.tier)}
                 className={`
                   py-3 rounded-xl font-semibold
-                  ${isCurrentPlan ? "opacity-50 cursor-not-allowed" : ""}
+                  ${disableButton ? "opacity-50 cursor-not-allowed" : ""}
                   ${
                     tier === "FREE"
                       ? "border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
@@ -236,7 +251,11 @@ export default function PricingTable() {
                   }
                 `}
               >
-                {isCurrentPlan ? "Current Plan" : "Get Started"}
+                {loading
+                  ? "Loading..."
+                  : isCurrentPlan
+                  ? "Current Plan"
+                  : "Get Started"}
               </Button>
             </div>
           </div>
@@ -244,6 +263,14 @@ export default function PricingTable() {
       </div>
     );
   };
+
+  if (isAuthenticated && loading) {
+    return (
+      <div className="w-full px-4 py-16 bg-gray-50 flex items-center justify-center min-h-[400px]">
+        <CircularProgress color="success" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full px-4 py-16 bg-gray-50">

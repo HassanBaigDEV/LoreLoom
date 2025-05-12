@@ -15,7 +15,7 @@ export const subscriptionService = {
 
   // Check subscription limits
   checkLimits: async () => {
-    const response = await apiClient.get("/subscription/check-limits");
+    const response = await apiClient.get("/subscription/subscription-limits");
     return response.data;
   },
 
