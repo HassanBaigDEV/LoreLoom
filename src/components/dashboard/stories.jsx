@@ -215,10 +215,10 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
                 router.push(`/create/passage/${story?.story_id}/view`)
               }
             >
-              <div className="relative w-full h-64 overflow-hidden cursor-pointer rounded-xl shadow-md hover:shadow-lg transition-shadow">
+              <div className="relative w-full h-64 overflow-hidden transition-shadow shadow-md cursor-pointer rounded-xl hover:shadow-lg">
                 {hasCoverImage ? (
                   <div
-                    className="w-full h-full bg-center bg-cover brightness-50 transition-transform duration-700 group-hover:scale-110"
+                    className="w-full h-full transition-transform duration-700 bg-center bg-cover brightness-50 group-hover:scale-110"
                     style={{
                       backgroundImage: `url(${story?.cover_image})`,
                       backgroundPosition: "center",
@@ -229,7 +229,7 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
                   <div className="relative w-full h-full">
                     <Image
                       src={cover}
-                      className="object-cover w-full h-full brightness-50 transition-transform duration-700 group-hover:scale-110"
+                      className="object-cover w-full h-full transition-transform duration-700 brightness-50 group-hover:scale-110"
                       alt={story?.title ?? "Story cover"}
                       fill
                     />
@@ -259,33 +259,47 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
                       variant="ghost"
                       size="sm"
                       className="text-white transition-all bg-gray-800/50 hover:bg-gray-800/70 backdrop-blur-sm"
+                      onClick={e => e.stopPropagation()}
                     >
                       •••
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="min-w-[150px]">
-                    <DropdownMenuItem onClick={() => handleWriteStory(story)}>
+                    <DropdownMenuItem 
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleWriteStory(story)
+                      }}>
                       <Pencil className="w-4 h-4 mr-2" />
                       Write
                     </DropdownMenuItem>
 
                     {isAuthor && (
-                      <DropdownMenuItem onClick={() => handleEditStory(story)}>
+                      <DropdownMenuItem 
+                      onClick={e => {
+                      e.stopPropagation();
+                      handleEditStory(story)
+                      }}>
                         <BookOpen className="w-4 h-4 mr-2" />
                         Plan Story
                       </DropdownMenuItem>
                     )}
 
                     <DropdownMenuItem
-                      onClick={() => handleStorySettings(story)}
-                    >
+                      onClick={e => {
+                      e.stopPropagation();
+                      handleStorySettings(story)
+                      }}>
                       <Settings className="w-4 h-4 mr-2" />
                       Settings
                     </DropdownMenuItem>
 
                     {isAuthor && (
                       <DropdownMenuItem
-                        onClick={() => handleDeleteStory(story)}
+                        onClick={e => {
+                      e.stopPropagation();
+                      handleWriteStory(story)
+                      }}
                         className="text-red-500 hover:text-red-700 focus:text-red-700"
                       >
                         <Trash className="w-4 h-4 mr-2" />
@@ -300,13 +314,13 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
                 className="absolute cursor-pointer bottom-3 left-3 right-3"
                 onClick={() => handleWriteStory(story)}
               >
-                <div className="p-3 transition-colors bg-gradient-to-t from-blue-950 to-blue-900/70 rounded-lg backdrop-blur-sm group-hover:from-blue-900 group-hover:to-blue-800/80">
-                  <h3 className="font-bold truncate text-white">
+                <div className="p-3 transition-colors rounded-lg bg-gradient-to-t from-blue-950 to-blue-900/70 backdrop-blur-sm group-hover:from-blue-900 group-hover:to-blue-800/80">
+                  <h3 className="font-bold text-white truncate">
                     {typeof story?.title === "string"
                       ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
                       : "Untitled"}
                   </h3>
-                  <p className="text-xs text-blue-100/90 mt-1">
+                  <p className="mt-1 text-xs text-blue-100/90">
                     {isCollaborative
                       ? `Collaborative story with ${storyAuthorName}`
                       : `Your story by ${
@@ -332,7 +346,7 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
           </div>
           <button
             onClick={() => router.push("/stories")}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-500 bg-green-50 border border-transparent rounded-lg hover:bg-green-100 transition-colors"
+            className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-500 transition-colors border border-transparent rounded-lg bg-green-50 hover:bg-green-100"
           >
             View All Stories
           </button>
