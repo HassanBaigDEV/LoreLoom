@@ -274,3 +274,51 @@ async def cancel_subscription(current_user: dict = Depends(get_current_user)):
     )
 
     return {"message": "Subscription cancelled and downgraded to Free plan."}
+
+
+@subscription_router.get("/subscription-limits")
+async def get_subscription_limits(current_user: dict = Depends(get_current_user)):
+    user_oid = ObjectId(current_user["sub"])
+    
+    # Get user's subscription
+    subscription = await subscriptions_collection.find_one({"user_id": user_oid})
+    if not subscription:
+        # Create free subscription if none exists
+        subscription_data = {
+            "user_id": user_oid,
+            "tier": SubscriptionTier.FREE,
+            "status": SubscriptionStatus.ACTIVE,
+            "start_date": datetime.now(),
+            "story_count": 0,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now(),
+        }
+        result = await subscriptions_collection.insert_one(subscription_data)
+        subscription_data["_id"] = result.inserted_id
+        subscription = subscription_data
+
+    # Get story count for current month
+    current_month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    stories_this_month = await db["stories"].count_documents({
+        "author": user_oid,
+        "created_at": {"$gte": current_month_start}
+    })
+
+    # Define limits based on tier
+    tier_limits = {
+        SubscriptionTier.FREE: 3,
+        SubscriptionTier.BASIC: 15,
+        SubscriptionTier.PREMIUM: float('inf')  # Unlimited
+    }
+
+    tier = subscription.get("tier", SubscriptionTier.FREE)
+    story_limit = tier_limits.get(tier, 3)  # Default to free tier limit
+    stories_left = float('inf') if story_limit == float('inf') else max(0, story_limit - stories_this_month)
+    limit_reached = stories_left == 0
+
+    return {
+        "tier": tier.lower(),
+        "story_limit": story_limit if story_limit != float('inf') else "unlimited",
+        "stories_left": stories_left if stories_left != float('inf') else "unlimited",
+        "limit_reached": limit_reached
+    }

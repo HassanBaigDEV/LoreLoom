@@ -8,6 +8,7 @@ from pymongo.errors import OperationFailure
 import logging
 import base64
 import io
+from fastapi import Depends
 
 # MongoDB Collection
 stories_collection = db["stories"]
@@ -933,3 +934,66 @@ async def upload_cover_image(file: UploadFile = File(...), story_id: str = Form(
         raise HTTPException(
             status_code=500, detail=f"Error uploading cover image: {str(e)}"
         )
+
+
+@story_router.delete("/stories/{story_id}")
+async def delete_story(
+    story_id: str,
+    user_id: str = Query(..., description="ID of the user attempting to delete the story")
+):
+    try:        
+        # Convert IDs to ObjectId
+        story_oid = ObjectId(story_id)
+        user_oid = ObjectId(user_id)
+        
+        
+        # Find the story and verify ownership
+        story = await stories_collection.find_one({"story_id": story_oid})
+        
+        logging.info(f"Found story: {story}")
+        
+        if not story:
+            logging.error(f"No story found with story_id: {story_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail="Story not found"
+            )
+            
+        # Verify user has permission to delete
+        if story.get("author") != user_oid:
+            logging.error(f"User {user_id} is not authorized to delete story {story_id}")
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to delete this story"
+            )
+              
+        # Delete associated passages
+        try:
+            result = await passages_collection.delete_many({"story_id": story_id})
+            logging.info(f"Deleted {result.deleted_count} passages for story {story_id}")
+        except Exception as e:
+            logging.error(f"Error deleting story's passages: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to delete story's passages")
+        
+        # Delete the story
+        result = await stories_collection.delete_one({"story_id": story_oid})
+        logging.info(f"Delete result - matched: {result.matched_count}, deleted: {result.deleted_count}")
+        
+        if result.deleted_count == 0:
+            logging.error(f"Failed to delete story with story_id: {story_id}")
+            raise HTTPException(status_code=404, detail="Story not found")
+        
+        return {
+            "message": "Story deleted successfully",
+            "story_id": story_id,
+            "deleted_passages": result.deleted_count
+        }
+        
+    except HTTPException as he:
+        raise he
+    except ValueError as ve:
+        logging.error(f"Invalid ID format: {str(ve)}")
+        raise HTTPException(status_code=400, detail="Invalid story or user ID format")
+    except Exception as e:
+        logging.error(f"Error deleting story: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error while deleting story")
