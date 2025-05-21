@@ -1,7 +1,7 @@
 import logging
 from urllib import response
 import uuid
-from ...llm.llama import model
+from ...llm.deepseek import model
 from app.config.mongo import db, stories
 from datetime import datetime
 from bson import ObjectId

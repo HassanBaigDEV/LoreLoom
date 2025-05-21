@@ -4,7 +4,7 @@ from turtle import title
 from urllib import response
 
 from torch import logit_, mode
-from ...llm.llama import model
+from ...llm.deepseek import model
 import uuid
 from app.config.mongo import db, stories
 from datetime import datetime
