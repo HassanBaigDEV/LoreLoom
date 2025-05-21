@@ -15,9 +15,10 @@ const genres = [
   "Mystery",
   "Romance",
   "Horror",
-  "Thriller",
   "Adventure",
   "Historical Fiction",
+  "Contemporary",
+  "Thriller",
   "Other",
 ];
 
@@ -205,7 +206,7 @@ const MainContent = () => {
   return (
     <main className="flex flex-col min-h-screen px-4 sm:px-6 lg:px-8 curso">
       {/* Header */}
-      <div className="text-center text-gray-700 mt-16">
+      <div className="mt-16 text-center text-gray-700">
         <h1 className="text-6xl font-bold">Discover</h1>
         <p className="mt-4 text-lg">
           Unleash the storyteller within! Explore our curated collection…
@@ -213,14 +214,14 @@ const MainContent = () => {
       </div>
 
       {/* Search & Filter */}
-      <div className="mt-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-4 mt-12 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:w-80">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
             <Search className="w-5 h-5 text-gray-400" />
           </div>
           <input
             type="text"
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            className="w-full py-2 pl-10 pr-4 border rounded-lg focus:ring-2 focus:ring-green-500"
             placeholder="Search stories…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -239,7 +240,7 @@ const MainContent = () => {
             <ChevronDown className="w-4 h-4 ml-2 text-gray-400" />
           </button>
           {showGenreDropdown && (
-            <div className="absolute right-0 z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+            <div className="absolute right-0 z-10 w-full mt-1 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg max-h-60">
               {genres.map((g) => (
                 <button
                   key={g}
@@ -262,24 +263,24 @@ const MainContent = () => {
       {/* Stories Grid */}
       <section className="mt-12 mb-24">
         {filteredStories.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-gray-500">
+          <div className="flex items-center justify-center h-64 text-gray-500">
             No stories found
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filteredStories.map((story) => (
               <div
                 key={story.story_id}
-                className="relative group transform transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                className="relative transition-all duration-300 transform cursor-pointer group hover:-translate-y-1"
                 onClick={() =>
                   router.push(`/create/passage/${story.story_id}/view`)
                 }
               >
                 {/* Card Image */}
-                <div className="relative h-64 w-full overflow-hidden rounded-xl shadow-md group-hover:shadow-lg">
+                <div className="relative w-full h-64 overflow-hidden shadow-md rounded-xl group-hover:shadow-lg">
                   {isBase64Image(story.cover_image) ? (
                     <div
-                      className="absolute inset-0 bg-center bg-cover brightness-50 transition-transform duration-500 group-hover:scale-110"
+                      className="absolute inset-0 transition-transform duration-500 bg-center bg-cover brightness-50 group-hover:scale-110"
                       style={{ backgroundImage: `url(${story.cover_image})` }}
                     />
                   ) : (
@@ -287,7 +288,7 @@ const MainContent = () => {
                       src={cover}
                       alt={story.title || "Story cover"}
                       fill
-                      className="object-cover brightness-50 transition-transform duration-500 group-hover:scale-110"
+                      className="object-cover transition-transform duration-500 brightness-50 group-hover:scale-110"
                     />
                   )}
                 </div>
@@ -298,8 +299,8 @@ const MainContent = () => {
                 </span>
 
                 {/* Title & Author Overlay */}
-                <div className="absolute bottom-3 left-3 right-3 p-3 bg-gradient-to-t from-blue-950 to-blue-900/60 rounded-lg backdrop-blur-sm">
-                  <h3 className="truncate font-bold text-white">
+                <div className="absolute p-3 rounded-lg bottom-3 left-3 right-3 bg-gradient-to-t from-blue-950 to-blue-900/60 backdrop-blur-sm">
+                  <h3 className="font-bold text-white truncate">
                     {story.title?.split(":")[0].replace(/^"|"$/g, "") ||
                       "Untitled"}
                   </h3>

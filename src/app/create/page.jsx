@@ -116,7 +116,7 @@ export default function CreatePage() {
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gridTemplateColumns: { xs: "1fr", md: "1fr" },
                 gap: 3,
                 mt: 4,
               }}
@@ -179,7 +179,7 @@ export default function CreatePage() {
                 </Box>
               </Paper>
 
-              <Paper
+              {/* <Paper
                 elevation={0}
                 sx={{
                   p: 4,
@@ -210,7 +210,7 @@ export default function CreatePage() {
                     Let our AI help you generate story ideas and content
                   </Typography>
                 </Box>
-              </Paper>
+              </Paper> */}
             </Box>
           </Fade>
         );

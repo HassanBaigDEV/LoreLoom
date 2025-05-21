@@ -26,9 +26,10 @@ const genres = [
   "Mystery",
   "Romance",
   "Horror",
-  "Thriller",
   "Adventure",
   "Historical Fiction",
+  "Contemporary",
+  "Thriller",
   "Other",
 ];
 
@@ -70,23 +71,23 @@ function StoriesContent() {
   };
 
   return (
-    <div className="py-8 bg-gray-50 min-h-screen">
+    <div className="min-h-screen py-8 bg-gray-50">
       <main>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 mb-8 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <BookOpen className="w-8 h-8 text-green-500" strokeWidth={1.5} />
               <h1 className="text-2xl font-bold text-gray-900">My Stories</h1>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <Search className="w-5 h-5 text-gray-400" />
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  className="block w-full py-2 pl-10 pr-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   placeholder="Search stories..."
                   value={searchTerm}
                   onChange={handleSearchChange}
@@ -106,7 +107,7 @@ function StoriesContent() {
                 </button>
 
                 {showGenreDropdown && (
-                  <div className="absolute right-0 z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                  <div className="absolute right-0 z-10 w-full mt-1 overflow-auto bg-white border border-gray-300 rounded-md shadow-lg max-h-60">
                     <div className="py-1">
                       {genres.map((genre) => (
                         <button
@@ -136,7 +137,7 @@ function StoriesContent() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
+          <div className="p-6 mb-8 bg-white border border-gray-100 shadow-sm rounded-xl">
             <StoriesGrid hideHeader filterParams={filterParams} />
           </div>
         </div>

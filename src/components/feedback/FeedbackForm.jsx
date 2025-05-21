@@ -56,7 +56,8 @@ export default function FeedbackForm({ onSubmitSuccess }) {
     setSuccess(false);
 
     try {
-      await feedbackService.createFeedback(formData);
+      const submitData = { ...formData, screenshot_url: formData.screenshot_url || '' };
+      await feedbackService.createFeedback(submitData);
       setSuccess(true);
       setFormData({ title: '', description: '', type: '', screenshot_url: '' });
       if (onSubmitSuccess) {
@@ -175,7 +176,7 @@ export default function FeedbackForm({ onSubmitSuccess }) {
             }}
           />
 
-          <TextField
+          {/* <TextField
             label="Screenshot URL (Optional)"
             name="screenshot_url"
             value={formData.screenshot_url}
@@ -189,7 +190,7 @@ export default function FeedbackForm({ onSubmitSuccess }) {
               ),
               sx: { borderRadius: 1 }
             }}
-          />
+          /> */}
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Tooltip 
