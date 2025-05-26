@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import plot from "@/assets/images/plot_screen.webp";
+import plot from "@/assets/images/Plot_screen.webp";
 
 export default function HeroSection() {
   return (
