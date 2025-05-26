@@ -308,9 +308,9 @@ export default function PassagePage({ params }) {
         );
 
         // Show notification to user
-        toast.success("Content updated. Refreshing passages...", {
-          duration: 2000,
-        });
+        // toast.success("Content updated. Refreshing passages...", {
+        //   duration: 2000,
+        // });
 
         // Simply refetch all passages to ensure everything is in sync
         fetchPassagesRef.current?.(false);

@@ -93,10 +93,10 @@ export default function PassageEditor({
         const username = user?.username || user?.email;
 
         if (username !== message.username) {
-          toast(`${message.username} is now editing this passage`, {
-            icon: "🔒",
-            duration: 3000,
-          });
+          // toast(`${message.username} is now editing this passage`, {
+          //   icon: "🔒",
+          //   duration: 3000,
+          // });
         }
       }
     };
@@ -136,9 +136,9 @@ export default function PassageEditor({
             setIsEditing(false);
             setContent(localPassage.content); // Reset content
 
-            toast.error("Someone else has taken control of this passage", {
-              duration: 3000,
-            });
+            // toast.error("Someone else has taken control of this passage", {
+            //   duration: 3000,
+            // });
           }
         } else {
           // Show toast notification only for other users who weren't editing
@@ -178,10 +178,10 @@ export default function PassageEditor({
               updateParentWithPassage(updatedPassage);
 
               // Show toast with indication that content was updated
-              toast.success(`${message.username} updated this passage`, {
-                icon: "🔄",
-                duration: 3000,
-              });
+              // toast.success(`${message.username} updated this passage`, {
+              //   icon: "🔄",
+              //   duration: 3000,
+              // });
 
               // Add animation to highlight the content change
               const passageElement = document.getElementById(
@@ -205,9 +205,9 @@ export default function PassageEditor({
               console.log(
                 `[${passage.passage_id}] Regular unlock without content`
               );
-              toast(`${message.username} finished editing this passage`, {
-                duration: 2000,
-              });
+              // toast(`${message.username} finished editing this passage`, {
+              //   duration: 2000,
+              // });
             }
           } else {
             console.log(
@@ -289,13 +289,13 @@ export default function PassageEditor({
           const user = JSON.parse(localStorage.getItem("user"));
           const username = user?.username || user?.email;
           if (username !== message.username) {
-            toast.success(
-              `${message.username || "A collaborator"} updated this passage`,
-              {
-                duration: 3000,
-                icon: "🔄",
-              }
-            );
+            // toast.success(
+            //   `${message.username || "A collaborator"} updated this passage`,
+            //   {
+            //     duration: 3000,
+            //     icon: "🔄",
+            //   }
+            // );
           }
         } else {
           console.log(
@@ -506,9 +506,9 @@ export default function PassageEditor({
         console.log(
           `[${passage.passage_id}] Already locked by ${currentEditor}`
         );
-        toast.error(
-          `This passage is currently being edited by ${currentEditor}`
-        );
+        // toast.error(
+        //   `This passage is currently being edited by ${currentEditor}`
+        // );
         return false;
       }
 
@@ -542,7 +542,7 @@ export default function PassageEditor({
           console.log(`[${passage.passage_id}] Lock denied by API`);
 
           // If API says it's already locked, update UI accordingly
-          toast.error(`Passage is currently being edited by another user`);
+          // toast.error(`Passage is currently being edited by another user`);
 
           // Refresh the current editor information if available
           if (response.locked_by && response.locked_by !== user.id) {
@@ -599,7 +599,7 @@ export default function PassageEditor({
         sendPassageUnlock(passage.passage_id, username);
         setCurrentEditor(null);
 
-        toast.error("Error locking passage for editing");
+        // toast.error("Error locking passage for editing");
         return false;
       }
     } catch (error) {
@@ -607,7 +607,7 @@ export default function PassageEditor({
         `[${passage.passage_id}] Error in acquirePassageLock:`,
         error
       );
-      toast.error("Failed to lock passage for editing");
+      // toast.error("Failed to lock passage for editing");
 
       // Send unlock message to correct the lock we sent earlier
       const user = JSON.parse(localStorage.getItem("user"));
@@ -699,7 +699,7 @@ export default function PassageEditor({
             }
 
             if (!silent) {
-              toast.success("Passage unlocked successfully");
+              // toast.success("Passage unlocked successfully");
             }
             break;
           } else if (result.status === "error") {
@@ -824,7 +824,7 @@ export default function PassageEditor({
       console.log(
         `[${passage.passage_id}] Cannot edit - already locked by ${currentEditor}`
       );
-      toast.error(`This passage is currently being edited by ${currentEditor}`);
+      // toast.error(`This passage is currently being edited by ${currentEditor}`);
       return;
     }
 
@@ -1416,9 +1416,9 @@ export default function PassageEditor({
           );
           setIsEditing(false);
           setContent(localPassage.content); // Reset content
-          toast.error("Someone else has taken control of this passage", {
-            duration: 3000,
-          });
+        //   toast.error("Someone else has taken control of this passage", {
+        //     duration: 3000,
+        //   });
         }
 
         // Always clear the editor status for this passage
