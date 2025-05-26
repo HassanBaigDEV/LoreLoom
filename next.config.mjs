@@ -11,6 +11,9 @@ const nextConfig = {
   compiler: {
     styledComponents: true,
   },
+  fallback: {
+    fs: false,
+  },
 };
 
 export default nextConfig;

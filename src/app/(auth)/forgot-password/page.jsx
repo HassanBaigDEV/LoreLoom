@@ -1,28 +1,40 @@
 "use client";
-import React, { useState } from 'react';
-import { Box, Container, TextField, Button, Typography, Alert } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import apiClient from '@/lib/axios';
+import React, { useState } from "react";
+import {
+  Box,
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+} from "@mui/material";
+import { useRouter } from "next/navigation";
+import apiClient from "@/lib/axios";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
-      await apiClient.post('/auth/request-password-reset', { email });
-      setSuccess('Password reset instructions have been sent to your email.');
-      setTimeout(() => router.push('/login'), 3000);
+      await apiClient.post("/auth/request-password-reset", { email });
+      setSuccess("Password reset instructions have been sent to your email.");
+      setTimeout(() => router.push("/login"), 3000);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to send reset instructions');
+      const errorMessage =
+        err.response?.data?.detail ||
+        (typeof err.response?.data === "object"
+          ? Object.values(err.response.data).flat().join(", ")
+          : "Failed to send reset instructions");
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -33,24 +45,28 @@ export default function ForgotPasswordPage() {
       <Box
         sx={{
           marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
           gap: 2,
           p: 3,
           borderRadius: 2,
           boxShadow: 3,
-          bgcolor: 'background.paper',
+          bgcolor: "background.paper",
         }}
       >
         <Typography component="h1" variant="h5">
           Reset Password
         </Typography>
-        
+
         {error && <Alert severity="error">{error}</Alert>}
         {success && <Alert severity="success">{success}</Alert>}
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          sx={{ mt: 1, width: "100%" }}
+        >
           <TextField
             margin="normal"
             required
@@ -67,22 +83,22 @@ export default function ForgotPasswordPage() {
             type="submit"
             fullWidth
             variant="contained"
-            sx={{ 
-              mt: 3, 
+            sx={{
+              mt: 3,
               mb: 2,
-              bgcolor: 'rgb(34 197 94)',
-              '&:hover': {
-                bgcolor: 'rgb(22 163 74)',
-              }
+              bgcolor: "rgb(34 197 94)",
+              "&:hover": {
+                bgcolor: "rgb(22 163 74)",
+              },
             }}
             disabled={isLoading}
           >
-            {isLoading ? 'Sending...' : 'Send Reset Instructions'}
+            {isLoading ? "Sending..." : "Send Reset Instructions"}
           </Button>
           <Button
             fullWidth
-            onClick={() => router.push('/login')}
-            sx={{ textTransform: 'none' }}
+            onClick={() => router.push("/login")}
+            sx={{ textTransform: "none" }}
           >
             Back to Login
           </Button>
@@ -90,4 +106,4 @@ export default function ForgotPasswordPage() {
       </Box>
     </Container>
   );
-} 
+}

@@ -5,6 +5,8 @@ import { adminService } from "@/lib/adminService";
 import FeedbackDetail from "@/components/admin/dashboard/FeedbackDetail";
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
 
+// This function tells Next.js which paths to pre-render
+
 export default function FeedbackDetailPage({ params }) {
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(true);
