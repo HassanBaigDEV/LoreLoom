@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import Image from "next/image";
 import {
   AppBar,
   Box,
@@ -30,6 +31,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Logo from "./logo";
+import LogoImage from "@/assets/images/Logo.webp"; // Uncomment if you need to use the image somewhere
 
 const publicPages = [
   { name: "Discover", href: "/discover" },
@@ -87,9 +89,27 @@ function Header() {
                 textDecoration: "none",
                 display: "flex",
                 alignItems: "center",
+                // gap: "0px",
               }}
             >
-              <Logo />
+              <Image
+                src={LogoImage}
+                alt="Logo"
+                height={65}
+                style={{ borderRadius: "50%",
+                  marginTop: "8px"
+                 }}
+              />
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "1.5rem",
+                }}
+              >
+                StoryWeaver
+              </Typography>
             </Link>
           </Box>
 
@@ -114,9 +134,27 @@ function Header() {
                 textDecoration: "none",
                 display: "flex",
                 alignItems: "center",
+                // gap: "8px",
               }}
             >
-              <Logo />
+              <Image
+                src={LogoImage}
+                alt="Logo"
+                height={65}
+                style={{ borderRadius: "50%",
+                  marginTop: "8px"
+                 }}
+              />
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "white",
+                  fontWeight: 600,
+                  fontSize: "1.25rem",
+                }}
+              >
+                StoryWeaver
+              </Typography>
             </Link>
           </Box>
 
