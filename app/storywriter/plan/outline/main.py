@@ -554,14 +554,26 @@ async def create_numbered_outline(
 
                 try:
                     event_data = extract_and_parse_json(response_text)
-                    if event_data is not None:
-                        if event_data.get("number") != str(i):
-                            logging.warning(
-                                f"Event number mismatch. Expected {i}, got {event_data.get('number')}"
-                            )
-                            event_data["number"] = str(i)
 
-                        new_events.append(event_data)
+                    # Fix: unwrap list if schema returned with "events" key
+                    if isinstance(event_data, dict) and "events" in event_data:
+                        events_list = event_data["events"]
+                        if not isinstance(events_list, list) or not events_list:
+                            raise ValueError(
+                                f"Empty or invalid events list: {response_text}"
+                            )
+                        event_data = events_list[0]  # Use the first event from the list
+
+                    if not isinstance(event_data, dict):
+                        raise ValueError("Parsed data is not a dict")
+
+                    if str(event_data.get("number")) != str(i):
+                        logging.warning(
+                            f"Event number mismatch. Expected {i}, got {event_data.get('number')}"
+                        )
+                        event_data["number"] = str(i)
+
+                    new_events.append(event_data)
                 except json.JSONDecodeError as e:
                     logging.error(f"Failed to parse event JSON: {e}")
                     raise ValueError(f"Invalid event data format: {response_text}")
@@ -571,18 +583,12 @@ async def create_numbered_outline(
                 continue
 
         if new_events:
-            # await stories.update_one(
-            #     {"story_id": ObjectId(story_id)},
-            #     {
-            #         "$push": {"outline": {"$each": new_events}},
-            #         "$set": {"updated_at": datetime.now()},
-            #     },
-            # )
-            # fetych the existing outline if its none then fetch and empty array
-            existing_outline = story.get("outline") or []
-            # append the new events to the existing outline
-            new_outline = existing_outline + new_events
-            # update the outline in the database
+            if continue_from_previous:
+                existing_outline = story.get("outline") or []
+                new_outline = existing_outline + new_events
+            else:
+                new_outline = new_events  # overwrite with only new events
+
             await stories.update_one(
                 {"story_id": ObjectId(story_id)},
                 {
@@ -590,7 +596,8 @@ async def create_numbered_outline(
                 },
             )
 
-        return existing_outline + new_events
+        return new_outline if new_events else existing_outline
+
     except Exception as e:
         logging.error(f"Error creating numbered outline: {e}")
         raise
