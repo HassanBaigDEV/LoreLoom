@@ -567,7 +567,7 @@ export default function PassageViewPage({ params }) {
                   color: "#1f2937",
                 }}
               >
-                {chapters[currentPage - 2].outlineTitle}
+                {chapters[currentPage - 2]?.outlineTitle}
               </Typography>
               <Typography
                 variant="h5"
@@ -577,12 +577,12 @@ export default function PassageViewPage({ params }) {
                   mt: 1,
                 }}
               >
-                Chapter {chapters[currentPage - 2].outlineNumber}
+                Chapter {chapters[currentPage - 2]?.outlineNumber}
               </Typography>
             </Box>
 
             {/* Chapter Content */}
-            {chapters[currentPage - 2].passages.map((passage, index) => (
+            {chapters[currentPage - 2]?.passages.map((passage, index) => (
               <Box key={passage.id} sx={{ mb: 4 }}>
                 <Typography
                   component="div"
@@ -616,7 +616,7 @@ export default function PassageViewPage({ params }) {
               }}
             >
               <span>{storyDetails.title}</span>
-              <span>Chapter {chapters[currentPage - 2].outlineNumber}</span>
+              <span>Chapter {chapters[currentPage - 2]?.outlineNumber}</span>
             </Box>
           </Box>
         )}

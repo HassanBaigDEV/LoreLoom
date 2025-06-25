@@ -808,7 +808,7 @@ export default function StoryElement({
                 Characters Involved
               </Typography>
               <div className="flex flex-wrap gap-1 mt-1">
-                {point.characters_involved.map((character, i) => (
+                {point?.characters_involved?.map((character, i) => (
                   <Chip
                     key={i}
                     label={character}
@@ -816,7 +816,7 @@ export default function StoryElement({
                     className="bg-blue-50"
                   />
                 ))}
-                {point.characters_involved.length === 0 && (
+                {point?.characters_involved?.length === 0 && (
                   <Typography variant="body2" className="italic text-gray-500">
                     No characters specified
                   </Typography>
@@ -825,7 +825,7 @@ export default function StoryElement({
             </div>
 
             <Typography variant="body2" className="mt-2 text-gray-500">
-              Estimated Duration: {point.estimated_duration || "Not specified"}
+              Estimated Duration: {point?.estimated_duration || "Not specified"}
             </Typography>
           </Card>
         ))}
