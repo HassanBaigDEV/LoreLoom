@@ -101,7 +101,7 @@ const SignUpForm = React.memo(() => {
           )
           .test("no-double-tld", "Invalid email domain format", (value) => {
             if (!value) return true;
-            const domainParts = value.split("@")[1].split(".");
+            const domainParts = value?.split("@")[1]?.split(".");
             
             return !(domainParts.length > 3);
           })

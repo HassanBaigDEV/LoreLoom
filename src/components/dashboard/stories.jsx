@@ -252,130 +252,133 @@ export default function Stories({ hideHeader = false, filterParams = {} }) {
             (story?.author && authorNames[story?.author]) ||
             "Unknown Author";
 
-          return (
+            return (
             <div
               key={story?.id ?? index}
               className="relative block w-full group transform transition-all duration-300 hover:translate-y-[-5px]"
               onClick={() =>
-                router.push(`/create/passage/${story?.story_id}/view`)
+              window.open(`/create/passage/${story?.story_id}/view`, "_blank")
               }
             >
               <div className="relative w-full h-64 overflow-hidden transition-shadow shadow-md cursor-pointer rounded-xl hover:shadow-lg">
-                {hasCoverImage ? (
-                  <div
-                    className="w-full h-full transition-transform duration-700 bg-center bg-cover brightness-50 group-hover:scale-110"
-                    style={{
-                      backgroundImage: `url(${story?.cover_image})`,
-                      backgroundPosition: "center",
-                      backgroundSize: "cover",
-                    }}
-                  />
-                ) : (
-                  <div className="relative w-full h-full">
-                    <Image
-                      src={cover}
-                      className="object-cover w-full h-full transition-transform duration-700 brightness-50 group-hover:scale-110"
-                      alt={story?.title ?? "Story cover"}
-                      fill
-                    />
-                  </div>
-                )}
+              {hasCoverImage ? (
+                <div
+                className="w-full h-full transition-transform duration-700 bg-center bg-cover brightness-50 group-hover:scale-110"
+                style={{
+                  backgroundImage: `url(${story?.cover_image})`,
+                  backgroundPosition: "center",
+                  backgroundSize: "cover",
+                }}
+                />
+              ) : (
+                <div className="relative w-full h-full">
+                <Image
+                  src={cover}
+                  className="object-cover w-full h-full transition-transform duration-700 brightness-50 group-hover:scale-110"
+                  alt={story?.title ?? "Story cover"}
+                  fill
+                />
+                </div>
+              )}
               </div>
 
               <div className="absolute top-3 left-3">
-                <span className="px-2.5 py-1 text-xs font-medium text-green-100 transition-colors bg-blue-900 bg-opacity-70 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
-                  {story?.genre ?? "Other"}
-                </span>
+              <span className="px-2.5 py-1 text-xs font-medium text-green-100 transition-colors bg-blue-900 bg-opacity-70 rounded-lg backdrop-blur-sm hover:bg-blue-900/80">
+                {story?.genre ?? "Other"}
+              </span>
               </div>
 
               {isCollaborative && (
-                <div className="absolute top-3 right-16">
-                  <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-green-100 transition-colors rounded-lg bg-blue-900/60 backdrop-blur-sm hover:bg-blue-900/90">
-                    <Users className="w-3 h-3" />
-                    Collaborative
-                  </span>
-                </div>
+              <div className="absolute top-3 right-16">
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-green-100 transition-colors rounded-lg bg-blue-900/60 backdrop-blur-sm hover:bg-blue-900/90">
+                <Users className="w-3 h-3" />
+                Collaborative
+                </span>
+              </div>
               )}
 
               <div className="absolute top-3 right-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-white transition-all bg-gray-800/50 hover:bg-gray-800/70 backdrop-blur-sm"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      •••
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="min-w-[150px]">
-                    <DropdownMenuItem 
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleWriteStory(story)
-                      }}>
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Write
-                    </DropdownMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white transition-all bg-gray-800/50 hover:bg-gray-800/70 backdrop-blur-sm"
+                  onClick={e => e.stopPropagation()}
+                >
+                  •••
+                </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="min-w-[150px]">
+                <DropdownMenuItem 
+                onClick={e => {
+                  e.stopPropagation();
+                  window.open(`/create/passage/${story?.story_id}`, "_blank")
+                  }}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Write
+                </DropdownMenuItem>
 
-                    {isAuthor && (
-                      <DropdownMenuItem 
-                      onClick={e => {
-                      e.stopPropagation();
-                      handleEditStory(story)
-                      }}>
-                        <BookOpen className="w-4 h-4 mr-2" />
-                        Plan Story
-                      </DropdownMenuItem>
-                    )}
+                {isAuthor && (
+                  <DropdownMenuItem 
+                  onClick={e => {
+                  e.stopPropagation();
+                  handleEditStory(story)
+                  }}>
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Plan Story
+                  </DropdownMenuItem>
+                )}
 
-                    <DropdownMenuItem
-                      onClick={e => {
-                      e.stopPropagation();
-                      handleStorySettings(story)
-                      }}>
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={e => {
+                  e.stopPropagation();
+                  handleStorySettings(story)
+                  }}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </DropdownMenuItem>
 
-                    {isAuthor && (
-                      <DropdownMenuItem
-                        onClick={e => {
-                        e.stopPropagation();
-                        handleDeleteStory(story)
-                        }}
-                        className="text-red-500 hover:text-red-700 focus:text-red-700"
-                        >
-                        <Trash className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {isAuthor && (
+                  <DropdownMenuItem
+                  onClick={e => {
+                  e.stopPropagation();
+                  handleDeleteStory(story)
+                  }}
+                  className="text-red-500 hover:text-red-700 focus:text-red-700"
+                  >
+                  <Trash className="w-4 h-4 mr-2" />
+                  Delete
+                  </DropdownMenuItem>
+                )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               </div>
 
               <div
-                className="absolute cursor-pointer bottom-3 left-3 right-3"
-                onClick={() => handleWriteStory(story)}
+              className="absolute cursor-pointer bottom-3 left-3 right-3"
+              onClick={e => {
+                e.stopPropagation();
+                window.open(`/create/passage/${story?.story_id}`, "_blank");
+              }}
               >
-                <div className="p-3 transition-colors rounded-lg bg-gradient-to-t from-blue-950 to-blue-900/70 backdrop-blur-sm group-hover:from-blue-900 group-hover:to-blue-800/80">
-                  <h3 className="font-bold text-white truncate">
-                    {typeof story?.title === "string"
-                      ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
-                      : "Untitled"}
-                  </h3>
-                  <p className="mt-1 text-xs text-blue-100/90">
-                    {isCollaborative
-                      ? `Collaborative story with ${storyAuthorName}`
-                      : `Your story by ${
-                          storyAuthorName || user?.last_name || "You"
-                        }`}
-                  </p>
-                </div>
+              <div className="p-3 transition-colors rounded-lg bg-gradient-to-t from-blue-950 to-blue-900/70 backdrop-blur-sm group-hover:from-blue-900 group-hover:to-blue-800/80">
+                <h3 className="font-bold text-white truncate">
+                {typeof story?.title === "string"
+                  ? story?.title.split(":")[0]?.replace(/^"|"$/g, "")
+                  : "Untitled"}
+                </h3>
+                <p className="mt-1 text-xs text-blue-100/90">
+                {isCollaborative
+                  ? `Collaborative story with ${storyAuthorName}`
+                  : `Your story by ${
+                    storyAuthorName || user?.last_name || "You"
+                  }`}
+                </p>
+              </div>
               </div>
             </div>
-          );
+            );
         })}
       </div>
     );
